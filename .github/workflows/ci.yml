@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-and-unit:
+    name: Lint, types, format and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm format:check
+      - run: pnpm test
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    services:
+      database:
+        # Same image as docker-compose.yml so CI and local databases match.
+        image: imresamu/postgis:17-3.5
+        env:
+          POSTGRES_USER: planet_run
+          POSTGRES_PASSWORD: planet_run
+          POSTGRES_DB: planet_run_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U planet_run -d planet_run_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:integration
+
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    env:
+      # Placeholders so the production build can boot; signed-out flows never reach the database or Strava.
+      AUTH_SECRET: ci-placeholder-auth-secret-not-used-anywhere-else
+      DATABASE_URL: postgres://planet_run:planet_run@localhost:5433/planet_run
+      STRAVA_CLIENT_ID: ci-placeholder
+      STRAVA_CLIENT_SECRET: ci-placeholder
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -11,7 +11,9 @@ per city, department, region and country, with badges.
 - Signs runners in with Strava only (no account to create) and binds each Strava athlete to one internal user.
 - Imports `Run` and `TrailRun` activities with a GPS trace from the Strava API, on first sign-in and on demand.
 - Keeps runs up to date through Strava push webhooks (create, update, delete, deauthorization).
-- Renders traces on a globe with totals (runs, distance, time, elevation).
+- Renders traces on a globe with totals (runs, distance, time, countries).
+- Lets runners permanently delete their data, which also revokes Strava access, and publishes a privacy policy at
+  `/privacy`.
 
 **What it does not do (yet):**
 
@@ -24,6 +26,8 @@ per city, department, region and country, with badges.
 - **Strava API** — OAuth sign-in, activity list and details, push webhooks.
 - **PostgreSQL 17 + PostGIS 3.5** — users, encrypted Strava tokens, activities.
 - **CARTO basemaps** — free dark vector tiles rendered by MapLibre GL through [mapcn](https://www.mapcn.dev).
+- **[country-coder](https://github.com/rapideditor/country-coder)** — offline, server-side country lookup of run
+  start points.
 
 ## Architecture
 
@@ -58,7 +62,10 @@ Design decisions are recorded in [`docs/adr/`](docs/adr).
 - [pnpm](https://pnpm.io/) 9 (`corepack enable` picks the version from `package.json`)
 - [Docker](https://www.docker.com/) with Compose v2
 - A Strava API application created at <https://www.strava.com/settings/api> with **Authorization Callback Domain**
-  set to `localhost`
+  set to `localhost` (`localhost` stays allowed when the domain is later set to the production host)
+- An **active Strava subscription** on the account owning that application: without it, Strava marks the application
+  inactive and every data request fails with `403 Application Status Inactive`. The Standard tier allows up to 10
+  connected athletes without review.
 
 ### Installation
 
@@ -130,10 +137,28 @@ Conventions:
 
 ## Deployment
 
-<!-- TODO: no hosting or CI/CD pipeline is set up yet. Document the target platform, environments and pipeline once chosen. -->
+Production runs on Vercel: <https://planet-run.vercel.app>. Pushes to `main` deploy to production; other branches
+get preview deployments. No CI pipeline runs the test suites yet.
 
-Production requires `AUTH_URL`, a managed Postgres with PostGIS, a Strava application whose callback domain
-matches the production host, and a webhook subscription registered against the production URL.
+<!-- TODO: add a CI workflow running lint, typecheck, unit, integration and E2E tests before deployment. -->
+
+First-time setup of an environment:
+
+1. Attach a PostgreSQL database with PostGIS support (Neon from the Vercel **Storage** tab sets `DATABASE_URL`).
+2. Set the variables from [Environment variables](#environment-variables) for Production and Preview. Generate
+   **new** values for `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` and `STRAVA_WEBHOOK_VERIFY_TOKEN`; never rotate
+   `TOKEN_ENCRYPTION_KEY` afterwards or stored Strava tokens become unreadable. `AUTH_URL` is not needed on Vercel.
+3. Redeploy so the variables are picked up, then apply migrations against the production database:
+
+   ```bash
+   DATABASE_URL="<production connection string>" pnpm exec tsx scripts/migrate.ts
+   ```
+
+4. Set the Strava application's **Authorization Callback Domain** to the production host (`planet-run.vercel.app`).
+5. Register the webhook once: `pnpm strava:webhook:subscribe https://planet-run.vercel.app/api/webhooks/strava`
+   (run with the production `STRAVA_WEBHOOK_VERIFY_TOKEN`).
+
+Invalid or missing server variables fail fast with an error listing the variable names in the Vercel runtime logs.
 
 ## Related documentation
 

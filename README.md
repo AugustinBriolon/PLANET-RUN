@@ -142,4 +142,3 @@ matches the production host, and a webhook subscription registered against the p
 - [mapcn documentation](https://www.mapcn.dev/docs)
 - [Auth.js Strava provider](https://authjs.dev/getting-started/providers/strava)
 - [Drizzle ORM](https://orm.drizzle.team/docs/overview)
-# PLANET-RUN

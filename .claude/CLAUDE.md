@@ -41,14 +41,15 @@ strategy.
 **Layers (dependency direction: app → services → repositories/clients):**
 
 - `src/server/services.ts` is the composition root. It is the only place that instantiates the database, cipher,
-  Strava client, repositories and services (cached on `globalThis`). Pages, Server Actions, route handlers and the
-  Auth.js callback call `getServices()`.
+  Strava client, repositories and services. Only the database pool is cached on `globalThis`: services must be
+  rebuilt after hot reloads, or `instanceof StravaApiError` breaks in development. Pages, Server Actions, route
+  handlers and the Auth.js callback call `getServices()`.
 - `src/server/services/*` hold business rules and receive every dependency as an argument (`createXService(deps)`),
   including `now()`. Never import the database or `fetch` inside a service.
 - `src/server/repositories/*` are Drizzle factories returning narrow interfaces. Multi-table writes that must be
   atomic live in one repository method (`createWithUser` uses a transaction).
 - `src/server/strava/*` wraps the Strava HTTP API with zod-validated responses and `StravaApiError`
-  (`isRateLimited`, `isUnauthorized`, `isNotFound`).
+  (`isRateLimited`, `isMissingPermission`, `isApplicationInactive`, `isNotFound`, parsed from Strava error details).
 - `src/lib/*` is pure and client-safe (polyline → GeoJSON, stats, formatting). The server maps DB rows to the
   `RunSummary` DTO (`src/server/runs/to-run-summary.ts`) so user ids and tokens never reach the client.
 

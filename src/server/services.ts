@@ -10,9 +10,12 @@ import { createStravaAccountRepository } from "./repositories/strava-account-rep
 import { createUserRepository } from "./repositories/user-repository";
 import { createAccountDeletionService } from "./services/account-deletion-service";
 import { createAccountLinkingService } from "./services/account-linking-service";
+import { createCityDetectionService } from "./services/city-detection-service";
 import { createRunSyncService } from "./services/run-sync-service";
 import { createStravaTokenService } from "./services/strava-token-service";
 import { createStravaWebhookService } from "./services/strava-webhook-service";
+import { createNominatimClient } from "./osm/nominatim-client";
+import { createOverpassClient } from "./osm/overpass-client";
 import { createStravaClient } from "./strava/strava-client";
 
 function buildServices(database: Database) {
@@ -24,6 +27,8 @@ function buildServices(database: Database) {
   const activities = createActivityRepository(database);
   const areas = createAreaRepository(database);
   const coverage = createCoverageRepository(database);
+  const nominatim = createNominatimClient();
+  const overpass = createOverpassClient();
   const strava = createStravaClient({ clientId: env.STRAVA_CLIENT_ID, clientSecret: env.STRAVA_CLIENT_SECRET });
   const tokens = createStravaTokenService({
     accounts,
@@ -40,7 +45,15 @@ function buildServices(database: Database) {
     coverage,
     accountLinking: createAccountLinkingService({ users, accounts, tokens }),
     accountDeletion: createAccountDeletionService({ users, accounts, strava, tokens, reportError: console.error }),
-    runSync: createRunSyncService({ accounts, activities, strava, tokens, coverage, now }),
+    runSync: createRunSyncService({
+      accounts,
+      activities,
+      strava,
+      tokens,
+      coverage,
+      cityDetection: createCityDetectionService({ activities, areas, coverage, nominatim, overpass }),
+      now,
+    }),
     stravaWebhook: createStravaWebhookService({ users, accounts, activities, strava, tokens, coverage }),
   };
 }

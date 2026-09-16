@@ -4,6 +4,7 @@ import { createStravaTokenService } from "@/server/services/strava-token-service
 import { buildStravaActivity } from "../fixtures/strava";
 
 import { createFakeStravaClient } from "./fake-strava-client";
+import { createInMemoryCityDetectionService } from "./in-memory-city-detection-service";
 import { createInMemoryCoverageRepository } from "./in-memory-coverage-repository";
 import { createInMemoryRepositories } from "./in-memory-repositories";
 import { plainTextCipher } from "./plain-text-cipher";
@@ -16,6 +17,7 @@ export async function createServiceHarness() {
   const repositories = createInMemoryRepositories();
   const now = () => HARNESS_NOW;
   const { coverage } = createInMemoryCoverageRepository(repositories.activityRows, now);
+  const cityDetection = createInMemoryCityDetectionService();
   const strava = createFakeStravaClient();
   const tokens = createStravaTokenService({ accounts: repositories.accounts, strava, cipher: plainTextCipher, now });
 
@@ -33,5 +35,5 @@ export async function createServiceHarness() {
     return buildStravaActivity({ athlete: { id: HARNESS_ATHLETE_ID }, ...overrides });
   }
 
-  return { ...repositories, strava, tokens, coverage, now, user, buildOwnedActivity };
+  return { ...repositories, strava, tokens, coverage, cityDetection, now, user, buildOwnedActivity };
 }

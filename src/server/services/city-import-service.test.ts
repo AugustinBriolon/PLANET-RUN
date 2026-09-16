@@ -19,6 +19,7 @@ describe("createCityImportService", () => {
     const calls: string[] = [];
     const overpass: OverpassClient = { fetchCity: vi.fn().mockResolvedValue(city) };
     const areas: AreaRepository = {
+      listAll: vi.fn(async () => []),
       replaceArea: vi.fn(async () => {
         calls.push("replaceArea");
         return { segmentCount: 3000, streetLengthMeters: 110_000 };

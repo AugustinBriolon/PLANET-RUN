@@ -4,6 +4,7 @@ import type { StravaAccountRepository } from "@/server/repositories/strava-accou
 import { STRAVA_MAX_PAGE_SIZE, type StravaClient } from "@/server/strava/strava-client";
 import { isMappableRun, toActivityRecord } from "@/server/strava/run-activity";
 
+import type { CityDetectionService } from "./city-detection-service";
 import type { StravaTokenService } from "./strava-token-service";
 
 // Watches often upload days after the run: re-scan a window before the last sync.
@@ -21,6 +22,7 @@ type Dependencies = {
   strava: StravaClient;
   tokens: StravaTokenService;
   coverage: Pick<CoverageRepository, "matchPendingActivities">;
+  cityDetection: CityDetectionService;
   now: () => Date;
 };
 
@@ -30,6 +32,7 @@ export function createRunSyncService({
   strava,
   tokens,
   coverage,
+  cityDetection,
   now,
 }: Dependencies): RunSyncService {
   return {
@@ -59,6 +62,8 @@ export function createRunSyncService({
       await accounts.markSynced(account.athleteId, startedAt);
       // Best effort: street coverage is a supplementary feature, a failure here must not fail the sync.
       await coverage.matchPendingActivities({ userId }).catch((error: unknown) => console.error(error));
+      // Auto-detect and import cities from run traces (best effort).
+      await cityDetection.detectAndImportCitiesForUser(userId).catch((error: unknown) => console.error(error));
       return { syncedRuns };
     },
   };

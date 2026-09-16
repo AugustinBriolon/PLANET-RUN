@@ -26,6 +26,8 @@ export type AreaImportResult = { segmentCount: number; streetLengthMeters: numbe
 export type AreaRepository = {
   /** Creates or fully replaces an area and its street segments. */
   replaceArea: (area: AreaImport) => Promise<AreaImportResult>;
+  /** Returns all imported areas. */
+  listAll: () => Promise<Array<{ osmRelationId: number; name: string; adminLevel: number }>>;
 };
 
 const toLineGeoJson = (coordinates: Position[]) => ({ type: "LineString", coordinates });
@@ -35,6 +37,16 @@ export function createAreaRepository(
   rules: Pick<CoverageRules, "maxSegmentMeters"> = COVERAGE_RULES,
 ): AreaRepository {
   return {
+    async listAll() {
+      const rows = await database.execute<{ osm_relation_id: string; name: string; admin_level: number }>(sql`
+        SELECT osm_relation_id, name, admin_level FROM areas ORDER BY name
+      `);
+      return rows.map((row) => ({
+        osmRelationId: Number(row.osm_relation_id),
+        name: row.name,
+        adminLevel: row.admin_level,
+      }));
+    },
     async replaceArea(area) {
       const boundaryLines = JSON.stringify(area.boundaryLines.map(toLineGeoJson));
       const streets = JSON.stringify(

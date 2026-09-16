@@ -2,9 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Planet Run imports a runner's Strava activities and draws every run on a 3D globe. Roadmap: full GPS streams,
-street-coverage percentages per city/department/region/country (OpenStreetMap + PostGIS), badges, Garmin, and a
-paid token to re-link another Strava account. The Next.js version in use (16) has breaking changes: read the
+Planet Run imports a runner's Strava activities and draws every run on a 3D globe, and computes the percentage of
+a city's streets covered from OpenStreetMap data (pilot: Colombes / La Garenne-Colombes, ADR 0008). Roadmap: full
+GPS streams, coverage above city level (department/region/country), badges, Garmin, and a paid token to re-link
+another Strava account. The Next.js version in use (16) has breaking changes: read the
 bundled docs referenced in the root `CLAUDE.md` / `AGENTS.md` before touching framework APIs (e.g. `proxy.ts`
 replaces middleware, request APIs are async, `refresh()` from `next/cache` in Server Actions).
 
@@ -14,6 +15,7 @@ replaces middleware, request APIs are async, `refresh()` from `next/cache` in Se
 pnpm db:up                 # Postgres 17 + PostGIS in Docker (host port 5433), waits until healthy
 pnpm db:migrate            # apply drizzle/ migrations to the DATABASE_URL in .env.local (currently production Neon!)
 pnpm db:generate --name x  # generate a migration after editing src/server/db/schema.ts (needs DATABASE_URL)
+pnpm osm:import-city <id>  # (re-)import a city's streets from OSM and re-match every runner against it
 pnpm dev                   # http://localhost:3000
 
 pnpm lint && pnpm typecheck && pnpm format:check
@@ -52,8 +54,9 @@ strategy.
   atomic live in one repository method (`createWithUser` uses a transaction).
 - `src/server/strava/*` wraps the Strava HTTP API with zod-validated responses and `StravaApiError`
   (`isRateLimited`, `isMissingPermission`, `isApplicationInactive`, `isNotFound`, parsed from Strava error details).
-- `src/lib/*` is pure and client-safe (polyline → GeoJSON, stats, formatting). The server maps DB rows to the
-  `RunSummary` DTO (`src/server/runs/to-run-summary.ts`) so user ids and tokens never reach the client.
+- `src/lib/*` is pure and client-safe (polyline → GeoJSON, stats, street coverage shares, formatting). The server
+  maps DB rows to the `RunSummary` DTO (`src/server/runs/to-run-summary.ts`) so user ids and tokens never reach
+  the client.
 
 **Identity:** Strava is the only sign-in (`src/auth.ts`, Auth.js v5, JWT sessions, `checks: ["pkce", "state"]`).
 The `jwt` callback runs `AccountLinkingService`, and the cookie only stores the internal user id. The database
@@ -72,10 +75,23 @@ Strava push subscription points at production. `AccountDeletionService` revokes 
 deleting the user, whose rows cascade. Run countries come from `@rapideditor/country-coder` on start points,
 server-side only (`src/server/runs/locate-country.ts`).
 
+**Street coverage (ADR 0008):** `src/server/osm/overpass-client.ts` fetches a city's boundary and runnable
+streets from OpenStreetMap; `AreaRepository.replaceArea` clips and splits them into ≤50 m segments entirely in
+PostGIS and replaces the city atomically. `CoverageRepository.matchPendingActivities` marks a run's segments
+covered when ≥85% of a segment's length is within 20 m of the run's `summary_polyline` (rules centralized in
+`src/server/coverage/coverage-rules.ts`); it runs after every sync and webhook event, scoped to the affected
+user, as a swallowed best-effort step. Its matching query needs `WITH ... AS MATERIALIZED` on the corridor CTEs
+— without it Postgres recomputes each run's buffer once per segment scanned instead of once per run (100x+
+slower at pilot scale; see the ADR). Import or refresh a city with `pnpm osm:import-city <osm-relation-id>`,
+which replaces its segments and re-matches every runner against them. Full GPS streams are never fetched: the
+summary polyline is precise enough for street-level matching (see the ADR), so streets inside a runner's Strava
+privacy zone are never credited.
+
 **Globe UI:** `src/components/ui/map.tsx` is mapcn, vendored from the shadcn registry and excluded from ESLint.
 Do not edit it; refresh it with `pnpm dlx shadcn@latest add @mapcn/map --overwrite`. Planet Run behaviors are
-separate children of `<Map>` using `useMap()` (`RunTracesLayer`, `GlobeAutoRotate`, `FlyToBounds`,
-`FitGlobeToContainer` in `src/components/globe/`). WebGL colors live in `globe-palette.ts` as hex, kept in sync
+separate children of `<Map>` using `useMap()` (`RunTracesLayer`, `CoveredStreetsLayer`, `GlobeAutoRotate`,
+`FlyToBounds`, `FitGlobeToContainer` in `src/components/globe/`). `CoveredStreetsLayer` only draws above zoom
+12 to stay legible; the interactive globe carries OpenStreetMap attribution alongside CARTO's. WebGL colors live in `globe-palette.ts` as hex, kept in sync
 with the `--ember` token in `globals.css`. The app is dark-only (`dark` class on `<html>`, which mapcn also reads).
 Presentational components take props only; the stateful container is `GlobeDashboard`, which receives Server
 Actions as props. Animations use Motion (`motion/react`) and must respect reduced motion (`MotionConfig
@@ -84,10 +100,12 @@ reducedMotion="user"`, `useReducedMotion` for imperative map/number animations).
 ## Tests
 
 - Unit tests sit next to the code (`*.test.ts[x]`). Service tests use `tests/fakes/service-harness.ts`
-  (in-memory repositories, `vi.fn` Strava client, a marker cipher `enc(...)`). When a repository interface changes,
-  update `tests/fakes/in-memory-repositories.ts` and the integration suite together.
+  (in-memory repositories, `vi.fn` Strava client, a marker cipher `enc(...)`, an in-memory coverage repository).
+  When a repository interface changes, update the matching fake under `tests/fakes/` and the integration suite
+  together.
 - `@tests/*` resolves to `tests/*`; `server-only` is aliased to a stub in `vitest.config.mts`.
-- Integration tests truncate tables before each test and run serially.
+- Integration tests truncate tables before each test and run serially. Street coverage integration tests
+  (`tests/integration/street-coverage.test.ts`) build a small synthetic city instead of calling Overpass.
 - CI (`.github/workflows/ci.yml`) runs every suite; E2E there boots with placeholder env values, so signed-out pages
   must not need a real database or Strava credentials.
 - E2E cannot cover the signed-in flow (it needs a real Strava OAuth round trip); cover that logic with unit tests.

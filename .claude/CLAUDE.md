@@ -12,7 +12,7 @@ replaces middleware, request APIs are async, `refresh()` from `next/cache` in Se
 
 ```bash
 pnpm db:up                 # Postgres 17 + PostGIS in Docker (host port 5433), waits until healthy
-pnpm db:migrate            # apply drizzle/ migrations using .env.local
+pnpm db:migrate            # apply drizzle/ migrations to the DATABASE_URL in .env.local (currently production Neon!)
 pnpm db:generate --name x  # generate a migration after editing src/server/db/schema.ts (needs DATABASE_URL)
 pnpm dev                   # http://localhost:3000
 
@@ -29,7 +29,9 @@ On this machine Docker Desktop's credential helper may be missing from `PATH`; p
 `PATH="$HOME/Applications/Docker.app/Contents/Resources/bin:$PATH"` if an image pull fails with
 `docker-credential-desktop`.
 
-`.env.local` holds secrets (see `.env.example`). Only `STRAVA_CLIENT_ID`/`STRAVA_CLIENT_SECRET` come from the
+`.env.local` holds secrets (see `.env.example`). It points at the production Neon database shared with Vercel
+(ADR 0007): anything run with it (`pnpm dev`, `db:migrate`, scripts) touches real tester data. Never run destructive
+queries or unreleased migrations against it; integration tests use `TEST_DATABASE_URL` / Docker instead. Only `STRAVA_CLIENT_ID`/`STRAVA_CLIENT_SECRET` come from the
 Strava app settings; the others are generated locally. Server env is validated lazily by `getServerEnv()`
 (`src/server/env.ts`), so builds do not need secrets.
 
@@ -65,7 +67,10 @@ check that the user still exists in the database (deleted users would otherwise 
 auto-starts on the globe page (`useRunSync` with `syncOnMount`). Strava webhooks are unsigned:
 `StravaWebhookService` re-reads the activity from the API before any upsert or delete, ignores activities owned
 by another athlete, and deletes a user on deauthorization only when Strava rejects the refresh token. Keep these
-checks when adding event types. The webhook route acknowledges immediately and processes in `after()`.
+checks when adding event types. The webhook route acknowledges immediately and processes in `after()`; the single
+Strava push subscription points at production. `AccountDeletionService` revokes Strava access (best effort) before
+deleting the user, whose rows cascade. Run countries come from `@rapideditor/country-coder` on start points,
+server-side only (`src/server/runs/locate-country.ts`).
 
 **Globe UI:** `src/components/ui/map.tsx` is mapcn, vendored from the shadcn registry and excluded from ESLint.
 Do not edit it; refresh it with `pnpm dlx shadcn@latest add @mapcn/map --overwrite`. Planet Run behaviors are
@@ -83,11 +88,13 @@ reducedMotion="user"`, `useReducedMotion` for imperative map/number animations).
   update `tests/fakes/in-memory-repositories.ts` and the integration suite together.
 - `@tests/*` resolves to `tests/*`; `server-only` is aliased to a stub in `vitest.config.mts`.
 - Integration tests truncate tables before each test and run serially.
+- CI (`.github/workflows/ci.yml`) runs every suite; E2E there boots with placeholder env values, so signed-out pages
+  must not need a real database or Strava credentials.
 - E2E cannot cover the signed-in flow (it needs a real Strava OAuth round trip); cover that logic with unit tests.
 
 ## Conventions
 
 - All code, UI copy, docs and ADRs are in English.
 - Prettier with `printWidth: 120` and the Tailwind class sorter; `src/components/ui` (shadcn output) is ignored.
-- Strava brand orange (`--strava`) is reserved for the official connect button; keep "Powered by Strava"
-  attribution wherever Strava data is displayed.
+- Strava brand assets live in `public/brand/strava/` and must be used unaltered (Strava API brand guidelines): every
+  Strava OAuth form uses `StravaConnectButton`, and panels showing Strava data keep the "Powered by Strava" logo.

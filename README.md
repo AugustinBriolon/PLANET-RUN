@@ -137,21 +137,27 @@ Conventions:
 
 ## Deployment
 
-Production runs on Vercel: <https://planet-run.vercel.app>. Pushes to `main` deploy to production; other branches
-get preview deployments. No CI pipeline runs the test suites yet.
+Production runs on Vercel: <https://planet-run.vercel.app>, with a Neon Postgres database. Pushes to `main` deploy to
+production; other branches get preview deployments.
 
-<!-- TODO: add a CI workflow running lint, typecheck, unit, integration and E2E tests before deployment. -->
+[GitHub Actions](.github/workflows/ci.yml) runs lint, type-check, format, unit, integration (PostGIS service
+container) and E2E tests on every push and pull request. Vercel deploys independently of the CI result.
+
+The maintainer's `.env.local` points at the production Neon database (see
+[ADR 0007](docs/adr/0007-host-on-vercel-with-a-managed-postgres-database.md)): `pnpm dev` and `pnpm db:migrate` then
+act on real data, and `TOKEN_ENCRYPTION_KEY` must match the Vercel value. Automated tests never use it.
 
 First-time setup of an environment:
 
-1. Attach a PostgreSQL database with PostGIS support (Neon from the Vercel **Storage** tab sets `DATABASE_URL`).
+1. Create a PostgreSQL database with PostGIS support (Neon) and use its pooled (`-pooler`) connection string as
+   `DATABASE_URL`.
 2. Set the variables from [Environment variables](#environment-variables) for Production and Preview. Generate
    **new** values for `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY` and `STRAVA_WEBHOOK_VERIFY_TOKEN`; never rotate
    `TOKEN_ENCRYPTION_KEY` afterwards or stored Strava tokens become unreadable. `AUTH_URL` is not needed on Vercel.
 3. Redeploy so the variables are picked up, then apply migrations against the production database:
 
    ```bash
-   DATABASE_URL="<production connection string>" pnpm exec tsx scripts/migrate.ts
+   DATABASE_URL="<direct, non-pooled connection string>" pnpm exec tsx scripts/migrate.ts
    ```
 
 4. Set the Strava application's **Authorization Callback Domain** to the production host (`planet-run.vercel.app`).

@@ -7,9 +7,11 @@ import type { RunStats } from "@/lib/runs/run-stats";
 import { cn } from "@/lib/utils";
 
 import { AnimatedNumber } from "./animated-number";
+import { PanelFooter } from "./panel-footer";
 
 export type RunStatsPanelProps = {
   stats: RunStats;
+  deleteDataAction: () => Promise<void>;
   className?: string;
 };
 
@@ -27,7 +29,7 @@ const STAT_DEFINITIONS: StatDefinition[] = [
   { label: "Elevation", unit: "m", value: (stats) => stats.totalElevationGainMeters, format: formatWholeNumber },
 ];
 
-export function RunStatsPanel({ stats, className }: RunStatsPanelProps) {
+export function RunStatsPanel({ stats, deleteDataAction, className }: RunStatsPanelProps) {
   return (
     <motion.section
       aria-label="Your running totals"
@@ -49,7 +51,7 @@ export function RunStatsPanel({ stats, className }: RunStatsPanelProps) {
           </div>
         ))}
       </dl>
-      <p className="mt-5 border-t border-border pt-3 text-xs text-muted-foreground">Powered by Strava</p>
+      <PanelFooter deleteDataAction={deleteDataAction} />
     </motion.section>
   );
 }

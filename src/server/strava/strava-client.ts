@@ -9,6 +9,7 @@ import {
 
 const API_BASE_URL = "https://www.strava.com/api/v3";
 const TOKEN_URL = "https://www.strava.com/oauth/token";
+const DEAUTHORIZE_URL = "https://www.strava.com/oauth/deauthorize";
 
 export const STRAVA_MAX_PAGE_SIZE = 200;
 
@@ -56,6 +57,8 @@ export type StravaClient = {
   listActivities: (accessToken: string, options: ListActivitiesOptions) => Promise<StravaActivity[]>;
   getActivity: (accessToken: string, activityId: number) => Promise<StravaActivity>;
   refreshAccessToken: (refreshToken: string) => Promise<StravaTokenResponse>;
+  /** Revokes the application's access for the athlete owning the token. */
+  deauthorize: (accessToken: string) => Promise<void>;
 };
 
 type StravaClientConfig = {
@@ -106,6 +109,14 @@ export function createStravaClient({
         refresh_token: refreshToken,
       });
       return request(TOKEN_URL, { method: "POST", body }, stravaTokenResponseSchema);
+    },
+
+    async deauthorize(accessToken) {
+      await request(
+        DEAUTHORIZE_URL,
+        { method: "POST", body: new URLSearchParams({ access_token: accessToken }) },
+        z.unknown(),
+      );
     },
   };
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { signIn, signOut } from "@/auth";
 import type { RunSyncActionResult } from "@/lib/runs/run-sync-result";
@@ -32,4 +33,12 @@ export async function reconnectStrava() {
 
 export async function signOutFromPlanetRun() {
   await signOut({ redirectTo: "/login" });
+}
+
+export async function deleteMyData() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  await getServices().accountDeletion.deleteAccount(user.id);
+  await signOut({ redirectTo: "/login?deleted=1" });
 }

@@ -49,6 +49,16 @@ describe("createStravaClient", () => {
     });
   });
 
+  it("revokes the athlete's authorization", async () => {
+    const { client, fetchMock } = setup(jsonResponse({ access_token: "revoked" }));
+
+    await client.deauthorize("access-token");
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://www.strava.com/oauth/deauthorize");
+    expect(Object.fromEntries(init?.body as URLSearchParams)).toEqual({ access_token: "access-token" });
+  });
+
   it("raises a typed error for rate limiting", async () => {
     const { client } = setup(jsonResponse({ message: "Rate Limit Exceeded" }, 429));
     const error = await client.getActivity("token", 1).catch((caught: unknown) => caught);

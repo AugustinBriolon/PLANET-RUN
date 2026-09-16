@@ -25,6 +25,7 @@ export type GlobeDashboardProps = {
   syncAction: () => Promise<RunSyncActionResult>;
   reconnectAction: () => Promise<void>;
   signOutAction: () => Promise<void>;
+  deleteDataAction: () => Promise<void>;
 };
 
 export function GlobeDashboard({
@@ -37,6 +38,7 @@ export function GlobeDashboard({
   syncAction,
   reconnectAction,
   signOutAction,
+  deleteDataAction,
 }: GlobeDashboardProps) {
   const { status, failure, sync } = useRunSync({ syncAction, syncOnMount: hasNeverSynced });
   const hasRuns = stats.runCount > 0;
@@ -57,7 +59,11 @@ export function GlobeDashboard({
       </header>
 
       {hasRuns ? (
-        <RunStatsPanel stats={stats} className="absolute inset-x-4 bottom-10 sm:right-auto sm:left-6" />
+        <RunStatsPanel
+          stats={stats}
+          deleteDataAction={deleteDataAction}
+          className="absolute inset-x-4 bottom-10 sm:right-auto sm:left-6"
+        />
       ) : (
         <div className="pointer-events-none absolute inset-x-4 bottom-10 flex justify-center">
           <EmptyRunsState
@@ -65,6 +71,7 @@ export function GlobeDashboard({
             failure={failure}
             onRetry={sync}
             reconnectAction={reconnectAction}
+            deleteDataAction={deleteDataAction}
             className="pointer-events-auto"
           />
         </div>

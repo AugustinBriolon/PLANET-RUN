@@ -10,11 +10,14 @@ import type { RunSyncStatus } from "@/hooks/use-run-sync";
 import type { RunSyncFailure } from "@/lib/runs/run-sync-result";
 import { cn } from "@/lib/utils";
 
+import { PanelFooter } from "./panel-footer";
+
 export type EmptyRunsStateProps = {
   status: RunSyncStatus;
   failure: RunSyncFailure | null;
   onRetry: () => void;
   reconnectAction: () => Promise<void>;
+  deleteDataAction: () => Promise<void>;
   className?: string;
 };
 
@@ -46,7 +49,14 @@ function getContent(status: RunSyncStatus, failure: RunSyncFailure | null): Stat
 }
 
 /** Shown while the globe has no runs: first import in progress, import failed, or no runs on Strava. */
-export function EmptyRunsState({ status, failure, onRetry, reconnectAction, className }: EmptyRunsStateProps) {
+export function EmptyRunsState({
+  status,
+  failure,
+  onRetry,
+  reconnectAction,
+  deleteDataAction,
+  className,
+}: EmptyRunsStateProps) {
   const content = getContent(status, failure);
   const needsReconnect = status === "failed" && failure?.reason === "missing-permission";
   const canRetry = status === "failed" && !needsReconnect;
@@ -89,6 +99,7 @@ export function EmptyRunsState({ status, failure, onRetry, reconnectAction, clas
           )}
         </motion.div>
       </AnimatePresence>
+      <PanelFooter deleteDataAction={deleteDataAction} />
     </section>
   );
 }

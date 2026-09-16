@@ -18,6 +18,7 @@ describe("RunStatsPanel", () => {
           totalMovingTimeSeconds: 900_000,
           totalElevationGainMeters: 21_400,
         }}
+        deleteDataAction={vi.fn()}
       />,
     );
 
@@ -27,6 +28,7 @@ describe("RunStatsPanel", () => {
     expect(await within(panel).findByText("2,845")).toBeInTheDocument();
     expect(await within(panel).findByText("250")).toBeInTheDocument();
     expect(await within(panel).findByText("21,400")).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(within(panel).getByText("Powered by Strava")).toBeInTheDocument();
   });
 });

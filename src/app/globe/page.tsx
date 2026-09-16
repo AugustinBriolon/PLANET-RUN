@@ -7,7 +7,7 @@ import { toRunSummary } from "@/server/runs/to-run-summary";
 import { getServices } from "@/server/services";
 import { requireCurrentUser } from "@/server/session";
 
-import { reconnectStrava, signOutFromPlanetRun, syncRuns } from "./actions";
+import { deleteMyData, reconnectStrava, signOutFromPlanetRun, syncRuns } from "./actions";
 
 export const metadata: Metadata = {
   title: "Your planet · Planet Run",
@@ -35,6 +35,7 @@ export default async function GlobePage() {
       syncAction={syncRuns}
       reconnectAction={reconnectStrava}
       signOutAction={signOutFromPlanetRun}
+      deleteDataAction={deleteMyData}
     />
   );
 }

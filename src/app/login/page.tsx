@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PlanetRunLogo } from "@/components/brand/planet-run-logo";
+import { AccountDeletedNotice } from "@/components/login/account-deleted-notice";
 import { GarminConnectButton } from "@/components/login/garmin-connect-button";
 import { LoginGlobe } from "@/components/login/login-globe";
 import { SignInError } from "@/components/login/sign-in-error";
@@ -18,7 +20,8 @@ export const metadata: Metadata = {
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getCurrentUser()) redirect("/globe");
-  const errorMessage = getSignInErrorMessage((await searchParams).error);
+  const { error, deleted } = await searchParams;
+  const errorMessage = getSignInErrorMessage(error);
 
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.25fr_1fr]">
@@ -47,6 +50,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </FadeInItem>
 
           <FadeInItem className="flex flex-col gap-3">
+            {deleted === "1" && <AccountDeletedNotice />}
             {errorMessage && <SignInError message={errorMessage} />}
             <form action={signInWithStrava}>
               <StravaConnectButton />
@@ -56,7 +60,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
           <FadeInItem>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              No account to create. Planet Run only reads your activities and never posts to Strava.
+              No account to create. Planet Run only reads your activities and never posts to Strava.{" "}
+              <Link
+                href="/privacy"
+                className="text-foreground underline underline-offset-4 outline-none hover:text-ember focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Privacy
+              </Link>
             </p>
           </FadeInItem>
         </FadeInStagger>

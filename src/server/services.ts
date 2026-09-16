@@ -6,6 +6,7 @@ import { getServerEnv } from "./env";
 import { createActivityRepository } from "./repositories/activity-repository";
 import { createStravaAccountRepository } from "./repositories/strava-account-repository";
 import { createUserRepository } from "./repositories/user-repository";
+import { createAccountDeletionService } from "./services/account-deletion-service";
 import { createAccountLinkingService } from "./services/account-linking-service";
 import { createRunSyncService } from "./services/run-sync-service";
 import { createStravaTokenService } from "./services/strava-token-service";
@@ -32,6 +33,7 @@ function buildServices(database: Database) {
     accounts,
     activities,
     accountLinking: createAccountLinkingService({ users, accounts, tokens }),
+    accountDeletion: createAccountDeletionService({ users, accounts, strava, tokens, reportError: console.error }),
     runSync: createRunSyncService({ accounts, activities, strava, tokens, now }),
     stravaWebhook: createStravaWebhookService({ users, accounts, activities, strava, tokens }),
   };

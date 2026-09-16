@@ -7,7 +7,7 @@ import type { RunSyncFailure } from "@/lib/runs/run-sync-result";
 import { EmptyRunsState, type EmptyRunsStateProps } from "./empty-runs-state";
 
 function renderState(props: Partial<EmptyRunsStateProps>) {
-  const handlers = { onRetry: vi.fn(), reconnectAction: vi.fn() };
+  const handlers = { onRetry: vi.fn(), reconnectAction: vi.fn(), deleteDataAction: vi.fn() };
   render(<EmptyRunsState status="idle" failure={null} {...handlers} {...props} />);
   return handlers;
 }
@@ -19,12 +19,17 @@ describe("EmptyRunsState", () => {
   it("shows progress while runs are being imported", () => {
     renderState({ status: "syncing" });
     expect(screen.getByRole("heading", { name: "Pulling your runs from Strava…" })).toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Try again|Reconnect/ })).not.toBeInTheDocument();
   });
 
   it("invites the user to record a run when history is empty", () => {
     renderState({ status: "idle" });
     expect(screen.getByRole("heading", { name: "No outdoor runs yet" })).toBeInTheDocument();
+  });
+
+  it("keeps settings reachable before any run is imported", () => {
+    renderState({ status: "idle" });
+    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 
   it("stops loading and offers a retry when the import fails", async () => {

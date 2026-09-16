@@ -46,7 +46,7 @@ describe("EmptyRunsState", () => {
   it("asks to reconnect Strava instead of retrying when activity access is missing", () => {
     renderState({ status: "failed", failure: missingPermission });
 
-    expect(screen.getByRole("button", { name: "Reconnect Strava" })).toHaveAttribute("type", "submit");
+    expect(screen.getByRole("button", { name: "Connect with Strava" })).toHaveAttribute("type", "submit");
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });
 });

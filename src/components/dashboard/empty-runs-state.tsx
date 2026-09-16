@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Footprints, LoaderCircle, RefreshCw, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { StravaIcon } from "@/components/brand/strava-icon";
+import { StravaConnectButton } from "@/components/brand/strava-connect-button";
 import { Button } from "@/components/ui/button";
 import type { RunSyncStatus } from "@/hooks/use-run-sync";
 import type { RunSyncFailure } from "@/lib/runs/run-sync-result";
@@ -81,14 +81,8 @@ export function EmptyRunsState({
           <p className="text-sm leading-relaxed text-muted-foreground">{content.description}</p>
 
           {needsReconnect && (
-            <form action={reconnectAction} className="mt-2 w-full">
-              <button
-                type="submit"
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-strava px-4 text-sm font-semibold text-strava-foreground transition-[filter] duration-150 ease-out outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                <StravaIcon className="size-4" />
-                Reconnect Strava
-              </button>
+            <form action={reconnectAction} className="mt-2">
+              <StravaConnectButton />
             </form>
           )}
           {canRetry && (

@@ -9,7 +9,7 @@ export function GarminConnectButton() {
       type="button"
       disabled
       aria-describedby="garmin-availability"
-      className="flex h-12 w-full cursor-not-allowed items-center gap-3 rounded-lg border border-border px-4 text-[0.95rem] font-medium text-muted-foreground"
+      className="flex h-12 w-fit cursor-not-allowed items-center gap-3 rounded-md border border-border px-4 text-[0.95rem] font-medium text-muted-foreground"
     >
       <Watch className="size-5" aria-hidden="true" />
       <span className="flex-1 text-left">Connect with Garmin</span>

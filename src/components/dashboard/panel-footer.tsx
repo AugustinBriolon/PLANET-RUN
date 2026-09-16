@@ -1,4 +1,9 @@
+import Image from "next/image";
+
 import { SettingsMenu } from "./settings-menu";
+
+// Official "Powered by Strava" logo from the Strava API brand guidelines, shown unaltered.
+const POWERED_BY_STRAVA = { src: "/brand/strava/powered-by-strava-white.svg", width: 365, height: 37 };
 
 export type PanelFooterProps = {
   deleteDataAction: () => Promise<void>;
@@ -8,7 +13,7 @@ export type PanelFooterProps = {
 export function PanelFooter({ deleteDataAction }: PanelFooterProps) {
   return (
     <footer className="mt-5 flex items-center justify-between border-t border-border pt-3">
-      <p className="text-xs text-muted-foreground">Powered by Strava</p>
+      <Image {...POWERED_BY_STRAVA} alt="Powered by Strava" className="h-3 w-auto" />
       <SettingsMenu deleteDataAction={deleteDataAction} />
     </footer>
   );

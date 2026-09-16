@@ -12,8 +12,6 @@
   --font-heading: var(--font-geist-sans);
   --color-ember: var(--ember);
   --color-ember-foreground: var(--ember-foreground);
-  --color-strava: var(--strava);
-  --color-strava-foreground: var(--strava-foreground);
   --color-space: var(--space);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -80,8 +78,6 @@
   --radius: 0.625rem;
   --ember: oklch(0.64 0.18 45);
   --ember-foreground: oklch(0.99 0 0);
-  --strava: oklch(0.66 0.23 38);
-  --strava-foreground: oklch(1 0 0);
   --space: oklch(0.97 0.005 265);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -117,8 +113,6 @@
   --ember: oklch(0.74 0.17 50);
   --ember-foreground: oklch(0.16 0.02 50);
   /* Strava brand orange (#FC5200) is reserved for the official connect button. */
-  --strava: oklch(0.66 0.23 38);
-  --strava-foreground: oklch(1 0 0);
   --chart-1: oklch(0.74 0.17 50);
   --chart-2: oklch(0.66 0.23 38);
   --chart-3: oklch(0.6 0.08 265);

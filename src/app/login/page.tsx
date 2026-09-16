@@ -7,7 +7,7 @@ import { AccountDeletedNotice } from "@/components/login/account-deleted-notice"
 import { GarminConnectButton } from "@/components/login/garmin-connect-button";
 import { LoginGlobe } from "@/components/login/login-globe";
 import { SignInError } from "@/components/login/sign-in-error";
-import { StravaConnectButton } from "@/components/login/strava-connect-button";
+import { StravaConnectButton } from "@/components/brand/strava-connect-button";
 import { FadeInItem, FadeInStagger } from "@/components/motion/fade-in-stagger";
 import { getSignInErrorMessage } from "@/lib/sign-in-error-message";
 import { getCurrentUser } from "@/server/session";

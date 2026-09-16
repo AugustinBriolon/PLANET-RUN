@@ -30,6 +30,6 @@ describe("RunStatsPanel", () => {
     expect(within(panel).getByText("Countries")).toBeInTheDocument();
     expect(await within(panel).findByText("7")).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "Settings" })).toBeInTheDocument();
-    expect(within(panel).getByText("Powered by Strava")).toBeInTheDocument();
+    expect(within(panel).getByRole("img", { name: "Powered by Strava" })).toBeInTheDocument();
   });
 });

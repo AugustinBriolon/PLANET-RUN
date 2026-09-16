@@ -16,7 +16,7 @@ describe("RunStatsPanel", () => {
           runCount: 312,
           totalDistanceMeters: 2_845_300,
           totalMovingTimeSeconds: 900_000,
-          totalElevationGainMeters: 21_400,
+          countryCount: 7,
         }}
         deleteDataAction={vi.fn()}
       />,
@@ -27,7 +27,8 @@ describe("RunStatsPanel", () => {
     expect(await within(panel).findByText("312")).toBeInTheDocument();
     expect(await within(panel).findByText("2,845")).toBeInTheDocument();
     expect(await within(panel).findByText("250")).toBeInTheDocument();
-    expect(await within(panel).findByText("21,400")).toBeInTheDocument();
+    expect(within(panel).getByText("Countries")).toBeInTheDocument();
+    expect(await within(panel).findByText("7")).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(within(panel).getByText("Powered by Strava")).toBeInTheDocument();
   });

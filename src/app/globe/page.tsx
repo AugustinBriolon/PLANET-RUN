@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { GlobeDashboard } from "@/components/dashboard/globe-dashboard";
 import { getTracesBounds, toRunStartPoints, toRunTraces } from "@/lib/runs/run-geojson";
-import { summarizeRuns } from "@/lib/runs/run-stats";
+import { countCountries, summarizeRuns } from "@/lib/runs/run-stats";
+import { locateCountry } from "@/server/runs/locate-country";
 import { toRunSummary } from "@/server/runs/to-run-summary";
 import { getServices } from "@/server/services";
 import { requireCurrentUser } from "@/server/session";
@@ -23,14 +24,15 @@ export default async function GlobePage() {
 
   const runs = activityRecords.map(toRunSummary);
   const traces = toRunTraces(runs);
+  const startPoints = toRunStartPoints(traces);
 
   return (
     <GlobeDashboard
       user={{ displayName: user.displayName, avatarUrl: user.avatarUrl }}
       traces={traces}
-      startPoints={toRunStartPoints(traces)}
+      startPoints={startPoints}
       bounds={getTracesBounds(traces)}
-      stats={summarizeRuns(runs)}
+      stats={summarizeRuns(runs, countCountries(startPoints, locateCountry))}
       hasNeverSynced={!stravaAccount?.lastSyncedAt}
       syncAction={syncRuns}
       reconnectAction={reconnectStrava}

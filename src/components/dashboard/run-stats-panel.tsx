@@ -26,7 +26,7 @@ const STAT_DEFINITIONS: StatDefinition[] = [
   { label: "Runs", unit: "", value: (stats) => stats.runCount, format: formatWholeNumber },
   { label: "Distance", unit: "km", value: (stats) => stats.totalDistanceMeters, format: formatKilometers },
   { label: "Time", unit: "h", value: (stats) => stats.totalMovingTimeSeconds, format: formatHours },
-  { label: "Elevation", unit: "m", value: (stats) => stats.totalElevationGainMeters, format: formatWholeNumber },
+  { label: "Countries", unit: "", value: (stats) => stats.countryCount, format: formatWholeNumber },
 ];
 
 export function RunStatsPanel({ stats, deleteDataAction, className }: RunStatsPanelProps) {

@@ -1,7 +1,6 @@
 "use client";
 
-import { Settings, ShieldCheck, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { LogOut, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -13,12 +12,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { DeleteDataDialog } from "./delete-data-dialog";
+import { PrivacyDialog } from "./privacy-dialog";
 
 export type SettingsMenuProps = {
+  signOutAction: () => Promise<void>;
   deleteDataAction: () => Promise<void>;
 };
 
-export function SettingsMenu({ deleteDataAction }: SettingsMenuProps) {
+export function SettingsMenu({ signOutAction, deleteDataAction }: SettingsMenuProps) {
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   return (
@@ -34,11 +36,17 @@ export function SettingsMenu({ deleteDataAction }: SettingsMenuProps) {
           />
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="end" className="w-48">
-          <DropdownMenuItem render={<Link href="/privacy" />}>
+          <DropdownMenuItem onClick={() => setIsPrivacyOpen(true)}>
             <ShieldCheck aria-hidden="true" />
             Privacy
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <form action={signOutAction}>
+            <DropdownMenuItem nativeButton render={<button type="submit" className="w-full" />}>
+              <LogOut aria-hidden="true" />
+              Sign out
+            </DropdownMenuItem>
+          </form>
           <DropdownMenuItem variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
             <Trash2 aria-hidden="true" />
             Delete my data
@@ -46,6 +54,7 @@ export function SettingsMenu({ deleteDataAction }: SettingsMenuProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
+      <PrivacyDialog open={isPrivacyOpen} onOpenChange={setIsPrivacyOpen} />
       <DeleteDataDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

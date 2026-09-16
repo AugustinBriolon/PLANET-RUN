@@ -62,8 +62,10 @@ export function createRunSyncService({
       await accounts.markSynced(account.athleteId, startedAt);
       // Best effort: street coverage is a supplementary feature, a failure here must not fail the sync.
       await coverage.matchPendingActivities({ userId }).catch((error: unknown) => console.error(error));
-      // Auto-detect and import cities from run traces (best effort).
-      await cityDetection.detectAndImportCitiesForUser(userId).catch((error: unknown) => console.error(error));
+      // Auto-detect and import cities from run traces (best effort, disabled in dev to avoid Nominatim rate limits).
+      if (process.env.NODE_ENV === "production") {
+        await cityDetection.detectAndImportCitiesForUser(userId).catch((error: unknown) => console.error(error));
+      }
       return { syncedRuns };
     },
   };

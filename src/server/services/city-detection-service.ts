@@ -55,6 +55,7 @@ export function createCityDetectionService({
       // Reverse-geocode start points to find cities
       const detectedCities = new Map<number, string>(); // osmRelationId → name
       for (const point of startPoints) {
+        console.log(`[city-detection] geocoding [${point.lat}, ${point.lon}]`);
         const result = await nominatim.reverseGeocode(point.lat, point.lon);
         if (result && !detectedCities.has(result.osmRelationId)) {
           detectedCities.set(result.osmRelationId, result.name);

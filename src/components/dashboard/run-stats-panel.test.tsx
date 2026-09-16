@@ -18,7 +18,20 @@ describe("RunStatsPanel", () => {
           totalMovingTimeSeconds: 900_000,
           countryCount: 7,
         }}
-        cityCoverage={[{ areaId: 91775, name: "La Garenne-Colombes", coveredMeters: 19_760, totalMeters: 32_400 }]}
+        cityCoverage={[
+          {
+            areaId: 91775,
+            name: "La Garenne-Colombes",
+            coveredMeters: 19_760,
+            totalMeters: 32_400,
+            bounds: [
+              [2.23, 48.89],
+              [2.26, 48.91],
+            ],
+          },
+        ]}
+        onSelectCity={vi.fn()}
+        signOutAction={vi.fn()}
         deleteDataAction={vi.fn()}
       />,
     );
@@ -42,6 +55,8 @@ describe("RunStatsPanel", () => {
       <RunStatsPanel
         stats={{ runCount: 1, totalDistanceMeters: 5_000, totalMovingTimeSeconds: 1_800, countryCount: 1 }}
         cityCoverage={[]}
+        onSelectCity={vi.fn()}
+        signOutAction={vi.fn()}
         deleteDataAction={vi.fn()}
       />,
     );

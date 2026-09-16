@@ -73,9 +73,15 @@ export function createCoverageRepository(
         name: string;
         covered_meters: number;
         total_meters: number;
+        west: number;
+        south: number;
+        east: number;
+        north: number;
       }>(sql`
         SELECT area.osm_relation_id AS area_id, area.name,
-               sum(segment.length_meters)::float8 AS covered_meters, area.street_length_meters AS total_meters
+               sum(segment.length_meters)::float8 AS covered_meters, area.street_length_meters AS total_meters,
+               ST_XMin(area.boundary)::float8 AS west, ST_YMin(area.boundary)::float8 AS south,
+               ST_XMax(area.boundary)::float8 AS east, ST_YMax(area.boundary)::float8 AS north
         FROM street_segments AS segment
         JOIN areas AS area ON area.osm_relation_id = segment.area_id
         WHERE segment.id IN (${segmentsCoveredBy(userId)})
@@ -87,6 +93,10 @@ export function createCoverageRepository(
         name: row.name,
         coveredMeters: row.covered_meters,
         totalMeters: row.total_meters,
+        bounds: [
+          [row.west, row.south],
+          [row.east, row.north],
+        ],
       }));
     },
 

@@ -7,7 +7,12 @@ import type { RunSyncFailure } from "@/lib/runs/run-sync-result";
 import { EmptyRunsState, type EmptyRunsStateProps } from "./empty-runs-state";
 
 function renderState(props: Partial<EmptyRunsStateProps>) {
-  const handlers = { onRetry: vi.fn(), reconnectAction: vi.fn(), deleteDataAction: vi.fn() };
+  const handlers = {
+    onRetry: vi.fn(),
+    reconnectAction: vi.fn(),
+    signOutAction: vi.fn(),
+    deleteDataAction: vi.fn(),
+  };
   render(<EmptyRunsState status="idle" failure={null} {...handlers} {...props} />);
   return handlers;
 }

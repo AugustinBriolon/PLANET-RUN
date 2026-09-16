@@ -8,10 +8,11 @@ import { toCoverageShare } from "@/lib/coverage/street-coverage";
 
 export type CityCoverageListProps = {
   cities: CityCoverage[];
+  onSelectCity: (areaId: number) => void;
 };
 
 /** Street coverage per city, scrollable with max 5 visible. */
-export function CityCoverageList({ cities }: CityCoverageListProps) {
+export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps) {
   if (cities.length === 0) return null;
 
   return (
@@ -28,8 +29,15 @@ export function CityCoverageList({ cities }: CityCoverageListProps) {
               transition={{ duration: 0.3, ease: "easeOut", delay: 0.05 * Math.min(index, 4) }}
               className="flex items-center justify-between gap-3 text-sm"
             >
-              <span className="text-foreground">{city.name}</span>
-              <span className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label={`Fly to ${city.name}`}
+                onClick={() => onSelectCity(city.areaId)}
+                className="truncate text-left text-foreground transition-colors duration-150 ease-out outline-none hover:text-ember focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {city.name}
+              </button>
+              <span className="flex shrink-0 items-center gap-2">
                 <span className="h-1.5 w-16 overflow-hidden rounded-full bg-muted" aria-hidden="true">
                   <span className="block h-full rounded-full bg-ember" style={{ width: `${share * 100}%` }} />
                 </span>

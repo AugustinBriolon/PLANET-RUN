@@ -14,6 +14,8 @@ import { PanelFooter } from "./panel-footer";
 export type RunStatsPanelProps = {
   stats: RunStats;
   cityCoverage: CityCoverage[];
+  onSelectCity: (areaId: number) => void;
+  signOutAction: () => Promise<void>;
   deleteDataAction: () => Promise<void>;
   className?: string;
 };
@@ -32,7 +34,14 @@ const STAT_DEFINITIONS: StatDefinition[] = [
   { label: "Countries", unit: "", value: (stats) => stats.countryCount, format: formatWholeNumber },
 ];
 
-export function RunStatsPanel({ stats, cityCoverage, deleteDataAction, className }: RunStatsPanelProps) {
+export function RunStatsPanel({
+  stats,
+  cityCoverage,
+  onSelectCity,
+  signOutAction,
+  deleteDataAction,
+  className,
+}: RunStatsPanelProps) {
   return (
     <motion.section
       aria-label="Your running totals"
@@ -54,8 +63,8 @@ export function RunStatsPanel({ stats, cityCoverage, deleteDataAction, className
           </div>
         ))}
       </dl>
-      <CityCoverageList cities={cityCoverage} />
-      <PanelFooter deleteDataAction={deleteDataAction} />
+      <CityCoverageList cities={cityCoverage} onSelectCity={onSelectCity} />
+      <PanelFooter signOutAction={signOutAction} deleteDataAction={deleteDataAction} />
     </motion.section>
   );
 }

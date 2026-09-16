@@ -5,17 +5,27 @@ import { describe, expect, it, vi } from "vitest";
 import { SettingsMenu } from "./settings-menu";
 
 describe("SettingsMenu", () => {
-  it("links to the privacy page", async () => {
-    render(<SettingsMenu deleteDataAction={vi.fn()} />);
+  it("opens the privacy policy without leaving the globe", async () => {
+    render(<SettingsMenu signOutAction={vi.fn()} deleteDataAction={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Privacy" }));
+
+    expect(await screen.findByRole("dialog", { name: "Privacy" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Deleting your data" })).toBeInTheDocument();
+  });
+
+  it("offers sign out from the settings menu", async () => {
+    render(<SettingsMenu signOutAction={vi.fn()} deleteDataAction={vi.fn()} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Settings" }));
 
-    expect(await screen.findByRole("menuitem", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
+    expect(await screen.findByRole("menuitem", { name: "Sign out" })).toHaveAttribute("type", "submit");
   });
 
   it("asks for confirmation before deleting data", async () => {
     const deleteDataAction = vi.fn();
-    render(<SettingsMenu deleteDataAction={deleteDataAction} />);
+    render(<SettingsMenu signOutAction={vi.fn()} deleteDataAction={deleteDataAction} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Settings" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Delete my data" }));

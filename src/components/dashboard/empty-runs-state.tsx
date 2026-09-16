@@ -17,6 +17,7 @@ export type EmptyRunsStateProps = {
   failure: RunSyncFailure | null;
   onRetry: () => void;
   reconnectAction: () => Promise<void>;
+  signOutAction: () => Promise<void>;
   deleteDataAction: () => Promise<void>;
   className?: string;
 };
@@ -54,6 +55,7 @@ export function EmptyRunsState({
   failure,
   onRetry,
   reconnectAction,
+  signOutAction,
   deleteDataAction,
   className,
 }: EmptyRunsStateProps) {
@@ -93,7 +95,7 @@ export function EmptyRunsState({
           )}
         </motion.div>
       </AnimatePresence>
-      <PanelFooter deleteDataAction={deleteDataAction} />
+      <PanelFooter signOutAction={signOutAction} deleteDataAction={deleteDataAction} />
     </section>
   );
 }

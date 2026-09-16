@@ -137,6 +137,10 @@ describe("street coverage in PostGIS", () => {
 
       const [city] = await coverage.listCityCoverage(runner.id);
       expect(city).toMatchObject({ areaId: 1001, name: "Squareville" });
+      expect(city!.bounds).toEqual([
+        [2, 48],
+        [2.01, 48.01],
+      ]);
       // ~595 m of running plus the 20 m corridor at each end covers 13 of the 15 Main Street pieces.
       expect(city!.coveredMeters).toBeGreaterThan(600);
       expect(city!.coveredMeters).toBeLessThan(MAIN_STREET_METERS - 50);

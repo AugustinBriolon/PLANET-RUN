@@ -30,7 +30,6 @@ export default async function GlobePage() {
 
   return (
     <GlobeDashboard
-      user={{ displayName: user.displayName, avatarUrl: user.avatarUrl }}
       traces={traces}
       startPoints={startPoints}
       bounds={getTracesBounds(traces)}

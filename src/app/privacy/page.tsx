@@ -11,6 +11,9 @@ export const metadata: Metadata = {
 };
 
 const LAST_UPDATED = "September 16, 2026";
+const CONTACT_EMAIL = "augustin.briolon@gmail.com";
+const INLINE_LINK_CLASS =
+  "text-foreground underline underline-offset-4 outline-none hover:text-ember focus-visible:ring-2 focus-visible:ring-ring";
 
 function PolicySection({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -69,9 +72,9 @@ export default function PrivacyPage() {
 
       <PolicySection title="Who processes it">
         <p>
-          Planet Run is hosted on Vercel and stores data in a managed PostgreSQL database. Countries are computed on our
-          servers without calling any external service. Map backgrounds are loaded from CARTO: like any online map, tile
-          requests reveal the area you are looking at, but not your runs.
+          Planet Run is hosted on Vercel and stores data in a managed PostgreSQL database run by Neon. Countries are
+          computed on our servers without calling any external service. Map backgrounds are loaded from CARTO: like any
+          online map, tile requests reveal the area you are looking at, but not your runs.
         </p>
       </PolicySection>
 
@@ -87,11 +90,18 @@ export default function PrivacyPage() {
           Open the settings icon on your globe and choose <span className="text-foreground">Delete my data</span>. Your
           profile, runs and tokens are permanently erased and Planet Run&apos;s access to Strava is revoked. You can
           also revoke access at any time from{" "}
-          <a
-            href="https://www.strava.com/settings/apps"
-            className="text-foreground underline underline-offset-4 outline-none hover:text-ember focus-visible:ring-2 focus-visible:ring-ring"
-          >
+          <a href="https://www.strava.com/settings/apps" className={INLINE_LINK_CLASS}>
             strava.com/settings/apps
+          </a>
+          .
+        </p>
+      </PolicySection>
+
+      <PolicySection title="Contact">
+        <p>
+          Questions about your data, or a request you cannot complete in the app? Write to{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`} className={INLINE_LINK_CLASS}>
+            {CONTACT_EMAIL}
           </a>
           .
         </p>

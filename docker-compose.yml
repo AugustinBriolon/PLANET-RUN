@@ -1,0 +1,22 @@
+services:
+  database:
+    # Multi-arch build by a docker-postgis maintainer; the official image has no arm64 variant.
+    image: imresamu/postgis:17-3.5
+    container_name: planet-run-database
+    environment:
+      POSTGRES_USER: planet_run
+      POSTGRES_PASSWORD: planet_run
+      POSTGRES_DB: planet_run
+    ports:
+      - "5433:5432"
+    volumes:
+      - database-data:/var/lib/postgresql/data
+      - ./docker/create-test-database.sql:/docker-entrypoint-initdb.d/create-test-database.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planet_run -d planet_run"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  database-data:

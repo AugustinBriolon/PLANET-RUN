@@ -5,4 +5,5 @@ export const globePalette = {
   traceGlow: "#ff5f1f",
   startPoint: "#ffc39e",
   arc: "#ff8a4c",
+  coveredStreet: "#4ade80",
 } as const;

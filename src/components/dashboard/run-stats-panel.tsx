@@ -2,15 +2,18 @@
 
 import { motion } from "motion/react";
 
+import type { CityCoverage } from "@/lib/coverage/street-coverage";
 import { formatHours, formatKilometers, formatWholeNumber } from "@/lib/format";
 import type { RunStats } from "@/lib/runs/run-stats";
 import { cn } from "@/lib/utils";
 
 import { AnimatedNumber } from "./animated-number";
+import { CityCoverageList } from "./city-coverage-list";
 import { PanelFooter } from "./panel-footer";
 
 export type RunStatsPanelProps = {
   stats: RunStats;
+  cityCoverage: CityCoverage[];
   deleteDataAction: () => Promise<void>;
   className?: string;
 };
@@ -29,7 +32,7 @@ const STAT_DEFINITIONS: StatDefinition[] = [
   { label: "Countries", unit: "", value: (stats) => stats.countryCount, format: formatWholeNumber },
 ];
 
-export function RunStatsPanel({ stats, deleteDataAction, className }: RunStatsPanelProps) {
+export function RunStatsPanel({ stats, cityCoverage, deleteDataAction, className }: RunStatsPanelProps) {
   return (
     <motion.section
       aria-label="Your running totals"
@@ -51,6 +54,7 @@ export function RunStatsPanel({ stats, deleteDataAction, className }: RunStatsPa
           </div>
         ))}
       </dl>
+      <CityCoverageList cities={cityCoverage} />
       <PanelFooter deleteDataAction={deleteDataAction} />
     </motion.section>
   );

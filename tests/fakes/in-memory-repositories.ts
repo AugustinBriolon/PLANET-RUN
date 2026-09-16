@@ -64,11 +64,13 @@ export function createInMemoryRepositories() {
       for (const record of records) {
         const existing = activityRows.get(record.stravaActivityId);
         if (existing && existing.userId !== record.userId) continue;
+        const traceUnchanged = existing?.summaryPolyline === record.summaryPolyline;
         activityRows.set(record.stravaActivityId, {
           createdAt: now,
           updatedAt: now,
           ...existing,
           ...record,
+          coverageMatchedAt: traceUnchanged ? existing.coverageMatchedAt : null,
         } as Activity);
       }
     },

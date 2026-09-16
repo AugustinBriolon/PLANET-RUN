@@ -29,7 +29,7 @@ export function RunGlobe({
       center={initialCenter}
       zoom={initialZoom}
       interactive={interactive}
-      attributionControl={interactive ? { compact: true } : false}
+      attributionControl={interactive ? { compact: true, customAttribution: "© OpenStreetMap contributors" } : false}
       className={className}
     >
       {children}

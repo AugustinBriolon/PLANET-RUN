@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createServiceHarness, HARNESS_ATHLETE_ID } from "@tests/fakes/service-harness";
+import { createServiceHarness, HARNESS_ATHLETE_ID, HARNESS_NOW } from "@tests/fakes/service-harness";
 
 import { StravaApiError } from "../strava/strava-client";
 import type { StravaWebhookEvent } from "../strava/strava-types";
@@ -34,6 +34,22 @@ describe("createStravaWebhookService", () => {
     await service.handleEvent(activityEvent());
 
     expect(harness.activityRows.get(1001)).toMatchObject({ userId: harness.user.id, name: "Morning Run" });
+  });
+
+  it("matches the imported run against street coverage", async () => {
+    harness.strava.getActivity.mockResolvedValueOnce(harness.buildOwnedActivity({ id: 1001 }));
+
+    await service.handleEvent(activityEvent());
+
+    expect(harness.activityRows.get(1001)?.coverageMatchedAt).toEqual(HARNESS_NOW);
+  });
+
+  it("does not fail the webhook when coverage matching errors", async () => {
+    harness.strava.getActivity.mockResolvedValueOnce(harness.buildOwnedActivity({ id: 1001 }));
+    vi.spyOn(harness.coverage, "matchPendingActivities").mockRejectedValueOnce(new Error("postgis down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(service.handleEvent(activityEvent())).resolves.toBeUndefined();
   });
 
   it("removes a run that Strava no longer returns", async () => {

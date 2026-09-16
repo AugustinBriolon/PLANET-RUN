@@ -16,10 +16,12 @@ export const metadata: Metadata = {
 
 export default async function GlobePage() {
   const user = await requireCurrentUser();
-  const { activities, accounts } = getServices();
-  const [activityRecords, stravaAccount] = await Promise.all([
+  const { activities, accounts, coverage } = getServices();
+  const [activityRecords, stravaAccount, cityCoverage, coveredStreets] = await Promise.all([
     activities.listByUser(user.id),
     accounts.findByUserId(user.id),
+    coverage.listCityCoverage(user.id),
+    coverage.getCoveredStreets(user.id),
   ]);
 
   const runs = activityRecords.map(toRunSummary);
@@ -33,6 +35,8 @@ export default async function GlobePage() {
       startPoints={startPoints}
       bounds={getTracesBounds(traces)}
       stats={summarizeRuns(runs, countCountries(startPoints, locateCountry))}
+      cityCoverage={cityCoverage}
+      coveredStreets={coveredStreets}
       hasNeverSynced={!stravaAccount?.lastSyncedAt}
       syncAction={syncRuns}
       reconnectAction={reconnectStrava}

@@ -16,6 +16,7 @@ describe("toRunSummary", () => {
       movingTimeSeconds: 2_400,
       elevationGainMeters: 30,
       summaryPolyline: "abc",
+      coverageMatchedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

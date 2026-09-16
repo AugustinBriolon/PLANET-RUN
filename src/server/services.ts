@@ -4,6 +4,8 @@ import { createTokenCipher } from "./crypto/token-cipher";
 import { createDatabase, type Database } from "./db/client";
 import { getServerEnv } from "./env";
 import { createActivityRepository } from "./repositories/activity-repository";
+import { createAreaRepository } from "./repositories/area-repository";
+import { createCoverageRepository } from "./repositories/coverage-repository";
 import { createStravaAccountRepository } from "./repositories/strava-account-repository";
 import { createUserRepository } from "./repositories/user-repository";
 import { createAccountDeletionService } from "./services/account-deletion-service";
@@ -20,6 +22,8 @@ function buildServices(database: Database) {
   const users = createUserRepository(database);
   const accounts = createStravaAccountRepository(database);
   const activities = createActivityRepository(database);
+  const areas = createAreaRepository(database);
+  const coverage = createCoverageRepository(database);
   const strava = createStravaClient({ clientId: env.STRAVA_CLIENT_ID, clientSecret: env.STRAVA_CLIENT_SECRET });
   const tokens = createStravaTokenService({
     accounts,
@@ -32,10 +36,12 @@ function buildServices(database: Database) {
     users,
     accounts,
     activities,
+    areas,
+    coverage,
     accountLinking: createAccountLinkingService({ users, accounts, tokens }),
     accountDeletion: createAccountDeletionService({ users, accounts, strava, tokens, reportError: console.error }),
-    runSync: createRunSyncService({ accounts, activities, strava, tokens, now }),
-    stravaWebhook: createStravaWebhookService({ users, accounts, activities, strava, tokens }),
+    runSync: createRunSyncService({ accounts, activities, strava, tokens, coverage, now }),
+    stravaWebhook: createStravaWebhookService({ users, accounts, activities, strava, tokens, coverage }),
   };
 }
 

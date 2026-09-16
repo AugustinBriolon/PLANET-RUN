@@ -1,4 +1,5 @@
 import type { ActivityRepository } from "@/server/repositories/activity-repository";
+import type { CoverageRepository } from "@/server/repositories/coverage-repository";
 import type { StravaAccountRepository } from "@/server/repositories/strava-account-repository";
 import { STRAVA_MAX_PAGE_SIZE, type StravaClient } from "@/server/strava/strava-client";
 import { isMappableRun, toActivityRecord } from "@/server/strava/run-activity";
@@ -19,10 +20,18 @@ type Dependencies = {
   activities: ActivityRepository;
   strava: StravaClient;
   tokens: StravaTokenService;
+  coverage: Pick<CoverageRepository, "matchPendingActivities">;
   now: () => Date;
 };
 
-export function createRunSyncService({ accounts, activities, strava, tokens, now }: Dependencies): RunSyncService {
+export function createRunSyncService({
+  accounts,
+  activities,
+  strava,
+  tokens,
+  coverage,
+  now,
+}: Dependencies): RunSyncService {
   return {
     async syncRuns(userId) {
       const account = await accounts.findByUserId(userId);
@@ -48,6 +57,8 @@ export function createRunSyncService({ accounts, activities, strava, tokens, now
       }
 
       await accounts.markSynced(account.athleteId, startedAt);
+      // Best effort: street coverage is a supplementary feature, a failure here must not fail the sync.
+      await coverage.matchPendingActivities({ userId }).catch((error: unknown) => console.error(error));
       return { syncedRuns };
     },
   };

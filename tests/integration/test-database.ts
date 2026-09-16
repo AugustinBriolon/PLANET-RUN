@@ -9,7 +9,7 @@ export function createTestDatabase() {
   const database = createDatabase(TEST_DATABASE_URL);
   return {
     database,
-    reset: () => database.execute(sql`TRUNCATE users, strava_accounts, activities CASCADE`),
+    reset: () => database.execute(sql`TRUNCATE users, strava_accounts, activities, areas CASCADE`),
     close: () => database.$client.end(),
   };
 }

@@ -4,6 +4,7 @@ import { createStravaTokenService } from "@/server/services/strava-token-service
 import { buildStravaActivity } from "../fixtures/strava";
 
 import { createFakeStravaClient } from "./fake-strava-client";
+import { createInMemoryCoverageRepository } from "./in-memory-coverage-repository";
 import { createInMemoryRepositories } from "./in-memory-repositories";
 import { plainTextCipher } from "./plain-text-cipher";
 
@@ -13,8 +14,9 @@ export const HARNESS_ATHLETE_ID = 42;
 /** Wires in-memory repositories, a fake Strava client and a real token service around one linked athlete. */
 export async function createServiceHarness() {
   const repositories = createInMemoryRepositories();
-  const strava = createFakeStravaClient();
   const now = () => HARNESS_NOW;
+  const { coverage } = createInMemoryCoverageRepository(repositories.activityRows, now);
+  const strava = createFakeStravaClient();
   const tokens = createStravaTokenService({ accounts: repositories.accounts, strava, cipher: plainTextCipher, now });
 
   const user = await repositories.accounts.createWithUser(
@@ -31,5 +33,5 @@ export async function createServiceHarness() {
     return buildStravaActivity({ athlete: { id: HARNESS_ATHLETE_ID }, ...overrides });
   }
 
-  return { ...repositories, strava, tokens, now, user, buildOwnedActivity };
+  return { ...repositories, strava, tokens, coverage, now, user, buildOwnedActivity };
 }

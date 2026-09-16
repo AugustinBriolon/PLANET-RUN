@@ -32,6 +32,8 @@ export function createActivityRepository(database: Database): ActivityRepository
             movingTimeSeconds: sql`excluded.moving_time_seconds`,
             elevationGainMeters: sql`excluded.elevation_gain_meters`,
             summaryPolyline: sql`excluded.summary_polyline`,
+            // A changed trace (e.g. a cropped activity) must be matched against streets again.
+            coverageMatchedAt: sql`CASE WHEN ${activities.summaryPolyline} = excluded.summary_polyline THEN ${activities.coverageMatchedAt} END`,
             updatedAt: new Date(),
           },
           // Never let a payload move an activity to another user.

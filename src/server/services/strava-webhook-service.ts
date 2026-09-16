@@ -1,4 +1,5 @@
 import type { ActivityRepository } from "@/server/repositories/activity-repository";
+import type { CoverageRepository } from "@/server/repositories/coverage-repository";
 import type { StravaAccountRepository } from "@/server/repositories/strava-account-repository";
 import type { UserRepository } from "@/server/repositories/user-repository";
 import { StravaApiError, type StravaClient } from "@/server/strava/strava-client";
@@ -17,6 +18,7 @@ type Dependencies = {
   activities: ActivityRepository;
   strava: StravaClient;
   tokens: StravaTokenService;
+  coverage: Pick<CoverageRepository, "matchPendingActivities">;
 };
 
 /**
@@ -29,6 +31,7 @@ export function createStravaWebhookService({
   activities,
   strava,
   tokens,
+  coverage,
 }: Dependencies): StravaWebhookService {
   async function handleDeauthorization(athleteId: number) {
     const account = await accounts.findByAthleteId(athleteId);
@@ -49,6 +52,10 @@ export function createStravaWebhookService({
       if (activity.athlete.id !== athleteId) return;
       if (isMappableRun(activity)) {
         await activities.upsertMany([toActivityRecord(activity, account.userId)]);
+        // Best effort: street coverage is a supplementary feature, a failure here must not fail the webhook.
+        await coverage.matchPendingActivities({ userId: account.userId }).catch((error: unknown) => {
+          console.error(error);
+        });
       } else {
         await activities.deleteForUser(account.userId, activityId);
       }

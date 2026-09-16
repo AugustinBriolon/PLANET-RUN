@@ -18,6 +18,7 @@ describe("RunStatsPanel", () => {
           totalMovingTimeSeconds: 900_000,
           countryCount: 7,
         }}
+        cityCoverage={[{ areaId: 91775, name: "La Garenne-Colombes", coveredMeters: 19_760, totalMeters: 32_400 }]}
         deleteDataAction={vi.fn()}
       />,
     );
@@ -31,5 +32,20 @@ describe("RunStatsPanel", () => {
     expect(await within(panel).findByText("7")).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "Settings" })).toBeInTheDocument();
     expect(within(panel).getByRole("img", { name: "Powered by Strava" })).toBeInTheDocument();
+    expect(within(panel).getByText("Streets")).toBeInTheDocument();
+    expect(within(panel).getByText("La Garenne-Colombes")).toBeInTheDocument();
+    expect(within(panel).getByText("60.9%")).toBeInTheDocument();
+  });
+
+  it("omits the Streets section outside the coverage pilot", () => {
+    render(
+      <RunStatsPanel
+        stats={{ runCount: 1, totalDistanceMeters: 5_000, totalMovingTimeSeconds: 1_800, countryCount: 1 }}
+        cityCoverage={[]}
+        deleteDataAction={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Streets")).not.toBeInTheDocument();
   });
 });

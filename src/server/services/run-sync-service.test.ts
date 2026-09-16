@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createServiceHarness, HARNESS_ATHLETE_ID, HARNESS_NOW } from "@tests/fakes/service-harness";
 
@@ -60,6 +60,22 @@ describe("createRunSyncService", () => {
 
     await expect(service.syncRuns(harness.user.id)).rejects.toThrow("network down");
     expect((await harness.accounts.findByAthleteId(HARNESS_ATHLETE_ID))?.lastSyncedAt).toBeNull();
+  });
+
+  it("matches imported runs against street coverage", async () => {
+    harness.strava.listActivities.mockResolvedValueOnce([harness.buildOwnedActivity({ id: 1 })]);
+
+    await service.syncRuns(harness.user.id);
+
+    expect(harness.activityRows.get(1)?.coverageMatchedAt).toEqual(HARNESS_NOW);
+  });
+
+  it("does not fail the sync when coverage matching errors", async () => {
+    harness.strava.listActivities.mockResolvedValueOnce([harness.buildOwnedActivity({ id: 1 })]);
+    vi.spyOn(harness.coverage, "matchPendingActivities").mockRejectedValueOnce(new Error("postgis down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 1 });
   });
 
   it("fails for users without a linked Strava account", async () => {

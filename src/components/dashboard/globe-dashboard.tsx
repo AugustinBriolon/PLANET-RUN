@@ -1,11 +1,13 @@
 "use client";
 
+import { CoveredStreetsLayer } from "@/components/globe/covered-streets-layer";
 import { FlyToBounds } from "@/components/globe/fly-to-bounds";
 import { GlobeAutoRotate } from "@/components/globe/globe-auto-rotate";
 import { RunGlobe } from "@/components/globe/run-globe";
 import { RunTracesLayer } from "@/components/globe/run-traces-layer";
 import { PlanetRunLogo } from "@/components/brand/planet-run-logo";
 import { useRunSync } from "@/hooks/use-run-sync";
+import type { CityCoverage, CoveredStreets } from "@/lib/coverage/street-coverage";
 import type { LngLatBounds, RunStartPoints, RunTraces } from "@/lib/runs/run-geojson";
 import type { RunStats } from "@/lib/runs/run-stats";
 import type { RunSyncActionResult } from "@/lib/runs/run-sync-result";
@@ -21,6 +23,8 @@ export type GlobeDashboardProps = {
   startPoints: RunStartPoints;
   bounds: LngLatBounds | null;
   stats: RunStats;
+  cityCoverage: CityCoverage[];
+  coveredStreets: CoveredStreets;
   hasNeverSynced: boolean;
   syncAction: () => Promise<RunSyncActionResult>;
   reconnectAction: () => Promise<void>;
@@ -34,6 +38,8 @@ export function GlobeDashboard({
   startPoints,
   bounds,
   stats,
+  cityCoverage,
+  coveredStreets,
   hasNeverSynced,
   syncAction,
   reconnectAction,
@@ -47,6 +53,7 @@ export function GlobeDashboard({
     <main className="starfield relative h-dvh overflow-hidden">
       <RunGlobe className="absolute inset-0">
         <RunTracesLayer traces={traces} startPoints={startPoints} />
+        <CoveredStreetsLayer streets={coveredStreets} />
         {hasRuns ? <FlyToBounds bounds={bounds} /> : <GlobeAutoRotate />}
       </RunGlobe>
 
@@ -61,6 +68,7 @@ export function GlobeDashboard({
       {hasRuns ? (
         <RunStatsPanel
           stats={stats}
+          cityCoverage={cityCoverage}
           deleteDataAction={deleteDataAction}
           className="absolute inset-x-4 bottom-10 sm:right-auto sm:left-6"
         />

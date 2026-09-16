@@ -11,7 +11,13 @@ export function toSyncFailure(error: unknown): RunSyncFailure {
     if (error.isRateLimited) {
       return { reason: "rate-limited", message: "Strava is rate limiting us. Try again in about 15 minutes." };
     }
-    if (error.isUnauthorized) {
+    if (error.isApplicationInactive) {
+      return {
+        reason: "strava-unavailable",
+        message: "Strava has paused Planet Run's access to activity data. Please try again later.",
+      };
+    }
+    if (error.isMissingPermission) {
       return {
         reason: "missing-permission",
         message: "Strava didn't grant access to your activities. Reconnect and keep activity access enabled.",

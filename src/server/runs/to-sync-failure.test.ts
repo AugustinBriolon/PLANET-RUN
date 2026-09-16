@@ -16,6 +16,13 @@ describe("toSyncFailure", () => {
     });
   });
 
+  it("does not suggest reconnecting when Strava deactivated the application", () => {
+    const inactive = new StravaApiError(403, "Forbidden", [
+      { resource: "Application", field: "Status", code: "Inactive" },
+    ]);
+    expect(toSyncFailure(inactive)).toMatchObject({ reason: "strava-unavailable" });
+  });
+
   it("stays generic for unexpected errors", () => {
     expect(toSyncFailure(new Error("boom"))).toEqual({
       reason: "unknown",

@@ -56,6 +56,45 @@ describe("createStravaClient", () => {
     expect((error as StravaApiError).isRateLimited).toBe(true);
   });
 
+  it("keeps Strava's error details to tell an inactive application from a missing permission", async () => {
+    const { client } = setup(
+      jsonResponse(
+        { message: "Forbidden", errors: [{ resource: "Application", field: "Status", code: "Inactive" }] },
+        403,
+      ),
+    );
+
+    const error = (await client
+      .listActivities("token", { page: 1, perPage: 200 })
+      .catch((caught) => caught)) as StravaApiError;
+
+    expect(error.details).toEqual([{ resource: "Application", field: "Status", code: "Inactive" }]);
+    expect(error.isApplicationInactive).toBe(true);
+    expect(error.isMissingPermission).toBe(false);
+  });
+
+  it("treats a 403 without application error as a missing permission", async () => {
+    const { client } = setup(
+      jsonResponse(
+        {
+          message: "Authorization Error",
+          errors: [{ resource: "AccessToken", field: "activity:read_permission", code: "missing" }],
+        },
+        403,
+      ),
+    );
+
+    const error = (await client.getActivity("token", 1).catch((caught) => caught)) as StravaApiError;
+
+    expect(error.isMissingPermission).toBe(true);
+  });
+
+  it("tolerates error responses without a JSON body", async () => {
+    const { client } = setup(new Response("Bad Gateway", { status: 502 }));
+    const error = (await client.getActivity("token", 1).catch((caught) => caught)) as StravaApiError;
+    expect(error).toMatchObject({ status: 502, details: [] });
+  });
+
   it("rejects payloads that do not match the expected shape", async () => {
     const { client } = setup(jsonResponse({ unexpected: true }));
     await expect(client.getActivity("token", 1)).rejects.toThrow();

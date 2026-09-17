@@ -4,21 +4,21 @@ import { overlayRelativeToMap, paddingForOverlay } from "./fit-padding";
 
 describe("paddingForOverlay", () => {
   it("pads the bottom when the panel spans most of the width (mobile)", () => {
-    expect(
-      paddingForOverlay(
-        { width: 390, height: 844 },
-        { top: 520, left: 16, right: 374, bottom: 804 },
-      ),
-    ).toEqual({ top: 72, right: 24, bottom: 844 - 520 + 24, left: 24 });
+    expect(paddingForOverlay({ width: 390, height: 844 }, { top: 520, left: 16, right: 374, bottom: 804 })).toEqual({
+      top: 72,
+      right: 24,
+      bottom: 844 - 520 + 24,
+      left: 24,
+    });
   });
 
   it("pads bottom and left when the panel sits in the corner (desktop)", () => {
-    expect(
-      paddingForOverlay(
-        { width: 1280, height: 800 },
-        { top: 480, left: 24, right: 360, bottom: 760 },
-      ),
-    ).toEqual({ top: 72, right: 24, bottom: 800 - 480 + 24, left: 360 + 24 });
+    expect(paddingForOverlay({ width: 1280, height: 800 }, { top: 480, left: 24, right: 360, bottom: 760 })).toEqual({
+      top: 72,
+      right: 24,
+      bottom: 800 - 480 + 24,
+      left: 360 + 24,
+    });
   });
 });
 

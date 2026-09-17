@@ -86,9 +86,7 @@ describe("createCityDetectionService", () => {
 
   it("links cities already present in the shared street cache without Nominatim", async () => {
     activityRows = [buildActivity(1, 48.922, 2.252)];
-    vi.mocked(areas.findAreasContainingPoints).mockResolvedValue([
-      { osmRelationId: 91738, name: "Colombes" },
-    ]);
+    vi.mocked(areas.findAreasContainingPoints).mockResolvedValue([{ osmRelationId: 91738, name: "Colombes" }]);
     vi.mocked(areas.filterPointsOutsideAreas).mockResolvedValue([]);
 
     const service = createCityDetectionService({

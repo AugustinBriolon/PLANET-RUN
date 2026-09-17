@@ -31,10 +31,7 @@ export function FlyToBounds({ bounds, padding = 96, maxZoom = 12 }: FlyToBoundsP
     if (!map || !isLoaded || !bounds) return;
 
     const center = map.getCenter();
-    const distance = angularDistanceDegrees(
-      { lng: center.lng, lat: center.lat },
-      boundsCenter(bounds),
-    );
+    const distance = angularDistanceDegrees({ lng: center.lng, lat: center.lat }, boundsCenter(bounds));
 
     map.fitBounds(bounds, {
       padding,

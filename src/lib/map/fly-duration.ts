@@ -23,10 +23,7 @@ export function flyDurationMs(distanceDegrees: number, options: FlyDurationOptio
 }
 
 /** Approximate angular distance in degrees between two lng/lat points. */
-export function angularDistanceDegrees(
-  from: { lng: number; lat: number },
-  to: { lng: number; lat: number },
-): number {
+export function angularDistanceDegrees(from: { lng: number; lat: number }, to: { lng: number; lat: number }): number {
   return Math.hypot(from.lng - to.lng, from.lat - to.lat);
 }
 

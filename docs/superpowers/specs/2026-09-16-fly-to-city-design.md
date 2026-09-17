@@ -91,11 +91,11 @@ CityCoverageList onSelectCity(areaId)
 
 ## Alternatives considered
 
-| Option | Why not |
-| --- | --- |
-| Bounds from `coveredStreets` client-side | Frames runs, not the whole city (rejected). |
-| `flyTo` + `cameraForBounds` | Slightly richer arc; more code. Start with `fitBounds` + distance duration; switch only if motion feels flat. |
-| Fetch bounds on click | Extra latency; list payload already small. |
+| Option                                   | Why not                                                                                                       |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Bounds from `coveredStreets` client-side | Frames runs, not the whole city (rejected).                                                                   |
+| `flyTo` + `cameraForBounds`              | Slightly richer arc; more code. Start with `fitBounds` + distance duration; switch only if motion feels flat. |
+| Fetch bounds on click                    | Extra latency; list payload already small.                                                                    |
 
 ## Open points (resolved)
 

@@ -6,15 +6,7 @@ export const PRIVACY_CONTACT_EMAIL = "augustin.briolon@gmail.com";
 const INLINE_LINK_CLASS =
   "text-foreground underline underline-offset-4 outline-none hover:text-ember focus-visible:ring-2 focus-visible:ring-ring";
 
-function PolicySection({
-  title,
-  children,
-  compact,
-}: {
-  title: string;
-  children: ReactNode;
-  compact?: boolean;
-}) {
+function PolicySection({ title, children, compact }: { title: string; children: ReactNode; compact?: boolean }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className={`font-semibold tracking-tight ${compact ? "text-base" : "text-lg"}`}>{title}</h2>
@@ -32,9 +24,7 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`flex flex-col ${compact ? "gap-6" : "gap-8"}`}>
       <div className="flex flex-col gap-3">
-        <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">
-          Last updated {PRIVACY_LAST_UPDATED}
-        </p>
+        <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">Last updated {PRIVACY_LAST_UPDATED}</p>
         {!compact && <h1 className="text-4xl font-semibold tracking-tight">Privacy</h1>}
         <p className={`text-muted-foreground ${compact ? "text-sm leading-relaxed" : "text-base leading-relaxed"}`}>
           Your runs reveal where you live and train. Planet Run keeps only what it needs to draw them on your globe,
@@ -82,8 +72,8 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
       <PolicySection title="Deleting your data" compact={compact}>
         <p>
           Open the settings icon on your globe and choose <span className="text-foreground">Delete my data</span>. Your
-          profile, runs and tokens are permanently erased and Planet Run&apos;s access to Strava is revoked. You can also
-          revoke access at any time from{" "}
+          profile, runs and tokens are permanently erased and Planet Run&apos;s access to Strava is revoked. You can
+          also revoke access at any time from{" "}
           <a href="https://www.strava.com/settings/apps" className={INLINE_LINK_CLASS}>
             strava.com/settings/apps
           </a>

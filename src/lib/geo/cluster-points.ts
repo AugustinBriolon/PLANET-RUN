@@ -11,10 +11,7 @@ export function gridCellKey(point: LatLon, gridDegrees: number = CITY_CLUSTER_GR
  * Keeps one representative point per grid cell so reverse-geocoding is done per area,
  * not once per run.
  */
-export function clusterPointsByGrid(
-  points: LatLon[],
-  gridDegrees: number = CITY_CLUSTER_GRID_DEGREES,
-): LatLon[] {
+export function clusterPointsByGrid(points: LatLon[], gridDegrees: number = CITY_CLUSTER_GRID_DEGREES): LatLon[] {
   const representatives = new Map<string, LatLon>();
   for (const point of points) {
     const key = gridCellKey(point, gridDegrees);

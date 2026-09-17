@@ -3,13 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import { PrivacyPolicy } from "@/components/privacy/privacy-policy";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export type PrivacyDialogProps = {
   open: boolean;

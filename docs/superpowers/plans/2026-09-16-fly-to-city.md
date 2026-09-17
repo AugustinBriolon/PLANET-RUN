@@ -21,6 +21,7 @@
 ### Task 1: Bounds on `CityCoverage` + repository
 
 **Files:**
+
 - Modify: `src/lib/coverage/street-coverage.ts`
 - Modify: `src/server/repositories/coverage-repository.ts`
 - Modify: `tests/integration/street-coverage.test.ts`
@@ -35,6 +36,7 @@
 ### Task 2: Fly duration helper + `FlyToBounds`
 
 **Files:**
+
 - Create: `src/lib/map/fly-duration.ts`
 - Create: `src/lib/map/fly-duration.test.ts`
 - Modify: `src/components/globe/fly-to-bounds.tsx`
@@ -47,6 +49,7 @@
 ### Task 3: Clickable list + dashboard wiring
 
 **Files:**
+
 - Modify: `src/components/dashboard/city-coverage-list.tsx`
 - Create: `src/components/dashboard/city-coverage-list.test.tsx`
 - Modify: `src/components/dashboard/run-stats-panel.tsx`

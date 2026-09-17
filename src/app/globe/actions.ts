@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { signIn, signOut } from "@/auth";
 import type { RunSyncActionResult } from "@/lib/runs/run-sync-result";
+import { MANUAL_SYNC_MAX_ATTEMPTS, tryConsumeManualSync } from "@/server/runs/manual-sync-rate-limit";
 import { SESSION_EXPIRED_FAILURE, toSyncFailure } from "@/server/runs/to-sync-failure";
 import { scheduleCityPipeline } from "@/server/services/city-pipeline";
 import { getServices } from "@/server/services";
@@ -13,6 +14,16 @@ import { getCurrentUser } from "@/server/session";
 export async function syncRuns(): Promise<RunSyncActionResult> {
   const user = await getCurrentUser();
   if (!user) return { status: "error", ...SESSION_EXPIRED_FAILURE };
+
+  const slot = tryConsumeManualSync(user.id);
+  if (!slot.ok) {
+    const retryMinutes = Math.max(1, Math.ceil(slot.retryAfterMs / 60_000));
+    return {
+      status: "error",
+      reason: "rate-limited",
+      message: `Sync limit reached (${MANUAL_SYNC_MAX_ATTEMPTS} per 15 minutes). Try again in about ${retryMinutes} minute${retryMinutes === 1 ? "" : "s"}.`,
+    };
+  }
 
   try {
     const { syncedRuns } = await getServices().runSync.syncRuns(user.id);

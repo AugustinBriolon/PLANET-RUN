@@ -1,6 +1,7 @@
 "use client";
 
 import { LayoutGroup, motion } from "motion/react";
+import { MapPin } from "lucide-react";
 
 import { formatPercent } from "@/lib/format";
 import type { CityCoverage } from "@/lib/coverage/street-coverage";
@@ -40,9 +41,17 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
                   aria-label={isPending ? `${city.name} (analyzing streets)` : `Fly to ${city.name}`}
                   disabled={isPending || city.bounds == null}
                   onClick={() => onSelectCity(city.areaId)}
-                  className="min-w-0 flex-1 truncate text-left text-foreground transition-colors duration-150 ease-out outline-none hover:text-ember focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:text-foreground"
+                  className="group flex min-w-0 flex-1 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                 >
-                  {city.name}
+                  {/* Signals the row is tappable — text alone reads as a label, not a control,
+                      especially on touch where there's no hover to reveal it. */}
+                  <MapPin
+                    aria-hidden="true"
+                    className="size-3.5 shrink-0 text-muted-foreground/70 transition-colors duration-150 ease-out group-hover:text-ember group-focus-visible:text-ember group-disabled:text-muted-foreground/40"
+                  />
+                  <span className="min-w-0 truncate text-foreground transition-colors duration-150 ease-out group-hover:text-ember group-focus-visible:text-ember group-disabled:text-foreground">
+                    {city.name}
+                  </span>
                 </button>
                 <span className="flex shrink-0 items-center gap-2">
                   {isPending || share == null ? (

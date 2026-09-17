@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# maplibre-gl worker files, copied from node_modules at postinstall (pnpm maplibre:workers)
+/public/maplibre/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

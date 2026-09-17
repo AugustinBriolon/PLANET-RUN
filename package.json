@@ -18,7 +18,9 @@
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
     "osm:import-city": "tsx --env-file=.env.local scripts/import-osm-city.ts",
-    "strava:webhook:subscribe": "tsx --env-file=.env.local scripts/subscribe-strava-webhook.ts"
+    "strava:webhook:subscribe": "tsx --env-file=.env.local scripts/subscribe-strava-webhook.ts",
+    "maplibre:workers": "mkdir -p public/maplibre && cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/maplibre/",
+    "postinstall": "pnpm maplibre:workers"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

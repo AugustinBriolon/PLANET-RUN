@@ -1,8 +1,16 @@
 "use client";
 
+import * as MapLibreGL from "maplibre-gl";
 import type { ReactNode } from "react";
 
 import { Map } from "@/components/ui/map";
+
+// mapcn's own worker setup points at unpkg, which fails to ever fire "load" on iOS Safari over a
+// LAN http:// origin (phone testing). Served same-origin instead; kept here (not in the vendored
+// map.tsx) so a `shadcn add @mapcn/map --overwrite` refresh can't silently drop it.
+if (typeof window !== "undefined") {
+  MapLibreGL.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+}
 
 const GLOBE_PROJECTION = { type: "globe" } as const;
 

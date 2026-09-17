@@ -61,7 +61,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`dark ${geistSans.variable} ${geistMono.variable} h-dvh antialiased`}
     >
-      <body className="min-h-dvh bg-space text-foreground overscroll-none">
+      <body className="min-h-dvh overscroll-none bg-space text-foreground">
         <MotionProvider>
           <TooltipProvider>{children}</TooltipProvider>
         </MotionProvider>

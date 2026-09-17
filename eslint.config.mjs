@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored from the mapcn registry and refreshed with `shadcn add`; see docs/adr/0004.
     "src/components/ui/map.tsx",
+    // Copied verbatim from maplibre-gl/dist at postinstall (pnpm maplibre:workers); minified vendor JS.
+    "public/maplibre/**",
   ]),
 ]);
 

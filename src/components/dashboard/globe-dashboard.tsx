@@ -108,7 +108,7 @@ export function GlobeDashboard({
   }
 
   return (
-    <main ref={shellRef} className="starfield relative h-dvh overflow-hidden">
+    <main ref={shellRef} className="starfield relative h-lvh overflow-hidden">
       <RunGlobe className="absolute inset-0">
         <RunTracesLayer
           traces={traces}

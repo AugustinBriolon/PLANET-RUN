@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const errorMessage = getSignInErrorMessage(error);
 
   return (
-    <main className="starfield relative h-dvh overflow-hidden">
+    <main className="starfield relative h-lvh overflow-hidden">
       <section aria-label="Planet preview" className="absolute inset-0 max-sm:-translate-y-[12dvh]">
         <LoginGlobe />
       </section>

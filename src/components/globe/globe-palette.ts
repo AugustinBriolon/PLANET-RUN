@@ -6,4 +6,10 @@ export const globePalette = {
   startPoint: "#ffc39e",
   arc: "#ff8a4c",
   coveredStreet: "#4ade80",
+  // Thermal scale for density-colored traces (cool infrequent → hot frequented).
+  heatmapCool: "#4cc9f0",
+  heatmapMild: "#80ed99",
+  heatmapWarm: "#fee440",
+  heatmapHot: "#ff7b00",
+  heatmapCore: "#ff0054",
 } as const;

@@ -2,12 +2,13 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CoveredStreetsLayer } from "@/components/globe/covered-streets-layer";
 import { FlyToBounds } from "@/components/globe/fly-to-bounds";
 import { GlobeAutoRotate } from "@/components/globe/globe-auto-rotate";
 import { RunGlobe } from "@/components/globe/run-globe";
+import { RunHeatmapLayer } from "@/components/globe/run-heatmap-layer";
 import { RunTracesLayer } from "@/components/globe/run-traces-layer";
 import { PlanetRunLogo } from "@/components/brand/planet-run-logo";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -15,11 +16,18 @@ import { useRunSync } from "@/hooks/use-run-sync";
 import { getCoveredStreetsBounds, type CityCoverage, type CoveredStreets } from "@/lib/coverage/street-coverage";
 import { overlayRelativeToMap, paddingForOverlay, type BoxPadding } from "@/lib/map/fit-padding";
 import { panelMotion } from "@/lib/motion/panel-motion";
-import type { LngLatBounds, RunFeatureProperties, RunStartPoints, RunTraces } from "@/lib/runs/run-geojson";
+import {
+  toDensityTraces,
+  type LngLatBounds,
+  type RunFeatureProperties,
+  type RunStartPoints,
+  type RunTraces,
+} from "@/lib/runs/run-geojson";
 import type { RunStats } from "@/lib/runs/run-stats";
 import type { RunSyncActionResult } from "@/lib/runs/run-sync-result";
 
 import { EmptyRunsState } from "./empty-runs-state";
+import { HeatmapToggle } from "./heatmap-toggle";
 import { RunDetailPanel } from "./run-detail-panel";
 import { RunStatsPanel } from "./run-stats-panel";
 import { SyncButton } from "./sync-button";
@@ -79,9 +87,11 @@ export function GlobeDashboard({
   const [focusBounds, setFocusBounds] = useState(bounds);
   const [framing, setFraming] = useState<Framing>(ENTRANCE_FRAMING);
   const [selectedRun, setSelectedRun] = useState<RunFeatureProperties | null>(null);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const hasRuns = stats.runCount > 0;
   const hasPendingCities = cityCoverage.some((city) => city.status === "pending");
+  const densityTraces = useMemo(() => (showHeatmap ? toDensityTraces(traces) : null), [showHeatmap, traces]);
   // On mobile the detail panel takes the stats panel's own slot, so it swaps out instead of stacking;
   // on desktop the two sit side by side and the stats panel never needs to hide.
   const showStats = isDesktop || !selectedRun;
@@ -110,15 +120,26 @@ export function GlobeDashboard({
     setFraming(cityFraming(shellRef.current, panelRef.current));
   }
 
+  function toggleHeatmap() {
+    setShowHeatmap((wasShowing) => {
+      if (!wasShowing) setSelectedRun(null);
+      return !wasShowing;
+    });
+  }
+
   return (
     <main ref={shellRef} className="starfield relative h-dvh overflow-hidden">
       <RunGlobe className="absolute inset-0">
-        <RunTracesLayer
-          traces={traces}
-          startPoints={startPoints}
-          onSelectRun={setSelectedRun}
-          onDeselect={() => setSelectedRun(null)}
-        />
+        {showHeatmap && densityTraces ? (
+          <RunHeatmapLayer traces={densityTraces} />
+        ) : (
+          <RunTracesLayer
+            traces={traces}
+            startPoints={startPoints}
+            onSelectRun={setSelectedRun}
+            onDeselect={() => setSelectedRun(null)}
+          />
+        )}
         <CoveredStreetsLayer streets={coveredStreets} />
         {hasRuns ? (
           <FlyToBounds bounds={focusBounds} padding={framing.padding} maxZoom={framing.maxZoom} />
@@ -129,7 +150,8 @@ export function GlobeDashboard({
 
       <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top,0px))] sm:pb-6">
         <PlanetRunLogo className="pointer-events-auto text-base" />
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto flex items-center gap-2">
+          {hasRuns && <HeatmapToggle active={showHeatmap} onToggle={toggleHeatmap} />}
           <SyncButton isSyncing={status === "syncing"} onSync={sync} />
         </div>
       </header>

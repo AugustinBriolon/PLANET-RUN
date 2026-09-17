@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { SAMPLE_POLYLINE } from "@tests/fixtures/strava";
 
-import { getPrimaryCountryBounds, getTracesBounds, toRunStartPoints, toRunTraces } from "./run-geojson";
+import {
+  getPrimaryCountryBounds,
+  getTracesBounds,
+  toDensityTraces,
+  toRunStartPoints,
+  toRunTraces,
+} from "./run-geojson";
 import type { RunTraces } from "./run-geojson";
 import type { LocateCountry } from "./run-stats";
 import type { RunSummary } from "./run-summary";
@@ -51,6 +57,48 @@ describe("toRunStartPoints", () => {
     const startPoints = toRunStartPoints(toRunTraces([buildRun()]));
     expect(startPoints.features[0]!.id).toBe(1);
     expect(startPoints.features[0]!.geometry).toEqual({ type: "Point", coordinates: [-120.2, 38.5] });
+  });
+});
+
+describe("toDensityTraces", () => {
+  function lineTrace(id: number, coordinates: [number, number][]): RunTraces["features"][number] {
+    return {
+      type: "Feature",
+      id,
+      geometry: { type: "LineString", coordinates },
+      properties: {
+        id,
+        name: `Run ${id}`,
+        startDate: "2026-09-01T06:30:00.000Z",
+        distanceMeters: 100,
+        movingTimeSeconds: 60,
+      },
+    };
+  }
+
+  it("colors overlapping stretches hotter than a one-off detour", () => {
+    const shared: [number, number][] = [
+      [2.3, 48.8],
+      [2.301, 48.801],
+    ];
+    const detour: [number, number][] = [
+      [2.4, 48.9],
+      [2.401, 48.901],
+    ];
+    const traces: RunTraces = {
+      type: "FeatureCollection",
+      features: [lineTrace(1, shared), lineTrace(2, shared), lineTrace(3, detour)],
+    };
+
+    const density = toDensityTraces(traces, { spacingMeters: 50, cellDegrees: 0.0005 });
+    const densities = density.features.map((feature) => feature.properties.density);
+
+    expect(Math.max(...densities)).toBe(2);
+    expect(Math.min(...densities)).toBe(1);
+  });
+
+  it("returns no segments when there are no traces", () => {
+    expect(toDensityTraces({ type: "FeatureCollection", features: [] }).features).toEqual([]);
   });
 });
 

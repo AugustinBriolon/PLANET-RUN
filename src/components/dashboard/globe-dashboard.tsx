@@ -14,6 +14,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRunSync } from "@/hooks/use-run-sync";
 import { getCoveredStreetsBounds, type CityCoverage, type CoveredStreets } from "@/lib/coverage/street-coverage";
 import { overlayRelativeToMap, paddingForOverlay, type BoxPadding } from "@/lib/map/fit-padding";
+import { panelMotion } from "@/lib/motion/panel-motion";
 import type { LngLatBounds, RunFeatureProperties, RunStartPoints, RunTraces } from "@/lib/runs/run-geojson";
 import type { RunStats } from "@/lib/runs/run-stats";
 import type { RunSyncActionResult } from "@/lib/runs/run-sync-result";
@@ -84,6 +85,8 @@ export function GlobeDashboard({
   // On mobile the detail panel takes the stats panel's own slot, so it swaps out instead of stacking;
   // on desktop the two sit side by side and the stats panel never needs to hide.
   const showStats = isDesktop || !selectedRun;
+  // Sharing one slot means crossfading in place; owning a corner means arriving from off-frame.
+  const panelMode = isDesktop ? "sheet" : "swap";
 
   useEffect(() => {
     if (!hasPendingCities) return;
@@ -136,14 +139,7 @@ export function GlobeDashboard({
           <div className="pointer-events-none absolute inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:inset-x-auto sm:right-auto sm:bottom-4 sm:left-6 sm:max-w-[50vw]">
             <AnimatePresence>
               {showStats && (
-                <motion.div
-                  ref={panelRef}
-                  initial={{ opacity: 0, y: "100%" }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: "100%" }}
-                  transition={{ duration: 0.35, ease: "easeOut" }}
-                  className="pointer-events-auto"
-                >
+                <motion.div ref={panelRef} {...panelMotion(panelMode)} className="pointer-events-auto transform-gpu">
                   <RunStatsPanel
                     stats={stats}
                     cityCoverage={cityCoverage}
@@ -155,7 +151,7 @@ export function GlobeDashboard({
               )}
             </AnimatePresence>
           </div>
-          <RunDetailPanel run={selectedRun} onClose={() => setSelectedRun(null)} />
+          <RunDetailPanel run={selectedRun} onClose={() => setSelectedRun(null)} motionMode={panelMode} />
         </>
       ) : (
         <div className="pointer-events-none absolute inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] flex justify-center sm:inset-x-4 sm:bottom-4">

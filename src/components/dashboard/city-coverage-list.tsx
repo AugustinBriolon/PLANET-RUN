@@ -5,6 +5,7 @@ import { LayoutGroup, motion } from "motion/react";
 import { formatPercent } from "@/lib/format";
 import type { CityCoverage } from "@/lib/coverage/street-coverage";
 import { toCoverageShare } from "@/lib/coverage/street-coverage";
+import { PANEL_LAYOUT_TRANSITION } from "@/lib/motion/panel-motion";
 
 export type CityCoverageListProps = {
   cities: CityCoverage[];
@@ -27,9 +28,11 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
               <motion.li
                 key={city.areaId}
                 layout
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ layout: { duration: 0.35, ease: "easeOut" }, duration: 0.3, ease: "easeOut" }}
+                // Fade only: the panel itself already moves, and on mobile it remounts on every
+                // swap back from a run's details — rows sliding in again each time reads as noise.
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ layout: PANEL_LAYOUT_TRANSITION, duration: 0.2, ease: "easeOut" }}
                 className="flex items-center justify-between gap-3 text-sm"
               >
                 <button

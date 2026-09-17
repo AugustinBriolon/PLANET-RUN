@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 
+import { panelMotion, PANEL_LAYOUT_TRANSITION, type PanelMotionMode } from "@/lib/motion/panel-motion";
 import type { RunFeatureProperties } from "@/lib/runs/run-geojson";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +11,8 @@ import { RunDetailView } from "./run-detail-view";
 export type RunDetailPanelProps = {
   run: RunFeatureProperties | null;
   onClose: () => void;
+  /** `sheet` where the panel owns its corner (desktop), `swap` where it shares the stats slot. */
+  motionMode?: PanelMotionMode;
   className?: string;
 };
 
@@ -19,7 +22,9 @@ export type RunDetailPanelProps = {
  * sits in, so it reads as one panel changing content rather than a second one stacking on top —
  * the caller hides the stats panel there while this is open.
  */
-export function RunDetailPanel({ run, onClose, className }: RunDetailPanelProps) {
+export function RunDetailPanel({ run, onClose, motionMode = "sheet", className }: RunDetailPanelProps) {
+  const { transition, ...motionProps } = panelMotion(motionMode);
+
   return (
     <div
       className={cn(
@@ -32,14 +37,12 @@ export function RunDetailPanel({ run, onClose, className }: RunDetailPanelProps)
           <motion.section
             layout
             aria-label={`${run.name} details`}
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-            className="glass-panel pointer-events-auto rounded-xl p-5"
+            {...motionProps}
+            transition={{ ...transition, layout: PANEL_LAYOUT_TRANSITION }}
+            className="glass-panel pointer-events-auto transform-gpu rounded-xl p-5"
           >
             {/* Crossfades content when a different trace is clicked while the panel stays open,
-                while `layout` above smooths the panel resizing to fit (e.g. a longer run name). */}
+                while `layout` above springs the panel to its new height (e.g. a longer run name). */}
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.div
                 key={run.id}

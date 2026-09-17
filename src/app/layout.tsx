@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { MotionProvider } from "@/components/motion/motion-provider";
@@ -17,9 +17,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const DESCRIPTION = "Every place you've ever run, on one interactive globe.";
+
+export const viewport: Viewport = {
+  themeColor: "#0c0e18",
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://planet-run.vercel.app"),
   title: "Planet Run",
-  description: "Every place you've ever run, on one interactive globe.",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "Planet Run",
+    description: DESCRIPTION,
+    siteName: "Planet Run",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Planet Run",
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

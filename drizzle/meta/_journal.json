@@ -15,6 +15,13 @@
       "when": 1789585653483,
       "tag": "0001_street_coverage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789596000000,
+      "tag": "0002_city_discovery_queue",
+      "breakpoints": true
     }
   ]
 }

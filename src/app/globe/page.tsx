@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { GlobeDashboard } from "@/components/dashboard/globe-dashboard";
-import { getTracesBounds, toRunStartPoints, toRunTraces } from "@/lib/runs/run-geojson";
+import { getPrimaryCountryBounds, getTracesBounds, toRunStartPoints, toRunTraces } from "@/lib/runs/run-geojson";
 import { countCountries, summarizeRuns } from "@/lib/runs/run-stats";
 import { locateCountry } from "@/server/runs/locate-country";
 import { toRunSummary } from "@/server/runs/to-run-summary";
@@ -32,7 +32,7 @@ export default async function GlobePage() {
     <GlobeDashboard
       traces={traces}
       startPoints={startPoints}
-      bounds={getTracesBounds(traces)}
+      bounds={getPrimaryCountryBounds(traces, locateCountry) ?? getTracesBounds(traces)}
       stats={summarizeRuns(runs, countCountries(startPoints, locateCountry))}
       cityCoverage={cityCoverage}
       coveredStreets={coveredStreets}

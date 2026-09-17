@@ -2,21 +2,29 @@ import type { FeatureCollection, LineString, MultiLineString, Position } from "g
 
 import type { LngLatBounds } from "@/lib/runs/run-geojson";
 
+export type CityCoverageStatus = "pending" | "ready";
+
 export type CityCoverage = {
   areaId: number;
   name: string;
+  /** `pending` = city discovered, shared street analysis not ready yet. */
+  status: CityCoverageStatus;
   coveredMeters: number;
   totalMeters: number;
-  bounds: LngLatBounds;
+  bounds: LngLatBounds | null;
 };
 
 export type CoveredStreets = FeatureCollection<LineString | MultiLineString, { areaId: number }>;
 
 export const NO_COVERED_STREETS: CoveredStreets = { type: "FeatureCollection", features: [] };
 
-/** Covered share of a city's streets, between 0 and 1. */
-export function toCoverageShare({ coveredMeters, totalMeters }: Pick<CityCoverage, "coveredMeters" | "totalMeters">): number {
-  if (totalMeters <= 0) return 0;
+/** Covered share of a city's streets, between 0 and 1. Pending cities have no share yet. */
+export function toCoverageShare({
+  status,
+  coveredMeters,
+  totalMeters,
+}: Pick<CityCoverage, "status" | "coveredMeters" | "totalMeters">): number | null {
+  if (status === "pending" || totalMeters <= 0) return null;
   return Math.min(1, Math.max(0, coveredMeters / totalMeters));
 }
 

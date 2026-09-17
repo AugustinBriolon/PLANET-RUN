@@ -2,8 +2,8 @@ import { z } from "zod";
 
 const DEFAULT_ENDPOINT = "https://nominatim.openstreetmap.org";
 const USER_AGENT = "PlanetRun/0.1 (+https://planet-run.vercel.app)";
-// Nominatim: max 1 req/sec, respect delays
-const RATE_LIMIT_DELAY_MS = 5000;
+// Nominatim usage policy: max 1 request/second.
+const RATE_LIMIT_DELAY_MS = 1100;
 
 const nominatimResponseSchema = z.object({
   address: z.object({
@@ -57,7 +57,7 @@ export function createNominatimClient({
       await enforceRateLimit();
 
       const response = await fetchImpl(
-        `${endpoint}/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`,
+        `${endpoint}/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&extratags=1`,
         {
           headers: { "User-Agent": USER_AGENT },
         },

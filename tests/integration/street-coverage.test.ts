@@ -1,4 +1,5 @@
 import polyline from "@mapbox/polyline";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createActivityRepository } from "@/server/repositories/activity-repository";
@@ -92,6 +93,12 @@ async function linkRunner(athleteId: number) {
   );
 }
 
+async function linkCity(userId: string, osmRelationId: number, name: string) {
+  await testDatabase.database.execute(
+    sql`INSERT INTO user_cities (user_id, osm_relation_id, name) VALUES (${userId}, ${osmRelationId}, ${name})`,
+  );
+}
+
 describe("street coverage in PostGIS", () => {
   beforeEach(async () => {
     await testDatabase.reset();
@@ -122,6 +129,17 @@ describe("street coverage in PostGIS", () => {
 
       expect(result.segmentCount).toBe(15);
     });
+
+    it("filters start points that already fall inside an imported city", async () => {
+      await areas.replaceArea(squareCity);
+
+      await expect(
+        areas.filterPointsOutsideAreas([
+          { lat: 48.005, lon: 2.005 },
+          { lat: 48.5, lon: 2.5 },
+        ]),
+      ).resolves.toEqual([{ lat: 48.5, lon: 2.5 }]);
+    });
   });
 
   describe("run matching", () => {
@@ -131,12 +149,13 @@ describe("street coverage in PostGIS", () => {
 
     it("covers the pieces a run follows, but not the street it only crosses", async () => {
       const runner = await linkRunner(42);
+      await linkCity(runner.id, 1001, "Squareville");
       await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.009));
 
       expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(1);
 
       const [city] = await coverage.listCityCoverage(runner.id);
-      expect(city).toMatchObject({ areaId: 1001, name: "Squareville" });
+      expect(city).toMatchObject({ areaId: 1001, name: "Squareville", status: "ready" });
       expect(city!.bounds).toEqual([
         [2, 48],
         [2.01, 48.01],
@@ -157,29 +176,34 @@ describe("street coverage in PostGIS", () => {
 
     it("ignores a parallel street 60 m away", async () => {
       const runner = await linkRunner(42);
+      await linkCity(runner.id, 1001, "Squareville");
       await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE + 0.00054, 2.001, 2.009));
 
       await coverage.matchPendingActivities({ userId: runner.id });
 
-      expect(await coverage.listCityCoverage(runner.id)).toEqual([]);
+      const [city] = await coverage.listCityCoverage(runner.id);
+      expect(city).toMatchObject({ status: "ready", coveredMeters: 0 });
     });
 
     it("only matches the requested runner and counts each run once", async () => {
       const runner = await linkRunner(42);
       const other = await linkRunner(7);
+      await linkCity(runner.id, 1001, "Squareville");
+      await linkCity(other.id, 1001, "Squareville");
       await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.009));
       await recordRun(other.id, 2, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.009));
 
       expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(1);
       expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(0);
-      expect(await coverage.listCityCoverage(other.id)).toEqual([]);
+      expect((await coverage.listCityCoverage(other.id))[0]?.coveredMeters ?? 0).toBe(0);
 
       expect(await coverage.matchPendingActivities()).toBe(1);
-      expect(await coverage.listCityCoverage(other.id)).toHaveLength(1);
+      expect((await coverage.listCityCoverage(other.id))[0]?.coveredMeters).toBeGreaterThan(0);
     });
 
     it("re-matches a run whose trace changed, and keeps matches for unchanged ones", async () => {
       const runner = await linkRunner(42);
+      await linkCity(runner.id, 1001, "Squareville");
       const run = await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.009));
       await coverage.matchPendingActivities({ userId: runner.id });
 
@@ -194,6 +218,7 @@ describe("street coverage in PostGIS", () => {
 
     it("drops coverage with the run, and re-matches everything on demand", async () => {
       const runner = await linkRunner(42);
+      await linkCity(runner.id, 1001, "Squareville");
       await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.009));
       await coverage.matchPendingActivities();
 
@@ -201,7 +226,23 @@ describe("street coverage in PostGIS", () => {
       expect(await coverage.matchPendingActivities()).toBe(1);
 
       await activities.deleteForUser(runner.id, 1);
-      expect(await coverage.listCityCoverage(runner.id)).toEqual([]);
+      expect((await coverage.listCityCoverage(runner.id))[0]?.coveredMeters ?? 0).toBe(0);
+    });
+
+    it("lists a discovered city as pending until shared streets exist", async () => {
+      const runner = await linkRunner(42);
+      await linkCity(runner.id, 9999, "Pendingville");
+
+      await expect(coverage.listCityCoverage(runner.id)).resolves.toEqual([
+        {
+          areaId: 9999,
+          name: "Pendingville",
+          status: "pending",
+          coveredMeters: 0,
+          totalMeters: 0,
+          bounds: null,
+        },
+      ]);
     });
   });
 });

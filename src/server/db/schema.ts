@@ -117,7 +117,48 @@ export const activityStreetSegments = pgTable(
   (table) => [primaryKey({ columns: [table.activityId, table.segmentId] }), index().on(table.segmentId)],
 );
 
+/**
+ * Cities a runner has been detected in. Street geometry lives in the shared `areas` /
+ * `street_segments` tables so a second athlete who runs the same city reuses that analysis.
+ */
+export const userCities = pgTable(
+  "user_cities",
+  {
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    osmRelationId: bigint({ mode: "number" }).notNull(),
+    name: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.osmRelationId] }), index().on(table.osmRelationId)],
+);
+
+/** Grid cells whose start points were already reverse-geocoded for this user (success or miss). */
+export const userGeocodeCells = pgTable(
+  "user_geocode_cells",
+  {
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    cellKey: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.cellKey] })],
+);
+
+/** Global queue of cities whose streets still need to be fetched from Overpass into `areas`. */
+export const cityImportQueue = pgTable("city_import_queue", {
+  osmRelationId: bigint({ mode: "number" }).primaryKey(),
+  name: text().notNull(),
+  status: text().notNull().default("pending"),
+  attempts: integer().notNull().default(0),
+  lastError: text(),
+  ...timestamps,
+});
+
 export type User = typeof users.$inferSelect;
 export type StravaAccount = typeof stravaAccounts.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
+export type UserCity = typeof userCities.$inferSelect;

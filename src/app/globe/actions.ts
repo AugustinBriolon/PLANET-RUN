@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
 import type { RunSyncActionResult } from "@/lib/runs/run-sync-result";
 import { SESSION_EXPIRED_FAILURE, toSyncFailure } from "@/server/runs/to-sync-failure";
+import { scheduleCityPipeline } from "@/server/services/city-pipeline";
 import { getServices } from "@/server/services";
 import { getCurrentUser } from "@/server/session";
 
@@ -15,6 +16,8 @@ export async function syncRuns(): Promise<RunSyncActionResult> {
 
   try {
     const { syncedRuns } = await getServices().runSync.syncRuns(user.id);
+    // Discover cities + import missing shared street data after the sync response.
+    scheduleCityPipeline(user.id);
     refresh();
     return { status: "success", syncedRuns };
   } catch (error) {

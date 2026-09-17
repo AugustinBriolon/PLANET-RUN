@@ -23,11 +23,19 @@ export type AreaImport = {
 
 export type AreaImportResult = { segmentCount: number; streetLengthMeters: number };
 
+export type LatLon = { lat: number; lon: number };
+
 export type AreaRepository = {
   /** Creates or fully replaces an area and its street segments. */
   replaceArea: (area: AreaImport) => Promise<AreaImportResult>;
   /** Returns all imported areas. */
   listAll: () => Promise<Array<{ osmRelationId: number; name: string; adminLevel: number }>>;
+  /** Returns whether streets for this OSM relation already live in the shared areas table. */
+  hasArea: (osmRelationId: number) => Promise<boolean>;
+  /** Unique imported cities whose boundary contains at least one of the points. */
+  findAreasContainingPoints: (points: LatLon[]) => Promise<Array<{ osmRelationId: number; name: string }>>;
+  /** Returns points that do not fall inside any imported area boundary. */
+  filterPointsOutsideAreas: (points: LatLon[]) => Promise<LatLon[]>;
 };
 
 const toLineGeoJson = (coordinates: Position[]) => ({ type: "LineString", coordinates });
@@ -46,6 +54,50 @@ export function createAreaRepository(
         name: row.name,
         adminLevel: row.admin_level,
       }));
+    },
+    async hasArea(osmRelationId) {
+      const [row] = await database.execute<{ present: boolean }>(sql`
+        SELECT EXISTS(SELECT 1 FROM areas WHERE osm_relation_id = ${osmRelationId}) AS present
+      `);
+      return Boolean(row?.present);
+    },
+    async findAreasContainingPoints(points) {
+      if (points.length === 0) return [];
+
+      const rows = await database.execute<{ osm_relation_id: string; name: string }>(sql`
+        WITH input AS (
+          SELECT (item->>'lat')::float8 AS lat, (item->>'lon')::float8 AS lon
+          FROM jsonb_array_elements(${JSON.stringify(points)}::jsonb) AS item
+        )
+        SELECT DISTINCT areas.osm_relation_id, areas.name
+        FROM input
+        JOIN areas ON ST_Contains(areas.boundary, ST_SetSRID(ST_MakePoint(input.lon, input.lat), 4326))
+        ORDER BY areas.name
+      `);
+
+      return rows.map((row) => ({
+        osmRelationId: Number(row.osm_relation_id),
+        name: row.name,
+      }));
+    },
+    async filterPointsOutsideAreas(points) {
+      if (points.length === 0) return [];
+
+      const rows = await database.execute<{ lat: number; lon: number }>(sql`
+        WITH input AS (
+          SELECT (item->>'lat')::float8 AS lat, (item->>'lon')::float8 AS lon
+          FROM jsonb_array_elements(${JSON.stringify(points)}::jsonb) AS item
+        )
+        SELECT input.lat, input.lon
+        FROM input
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM areas
+          WHERE ST_Contains(areas.boundary, ST_SetSRID(ST_MakePoint(input.lon, input.lat), 4326))
+        )
+      `);
+
+      return rows.map((row) => ({ lat: row.lat, lon: row.lon }));
     },
     async replaceArea(area) {
       const boundaryLines = JSON.stringify(area.boundaryLines.map(toLineGeoJson));

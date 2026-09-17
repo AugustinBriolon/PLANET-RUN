@@ -71,32 +71,49 @@ export function createCoverageRepository(
       const rows = await database.execute<{
         area_id: string;
         name: string;
+        status: "pending" | "ready";
         covered_meters: number;
         total_meters: number;
-        west: number;
-        south: number;
-        east: number;
-        north: number;
+        west: number | null;
+        south: number | null;
+        east: number | null;
+        north: number | null;
       }>(sql`
-        SELECT area.osm_relation_id AS area_id, area.name,
-               sum(segment.length_meters)::float8 AS covered_meters, area.street_length_meters AS total_meters,
+        WITH covered AS (
+          SELECT segment.area_id, sum(segment.length_meters)::float8 AS covered_meters
+          FROM street_segments AS segment
+          WHERE segment.id IN (${segmentsCoveredBy(userId)})
+          GROUP BY segment.area_id
+        )
+        SELECT user_cities.osm_relation_id AS area_id,
+               user_cities.name,
+               CASE WHEN area.osm_relation_id IS NULL THEN 'pending' ELSE 'ready' END AS status,
+               coalesce(covered.covered_meters, 0)::float8 AS covered_meters,
+               coalesce(area.street_length_meters, 0)::float8 AS total_meters,
                ST_XMin(area.boundary)::float8 AS west, ST_YMin(area.boundary)::float8 AS south,
                ST_XMax(area.boundary)::float8 AS east, ST_YMax(area.boundary)::float8 AS north
-        FROM street_segments AS segment
-        JOIN areas AS area ON area.osm_relation_id = segment.area_id
-        WHERE segment.id IN (${segmentsCoveredBy(userId)})
-        GROUP BY area.osm_relation_id
-        ORDER BY sum(segment.length_meters) / nullif(area.street_length_meters, 0) DESC, area.name
+        FROM user_cities
+        LEFT JOIN areas AS area ON area.osm_relation_id = user_cities.osm_relation_id
+        LEFT JOIN covered ON covered.area_id = user_cities.osm_relation_id
+        WHERE user_cities.user_id = ${userId}
+        ORDER BY
+          CASE WHEN area.osm_relation_id IS NULL THEN 1 ELSE 0 END,
+          covered.covered_meters / nullif(area.street_length_meters, 0) DESC NULLS LAST,
+          user_cities.name
       `);
       return rows.map((row) => ({
         areaId: Number(row.area_id),
         name: row.name,
+        status: row.status,
         coveredMeters: row.covered_meters,
         totalMeters: row.total_meters,
-        bounds: [
-          [row.west, row.south],
-          [row.east, row.north],
-        ],
+        bounds:
+          row.west == null || row.south == null || row.east == null || row.north == null
+            ? null
+            : [
+                [row.west, row.south],
+                [row.east, row.north],
+              ],
       }));
     },
 

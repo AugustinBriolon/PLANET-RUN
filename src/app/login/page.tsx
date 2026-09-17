@@ -24,26 +24,24 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const errorMessage = getSignInErrorMessage(error);
 
   return (
-    <main className="grid min-h-dvh lg:grid-cols-[1.25fr_1fr]">
-      <section aria-label="Planet preview" className="starfield relative h-[46dvh] overflow-hidden lg:h-auto">
+    <main className="starfield relative h-dvh overflow-hidden">
+      <section aria-label="Planet preview" className="absolute inset-0">
         <LoginGlobe />
-        <p className="pointer-events-none absolute bottom-6 left-6 font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">
-          48.8566° N · 2.3522° E
-        </p>
       </section>
 
-      <section className="flex items-center px-6 py-12 sm:px-12 lg:px-16">
-        <FadeInStagger className="mx-auto flex w-full max-w-md flex-col gap-8">
-          <FadeInItem>
-            <PlanetRunLogo className="text-lg" />
-          </FadeInItem>
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 p-4 sm:p-6">
+        <PlanetRunLogo className="pointer-events-auto text-base" />
+        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">48.8566° N · 2.3522° E</p>
+      </header>
 
+      <div className="pointer-events-none absolute inset-x-4 bottom-4 sm:inset-x-auto sm:top-1/2 sm:right-10 sm:bottom-auto sm:w-full sm:max-w-md sm:-translate-y-1/2">
+        <FadeInStagger className="glass-panel pointer-events-auto flex max-h-[calc(100dvh-2rem)] scroll-fade flex-col gap-6 overflow-y-auto rounded-xl p-6 sm:gap-8 sm:p-8">
           <FadeInItem className="flex flex-col gap-4">
             <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">Every run, one planet</p>
-            <h1 className="text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl">
+            <h1 className="text-3xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-4xl">
               See every place you&apos;ve ever run.
             </h1>
-            <p className="text-base leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
               Connect your running history and watch it light up the globe. Street-by-street coverage of your city,
               region and country is coming next.
             </p>
@@ -70,7 +68,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             </p>
           </FadeInItem>
         </FadeInStagger>
-      </section>
+      </div>
     </main>
   );
 }

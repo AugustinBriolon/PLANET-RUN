@@ -16,7 +16,7 @@ pnpm db:up                 # Postgres 17 + PostGIS in Docker (host port 5433), w
 pnpm db:migrate            # apply drizzle/ migrations to the DATABASE_URL in .env.local (currently production Neon!)
 pnpm db:generate --name x  # generate a migration after editing src/server/db/schema.ts (needs DATABASE_URL)
 pnpm osm:import-city <id>  # (re-)import a city's streets from OSM and re-match every runner against it
-pnpm dev                   # http://localhost:3000
+pnpm dev                   # http://localhost:3000; reachable from a phone on the same LAN (next.config.ts allowedDevOrigins)
 
 pnpm lint && pnpm typecheck && pnpm format:check
 pnpm test                          # unit tests (Vitest project "unit", jsdom)
@@ -88,7 +88,12 @@ summary polyline is precise enough for street-level matching (see the ADR), so s
 privacy zone are never credited.
 
 **Globe UI:** `src/components/ui/map.tsx` is mapcn, vendored from the shadcn registry and excluded from ESLint.
-Do not edit it; refresh it with `pnpm dlx shadcn@latest add @mapcn/map --overwrite`. Planet Run behaviors are
+Do not edit it; refresh it with `pnpm dlx shadcn@latest add @mapcn/map --overwrite`. mapcn points MapLibre's
+worker at unpkg, which never fires `load` on iOS Safari over a LAN `http://` origin (phone testing): `RunGlobe`
+overrides it to a same-origin `/maplibre/maplibre-gl-worker.mjs` on import instead — kept there, not in map.tsx,
+so a refresh can't silently drop it. That file is copied from `node_modules/maplibre-gl/dist` by the
+`maplibre:workers` postinstall script and gitignored; run `pnpm maplibre:workers` if `public/maplibre/` is
+missing (e.g. after `.gitignore` was pulled without a fresh `pnpm install`). Planet Run behaviors are
 separate children of `<Map>` using `useMap()` (`RunTracesLayer`, `CoveredStreetsLayer`, `GlobeAutoRotate`,
 `FlyToBounds`, `FitGlobeToContainer` in `src/components/globe/`). `CoveredStreetsLayer` only draws above zoom
 12 to stay legible; the interactive globe carries OpenStreetMap attribution alongside CARTO's. WebGL colors live in `globe-palette.ts` as hex, kept in sync

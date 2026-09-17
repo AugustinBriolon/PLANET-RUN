@@ -17,6 +17,8 @@ coverage, and badges.
   imported (currently Colombes and La Garenne-Colombes).
 - Lets runners permanently delete their data, which also revokes Strava access, and publishes a privacy policy at
   `/privacy`.
+- Installs from Safari/Chrome as a home-screen app (`src/app/manifest.ts`) for a full-bleed, browser-chrome-free
+  view — true edge-to-edge under the notch/Dynamic Island only happens in that installed mode, not a browser tab.
 
 **What it does not do (yet):**
 

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PlanetRunLogo } from "@/components/brand/planet-run-logo";
 import { AccountDeletedNotice } from "@/components/login/account-deleted-notice";
 import { GarminConnectButton } from "@/components/login/garmin-connect-button";
 import { LoginGlobe } from "@/components/login/login-globe";
+import { PrivacyTrigger } from "@/components/login/privacy-trigger";
 import { SignInError } from "@/components/login/sign-in-error";
 import { StravaConnectButton } from "@/components/brand/strava-connect-button";
 import { FadeInItem, FadeInStagger } from "@/components/motion/fade-in-stagger";
@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <main className="starfield relative h-dvh overflow-hidden">
-      <section aria-label="Planet preview" className="absolute inset-0">
+      <section aria-label="Planet preview" className="absolute inset-0 max-sm:-translate-y-[12dvh]">
         <LoginGlobe />
       </section>
 
@@ -58,13 +58,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
           <FadeInItem>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              No account to create. Planet Run only reads your activities and never posts to Strava.{" "}
-              <Link
-                href="/privacy"
-                className="text-foreground underline underline-offset-4 outline-none hover:text-ember focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Privacy
-              </Link>
+              No account to create. Planet Run only reads your activities and never posts to Strava. <PrivacyTrigger />
             </p>
           </FadeInItem>
         </FadeInStagger>

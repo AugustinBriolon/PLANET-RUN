@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <LoginGlobe />
       </section>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 p-4 sm:p-6">
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))] sm:pb-6">
         <PlanetRunLogo className="pointer-events-auto text-base" />
         <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">48.8566° N · 2.3522° E</p>
       </header>

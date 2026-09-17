@@ -124,7 +124,7 @@ export function GlobeDashboard({
         )}
       </RunGlobe>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 p-4 sm:p-6">
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))] sm:pb-6">
         <PlanetRunLogo className="pointer-events-auto text-base" />
         <div className="pointer-events-auto">
           <SyncButton isSyncing={status === "syncing"} onSync={sync} />

@@ -16,10 +16,10 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
   if (cities.length === 0) return null;
 
   return (
-    <div className="mt-5 flex flex-col gap-2 border-t border-border pt-4">
+    <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
       <p className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">Streets</p>
       <LayoutGroup>
-        <ul className="flex max-h-48 scroll-fade flex-col gap-2.5 overflow-y-auto pr-2">
+        <ul className="flex max-h-36 scroll-fade flex-col gap-2 overflow-y-auto pr-2">
           {cities.map((city) => {
             const share = toCoverageShare(city);
             const isPending = city.status === "pending";

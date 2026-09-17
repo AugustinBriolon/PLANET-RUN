@@ -14,7 +14,7 @@ export type PanelFooterProps = {
 /** Strava attribution, map data attribution and account settings, shared by every dashboard panel. */
 export function PanelFooter({ signOutAction, deleteDataAction }: PanelFooterProps) {
   return (
-    <footer className="mt-5 flex items-center justify-between border-t border-border pt-3">
+    <footer className="mt-4 flex items-center justify-between border-t border-border pt-3">
       <Image {...POWERED_BY_STRAVA} alt="Powered by Strava" className="h-3 w-auto" />
       <div className="flex items-center gap-2">
         <AttributionInfo />

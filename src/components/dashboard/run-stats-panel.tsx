@@ -39,8 +39,8 @@ export function RunStatsPanel({
   className,
 }: RunStatsPanelProps) {
   return (
-    <section aria-label="Your running totals" className={cn("glass-panel rounded-xl p-5", className)}>
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+    <section aria-label="Your running totals" className={cn("glass-panel rounded-xl p-4", className)}>
+      <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-4">
         {STAT_DEFINITIONS.map((definition) => (
           <div key={definition.label} className="flex flex-col gap-1">
             <dt className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">

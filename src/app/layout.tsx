@@ -21,12 +21,22 @@ const DESCRIPTION = "Every place you've ever run, on one interactive globe.";
 
 export const viewport: Viewport = {
   themeColor: "#0c0e18",
+  width: "device-width",
+  initialScale: 1,
+  // Lets the page paint under the notch/Dynamic Island and home indicator instead of Safari/iOS
+  // reserving a plain chrome-colored strip there; safe-area-inset-* padding keeps real content clear.
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://planet-run.vercel.app"),
   title: "Planet Run",
   description: DESCRIPTION,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Planet Run",
+  },
   openGraph: {
     title: "Planet Run",
     description: DESCRIPTION,

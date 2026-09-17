@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { AttributionInfo } from "./attribution-info";
 import { SettingsMenu } from "./settings-menu";
 
 // Official "Powered by Strava" logo from the Strava API brand guidelines, shown unaltered.
@@ -10,12 +11,15 @@ export type PanelFooterProps = {
   deleteDataAction: () => Promise<void>;
 };
 
-/** Strava attribution and account settings, shared by every dashboard panel. */
+/** Strava attribution, map data attribution and account settings, shared by every dashboard panel. */
 export function PanelFooter({ signOutAction, deleteDataAction }: PanelFooterProps) {
   return (
     <footer className="mt-5 flex items-center justify-between border-t border-border pt-3">
       <Image {...POWERED_BY_STRAVA} alt="Powered by Strava" className="h-3 w-auto" />
-      <SettingsMenu signOutAction={signOutAction} deleteDataAction={deleteDataAction} />
+      <div className="flex items-center gap-2">
+        <AttributionInfo />
+        <SettingsMenu signOutAction={signOutAction} deleteDataAction={deleteDataAction} />
+      </div>
     </footer>
   );
 }

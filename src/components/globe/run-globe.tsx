@@ -14,7 +14,12 @@ export type RunGlobeProps = {
   className?: string;
 };
 
-/** Dark globe canvas; data layers and camera behaviours are composed as children. */
+/**
+ * Dark globe canvas; data layers and camera behaviours are composed as children.
+ * MapLibre's own attribution control is disabled: the dashboard shows attribution as a plain icon
+ * button next to Settings (`AttributionInfo`), which stays in our own layout instead of docking to a
+ * map corner that competes with the stats panel.
+ */
 export function RunGlobe({
   children,
   interactive = true,
@@ -29,7 +34,7 @@ export function RunGlobe({
       center={initialCenter}
       zoom={initialZoom}
       interactive={interactive}
-      attributionControl={interactive ? { compact: true, customAttribution: "© OpenStreetMap contributors" } : false}
+      attributionControl={false}
       className={className}
     >
       {children}

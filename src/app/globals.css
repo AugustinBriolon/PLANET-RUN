@@ -148,18 +148,6 @@
   .maplibregl-popup-tip {
     @apply hidden!;
   }
-  .maplibregl-ctrl-attrib {
-    @apply rounded-md! border! border-border! bg-background! text-muted-foreground! shadow-sm!;
-  }
-  .maplibregl-ctrl-attrib a {
-    @apply text-muted-foreground!;
-  }
-  .maplibregl-ctrl-attrib a:hover {
-    @apply text-foreground!;
-  }
-  .maplibregl-ctrl-attrib-button {
-    @apply bg-transparent! dark:invert;
-  }
 }
 @layer components {
   /* Faint star field behind the globe; purely decorative. */

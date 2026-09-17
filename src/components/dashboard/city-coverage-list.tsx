@@ -11,15 +11,15 @@ export type CityCoverageListProps = {
   onSelectCity: (areaId: number) => void;
 };
 
-/** Street coverage per city, scrollable with max 5 visible. */
+/** Street coverage per city, scrollable (shorter on mobile to leave map room). */
 export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps) {
   if (cities.length === 0) return null;
 
   return (
-    <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
+    <div className="mt-3 flex flex-col gap-2 border-t border-border pt-2.5 sm:mt-4 sm:pt-3">
       <p className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">Streets</p>
       <LayoutGroup>
-        <ul className="flex max-h-36 scroll-fade flex-col gap-2 overflow-y-auto pr-2">
+        <ul className="flex max-h-24 scroll-fade flex-col gap-2 overflow-y-auto pr-2 sm:max-h-36">
           {cities.map((city) => {
             const share = toCoverageShare(city);
             const isPending = city.status === "pending";

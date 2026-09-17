@@ -108,7 +108,7 @@ export function GlobeDashboard({
   }
 
   return (
-    <main ref={shellRef} className="starfield relative h-lvh overflow-hidden">
+    <main ref={shellRef} className="starfield relative h-dvh overflow-hidden">
       <RunGlobe className="absolute inset-0">
         <RunTracesLayer
           traces={traces}
@@ -124,7 +124,7 @@ export function GlobeDashboard({
         )}
       </RunGlobe>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))] sm:pb-6">
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top,0px))] sm:pb-6">
         <PlanetRunLogo className="pointer-events-auto text-base" />
         <div className="pointer-events-auto">
           <SyncButton isSyncing={status === "syncing"} onSync={sync} />
@@ -133,7 +133,7 @@ export function GlobeDashboard({
 
       {hasRuns ? (
         <>
-          <div className="pointer-events-none absolute inset-x-4 bottom-4 sm:right-auto sm:left-6 sm:max-w-[50vw]">
+          <div className="pointer-events-none absolute inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:inset-x-auto sm:right-auto sm:bottom-4 sm:left-6 sm:max-w-[50vw]">
             <AnimatePresence>
               {showStats && (
                 <motion.div
@@ -158,7 +158,7 @@ export function GlobeDashboard({
           <RunDetailPanel run={selectedRun} onClose={() => setSelectedRun(null)} />
         </>
       ) : (
-        <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center">
+        <div className="pointer-events-none absolute inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] flex justify-center sm:inset-x-4 sm:bottom-4">
           <EmptyRunsState
             status={status}
             failure={failure}

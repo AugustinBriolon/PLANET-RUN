@@ -19,13 +19,16 @@ const geistMono = Geist_Mono({
 
 const DESCRIPTION = "Every place you've ever run, on one interactive globe.";
 
+// Matches --space so Safari Liquid Glass / status-bar tint samples the night sky, not a flat black strip.
+const THEME_COLOR = "#0c0e18";
+
 export const viewport: Viewport = {
-  themeColor: "#0c0e18",
+  themeColor: THEME_COLOR,
   width: "device-width",
   initialScale: 1,
-  // Lets the page paint under the notch/Dynamic Island and home indicator instead of Safari/iOS
-  // reserving a plain chrome-colored strip there; safe-area-inset-* padding keeps real content clear.
+  // viewport-fit=cover → paint under notch / home indicator; safe-area-inset-* keeps UI clear.
   viewportFit: "cover",
+  colorScheme: "dark",
 };
 
 export const metadata: Metadata = {
@@ -56,9 +59,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-dvh antialiased`}
     >
-      <body className="min-h-full bg-background text-foreground">
+      <body className="min-h-dvh bg-space text-foreground overscroll-none">
         <MotionProvider>
           <TooltipProvider>{children}</TooltipProvider>
         </MotionProvider>

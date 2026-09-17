@@ -23,7 +23,7 @@ export function RunDetailPanel({ run, onClose, className }: RunDetailPanelProps)
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-x-4 bottom-4 sm:inset-x-auto sm:right-6 sm:left-auto sm:max-w-[50vw]",
+        "pointer-events-none absolute inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:inset-x-auto sm:right-6 sm:bottom-4 sm:left-auto sm:max-w-[50vw]",
         className,
       )}
     >

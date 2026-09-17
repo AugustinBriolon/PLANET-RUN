@@ -39,14 +39,14 @@ export function RunStatsPanel({
   className,
 }: RunStatsPanelProps) {
   return (
-    <section aria-label="Your running totals" className={cn("glass-panel rounded-xl p-4", className)}>
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-4">
+    <section aria-label="Your running totals" className={cn("glass-panel rounded-xl p-3 sm:p-4", className)}>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 sm:gap-x-8 sm:gap-y-4">
         {STAT_DEFINITIONS.map((definition) => (
-          <div key={definition.label} className="flex flex-col gap-1">
+          <div key={definition.label} className="flex flex-col gap-0.5 sm:gap-1">
             <dt className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">
               {definition.label}
             </dt>
-            <dd className="flex items-baseline gap-1 font-mono text-2xl font-semibold">
+            <dd className="flex items-baseline gap-1 font-mono text-xl font-semibold sm:text-2xl">
               <AnimatedNumber value={definition.value(stats)} format={definition.format} />
               {definition.unit && <span className="text-sm font-normal text-muted-foreground">{definition.unit}</span>}
             </dd>

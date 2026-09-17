@@ -24,17 +24,17 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const errorMessage = getSignInErrorMessage(error);
 
   return (
-    <main className="starfield relative h-lvh overflow-hidden">
+    <main className="starfield relative h-dvh overflow-hidden">
       <section aria-label="Planet preview" className="absolute inset-0 max-sm:-translate-y-[12dvh]">
         <LoginGlobe />
       </section>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top))] sm:pb-6">
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top,0px))] sm:pb-6">
         <PlanetRunLogo className="pointer-events-auto text-base" />
         <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">48.8566° N · 2.3522° E</p>
       </header>
 
-      <div className="pointer-events-none absolute inset-x-4 bottom-4 sm:inset-x-auto sm:top-1/2 sm:right-10 sm:bottom-auto sm:w-full sm:max-w-md sm:-translate-y-1/2">
+      <div className="pointer-events-none absolute inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:inset-x-auto sm:top-1/2 sm:right-10 sm:bottom-auto sm:w-full sm:max-w-md sm:-translate-y-1/2">
         <FadeInStagger className="glass-panel pointer-events-auto flex max-h-[calc(100dvh-2rem)] scroll-fade flex-col gap-6 overflow-y-auto rounded-xl p-6 sm:gap-8 sm:p-8">
           <FadeInItem className="flex flex-col gap-4">
             <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">Every run, one planet</p>

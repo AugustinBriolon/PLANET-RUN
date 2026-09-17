@@ -1,7 +1,3 @@
-"use client";
-
-import { motion } from "motion/react";
-
 import type { CityCoverage } from "@/lib/coverage/street-coverage";
 import { formatHours, formatKilometers, formatWholeNumber } from "@/lib/format";
 import type { RunStats } from "@/lib/runs/run-stats";
@@ -43,13 +39,7 @@ export function RunStatsPanel({
   className,
 }: RunStatsPanelProps) {
   return (
-    <motion.section
-      aria-label="Your running totals"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut", delay: 0.2 }}
-      className={cn("glass-panel rounded-xl p-5", className)}
-    >
+    <section aria-label="Your running totals" className={cn("glass-panel rounded-xl p-5", className)}>
       <dl className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
         {STAT_DEFINITIONS.map((definition) => (
           <div key={definition.label} className="flex flex-col gap-1">
@@ -65,6 +55,6 @@ export function RunStatsPanel({
       </dl>
       <CityCoverageList cities={cityCoverage} onSelectCity={onSelectCity} />
       <PanelFooter signOutAction={signOutAction} deleteDataAction={deleteDataAction} />
-    </motion.section>
+    </section>
   );
 }

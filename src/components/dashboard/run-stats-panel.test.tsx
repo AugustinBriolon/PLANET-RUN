@@ -22,6 +22,7 @@ describe("RunStatsPanel", () => {
           {
             areaId: 91775,
             name: "La Garenne-Colombes",
+            status: "ready",
             coveredMeters: 19_760,
             totalMeters: 32_400,
             bounds: [

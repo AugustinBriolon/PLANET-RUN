@@ -21,7 +21,13 @@ function startPointsAt(...positions: [number, number][]): RunStartPoints {
     features: positions.map((coordinates, index) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates } satisfies Point,
-      properties: { id: index, name: "Run", distanceMeters: 0 },
+      properties: {
+        id: index,
+        name: "Run",
+        startDate: "2026-09-01T06:30:00.000Z",
+        distanceMeters: 0,
+        movingTimeSeconds: 0,
+      },
     })),
   };
 }

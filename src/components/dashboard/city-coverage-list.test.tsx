@@ -51,4 +51,33 @@ describe("CityCoverageList", () => {
     expect(screen.getByLabelText("Street analysis pending")).toHaveTextContent("…");
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
+
+  it("truncates a long city name instead of pushing the percentage off the row", () => {
+    const longName = "Saint-Rémy-lès-Chevreuse-sur-Loire-en-Forêt";
+    render(
+      <CityCoverageList
+        cities={[
+          {
+            areaId: 1,
+            name: longName,
+            status: "ready",
+            coveredMeters: 500,
+            totalMeters: 1_000,
+            bounds: [
+              [2.2, 48.8],
+              [2.3, 48.9],
+            ],
+          },
+        ]}
+        onSelectCity={vi.fn()}
+      />,
+    );
+
+    const name = screen.getByText(longName);
+    expect(name).toHaveClass("truncate", "min-w-0");
+    expect(name).toHaveAttribute("title", longName);
+    expect(name.closest("button")).toHaveClass("min-w-0");
+    // The percentage stays a fixed width so a long name can never crowd it out.
+    expect(screen.getByText("50.0%").parentElement).toHaveClass("shrink-0");
+  });
 });

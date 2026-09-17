@@ -49,7 +49,10 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
                     aria-hidden="true"
                     className="size-3.5 shrink-0 text-muted-foreground/70 transition-colors duration-150 ease-out group-hover:text-ember group-focus-visible:text-ember group-disabled:text-muted-foreground/40"
                   />
-                  <span className="min-w-0 truncate text-foreground transition-colors duration-150 ease-out group-hover:text-ember group-focus-visible:text-ember group-disabled:text-foreground">
+                  <span
+                    title={city.name}
+                    className="min-w-0 truncate text-foreground transition-colors duration-150 ease-out group-hover:text-ember group-focus-visible:text-ember group-disabled:text-foreground"
+                  >
                     {city.name}
                   </span>
                 </button>

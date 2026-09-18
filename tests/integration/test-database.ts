@@ -11,7 +11,7 @@ export function createTestDatabase() {
     database,
     reset: () =>
       database.execute(
-        sql`TRUNCATE users, strava_accounts, activities, areas, user_cities, user_geocode_cells, city_import_queue CASCADE`,
+        sql`TRUNCATE users, strava_accounts, activities, areas, city_catalog, user_cities, user_geocode_cells, city_import_queue CASCADE`,
       ),
     close: () => database.$client.end(),
   };

@@ -87,17 +87,20 @@ export function createCoverageRepository(
         )
         SELECT user_cities.osm_relation_id AS area_id,
                user_cities.name,
-               CASE WHEN area.osm_relation_id IS NULL THEN 'pending' ELSE 'ready' END AS status,
+               CASE WHEN coalesce(area.street_length_meters, 0) > 0 THEN 'ready' ELSE 'pending' END AS status,
                coalesce(covered.covered_meters, 0)::float8 AS covered_meters,
                coalesce(area.street_length_meters, 0)::float8 AS total_meters,
-               ST_XMin(area.boundary)::float8 AS west, ST_YMin(area.boundary)::float8 AS south,
-               ST_XMax(area.boundary)::float8 AS east, ST_YMax(area.boundary)::float8 AS north
+               ST_XMin(coalesce(area.boundary, catalog.boundary))::float8 AS west,
+               ST_YMin(coalesce(area.boundary, catalog.boundary))::float8 AS south,
+               ST_XMax(coalesce(area.boundary, catalog.boundary))::float8 AS east,
+               ST_YMax(coalesce(area.boundary, catalog.boundary))::float8 AS north
         FROM user_cities
         LEFT JOIN areas AS area ON area.osm_relation_id = user_cities.osm_relation_id
+        LEFT JOIN city_catalog AS catalog ON catalog.osm_relation_id = user_cities.osm_relation_id
         LEFT JOIN covered ON covered.area_id = user_cities.osm_relation_id
         WHERE user_cities.user_id = ${userId}
         ORDER BY
-          CASE WHEN area.osm_relation_id IS NULL THEN 1 ELSE 0 END,
+          CASE WHEN coalesce(area.street_length_meters, 0) > 0 THEN 0 ELSE 1 END,
           covered.covered_meters / nullif(area.street_length_meters, 0) DESC NULLS LAST,
           user_cities.name
       `);

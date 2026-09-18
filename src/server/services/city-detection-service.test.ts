@@ -5,6 +5,7 @@ import type { Activity } from "@/server/db/schema";
 import type { NominatimClient } from "@/server/osm/nominatim-client";
 import type { ActivityRepository } from "@/server/repositories/activity-repository";
 import type { AreaRepository } from "@/server/repositories/area-repository";
+import type { CityCatalogRepository } from "@/server/repositories/city-catalog-repository";
 import type { CityImportQueueRepository } from "@/server/repositories/city-import-queue-repository";
 import type { CoverageRepository } from "@/server/repositories/coverage-repository";
 import type { UserCityRepository } from "@/server/repositories/user-city-repository";
@@ -39,6 +40,7 @@ function buildActivity(id: number, lat: number, lon: number): Activity {
 describe("createCityDetectionService", () => {
   let activities: ActivityRepository;
   let areas: AreaRepository;
+  let catalog: CityCatalogRepository;
   let userCities: UserCityRepository;
   let importQueue: CityImportQueueRepository;
   let coverage: Pick<CoverageRepository, "matchPendingActivities">;
@@ -56,10 +58,16 @@ describe("createCityDetectionService", () => {
     };
     areas = {
       listAll: vi.fn(async () => []),
-      hasArea: vi.fn(async () => false),
+      hasStreetsImported: vi.fn(async () => false),
       findAreasContainingPoints: vi.fn(async () => []),
       filterPointsOutsideAreas: vi.fn(async (points) => points),
       replaceArea: vi.fn(),
+    };
+    catalog = {
+      listAll: vi.fn(async () => []),
+      upsertBoundaries: vi.fn(async () => 0),
+      findContainingPoints: vi.fn(async () => []),
+      filterPointsOutside: vi.fn(async (points) => points),
     };
     userCities = {
       upsertMany: vi.fn(async (_userId, cities) => {
@@ -88,10 +96,12 @@ describe("createCityDetectionService", () => {
     activityRows = [buildActivity(1, 48.922, 2.252)];
     vi.mocked(areas.findAreasContainingPoints).mockResolvedValue([{ osmRelationId: 91738, name: "Colombes" }]);
     vi.mocked(areas.filterPointsOutsideAreas).mockResolvedValue([]);
+    vi.mocked(catalog.filterPointsOutside).mockResolvedValue([]);
 
     const service = createCityDetectionService({
       activities,
       areas,
+      catalog,
       userCities,
       importQueue,
       coverage,
@@ -109,6 +119,27 @@ describe("createCityDetectionService", () => {
     expect(coverage.matchPendingActivities).toHaveBeenCalledWith({ userId: "user-1" });
   });
 
+  it("links cities from the boundary catalog without Nominatim", async () => {
+    activityRows = [buildActivity(1, 48.85, 2.35)];
+    vi.mocked(catalog.findContainingPoints).mockResolvedValue([{ osmRelationId: 7444, name: "Paris" }]);
+    vi.mocked(areas.filterPointsOutsideAreas).mockResolvedValue([{ lat: 48.85, lon: 2.35 }]);
+    vi.mocked(catalog.filterPointsOutside).mockResolvedValue([]);
+
+    const service = createCityDetectionService({
+      activities,
+      areas,
+      catalog,
+      userCities,
+      importQueue,
+      coverage,
+      nominatim,
+    });
+
+    await expect(service.discoverCitiesForUser("user-1")).resolves.toMatchObject({ linkedCities: 1 });
+    expect(nominatim.reverseGeocode).not.toHaveBeenCalled();
+    expect(userCities.upsertMany).toHaveBeenCalledWith("user-1", [{ osmRelationId: 7444, name: "Paris" }]);
+  });
+
   it("geocodes unknown clusters in chunks and enqueues missing street imports", async () => {
     activityRows = Array.from({ length: MAX_NOMINATIM_LOOKUPS_PER_CHUNK + 2 }, (_, index) =>
       buildActivity(index + 1, 48.9 + index * 0.05, 2.2 + index * 0.05),
@@ -123,6 +154,7 @@ describe("createCityDetectionService", () => {
     const service = createCityDetectionService({
       activities,
       areas,
+      catalog,
       userCities,
       importQueue,
       coverage,

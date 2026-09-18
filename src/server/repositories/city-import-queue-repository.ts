@@ -39,7 +39,9 @@ export function createCityImportQueueRepository(database: Database): CityImportQ
         SELECT (item->>'osmRelationId')::bigint, item->>'name', 'pending'
         FROM jsonb_array_elements(${values}::jsonb) AS item
         WHERE NOT EXISTS (
-          SELECT 1 FROM areas WHERE areas.osm_relation_id = (item->>'osmRelationId')::bigint
+          SELECT 1 FROM areas
+          WHERE areas.osm_relation_id = (item->>'osmRelationId')::bigint
+            AND areas.street_length_meters > 0
         )
         ON CONFLICT (osm_relation_id) DO NOTHING
         RETURNING osm_relation_id

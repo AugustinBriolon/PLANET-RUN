@@ -30,8 +30,8 @@ export type AreaRepository = {
   replaceArea: (area: AreaImport) => Promise<AreaImportResult>;
   /** Returns all imported areas. */
   listAll: () => Promise<Array<{ osmRelationId: number; name: string; adminLevel: number }>>;
-  /** Returns whether streets for this OSM relation already live in the shared areas table. */
-  hasArea: (osmRelationId: number) => Promise<boolean>;
+  /** Returns whether street segments for this OSM relation are already imported (ready for %). */
+  hasStreetsImported: (osmRelationId: number) => Promise<boolean>;
   /** Unique imported cities whose boundary contains at least one of the points. */
   findAreasContainingPoints: (points: LatLon[]) => Promise<Array<{ osmRelationId: number; name: string }>>;
   /** Returns points that do not fall inside any imported area boundary. */
@@ -55,9 +55,12 @@ export function createAreaRepository(
         adminLevel: row.admin_level,
       }));
     },
-    async hasArea(osmRelationId) {
+    async hasStreetsImported(osmRelationId) {
       const [row] = await database.execute<{ present: boolean }>(sql`
-        SELECT EXISTS(SELECT 1 FROM areas WHERE osm_relation_id = ${osmRelationId}) AS present
+        SELECT EXISTS(
+          SELECT 1 FROM areas
+          WHERE osm_relation_id = ${osmRelationId} AND street_length_meters > 0
+        ) AS present
       `);
       return Boolean(row?.present);
     },

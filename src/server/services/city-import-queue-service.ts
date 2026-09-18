@@ -38,7 +38,7 @@ export function createCityImportQueueService({
 
       try {
         // Another athlete (or a previous job) may already have filled the shared street cache.
-        if (await areas.hasArea(job.osmRelationId)) {
+        if (await areas.hasStreetsImported(job.osmRelationId)) {
           await importQueue.complete(job.osmRelationId);
           await coverage.matchPendingActivities().catch((error: unknown) => console.error(error));
           return { imported: false, cityName: job.name, hasMore: await importQueue.hasWork() };

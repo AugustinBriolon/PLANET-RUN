@@ -13,8 +13,9 @@ coverage, and badges.
 - Imports `Run` and `TrailRun` activities with a GPS trace from the Strava API, on first sign-in and on demand.
 - Keeps runs up to date through Strava push webhooks (create, update, delete, deauthorization).
 - Renders traces on a globe with totals (runs, distance, time, countries).
-- Computes the percentage of a city's streets covered from OpenStreetMap data, for cities that have been
-  imported (currently Colombes and La Garenne-Colombes).
+- Computes the percentage of a city's streets covered from OpenStreetMap data. Street geometry is shared across
+  athletes; Île-de-France boundaries can be pre-seeded cheaply, while full street imports target large cities
+  first so sync stays fast without bloating Neon.
 - Lets runners permanently delete their data, which also revokes Strava access, and publishes a privacy policy at
   `/privacy`.
 - Installs from Safari/Chrome as a home-screen app (`src/app/manifest.ts`) for a full-bleed, browser-chrome-free
@@ -116,15 +117,40 @@ pnpm strava:webhook:subscribe https://<public-host>/api/webhooks/strava
 
 ### Street coverage
 
-Coverage is computed against imported cities only. Import (or re-import, after a rule change) with:
+Coverage percentages use **shared** street geometry (`areas` / `street_segments`). Detection can also use the
+cheap **boundary-only** registry (`city_catalog`) so cities resolve without Nominatim or street import.
+
+**Cost-aware preload (France):**
+
+1. Migrate: `pnpm db:migrate` (adds `city_catalog`).
+2. Seed Île-de-France commune boundaries (no streets — light on Neon):
 
 ```bash
-pnpm osm:import-city 91738 91775   # Colombes, La Garenne-Colombes (OSM relation ids)
+pnpm osm:seed-idf-catalog
 ```
 
-This replaces the city's street segments and re-matches every runner's activities against it, so it is safe to
-re-run. See [ADR 0008](docs/adr/0008-street-coverage-from-osm-with-postgis.md) for the matching rules and the OSM
-relation ids of the pilot cities.
+3. Enqueue large / slow cities for full street import, then drain politely:
+
+```bash
+pnpm osm:enqueue-priority-cities
+pnpm osm:import-queue                 # optional: --delay-ms=8000
+```
+
+4. One-off import of specific cities remains available:
+
+```bash
+pnpm osm:import-city 91738 91775   # Colombes, La Garenne-Colombes
+```
+
+Street imports replace segments and re-match every runner — safe to re-run. Small communes stay on-demand via
+the sync pipeline. If older imports pulled whole départements (`admin_level` 6–7), purge them with:
+
+```bash
+pnpm osm:purge-non-communes --dry-run
+pnpm osm:purge-non-communes
+```
+
+See [ADR 0008](docs/adr/0008-street-coverage-from-osm-with-postgis.md) for matching rules.
 
 ## Tests
 
@@ -184,7 +210,13 @@ First-time setup of an environment:
 4. Set the Strava application's **Authorization Callback Domain** to the production host (`planet-run.vercel.app`).
 5. Register the webhook once: `pnpm strava:webhook:subscribe https://planet-run.vercel.app/api/webhooks/strava`
    (run with the production `STRAVA_WEBHOOK_VERIFY_TOKEN`).
-6. Import the pilot cities against the production database: `pnpm osm:import-city 91738 91775`.
+6. Seed city boundaries / priority streets against production (polite Overpass; can take a while):
+
+   ```bash
+   pnpm osm:seed-idf-catalog
+   pnpm osm:enqueue-priority-cities
+   pnpm osm:import-queue
+   ```
 
 Invalid or missing server variables fail fast with an error listing the variable names in the Vercel runtime logs.
 

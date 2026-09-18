@@ -28,13 +28,14 @@ describe("createNominatimClient", () => {
     expect(String(requestUrl)).toContain("extratags=1");
   });
 
-  it("returns null when admin_level is missing or unsupported", async () => {
+  it("returns null for départements and other non-commune admin levels", async () => {
     const client = createNominatimClient({
       fetch: vi.fn(async () =>
         Response.json({
           osm_type: "relation",
-          osm_id: 1,
-          address: { city: "Somewhere" },
+          osm_id: 7_437,
+          address: { county: "Hauts-de-Seine" },
+          extratags: { admin_level: "6" },
         }),
       ),
       wait: async () => {},

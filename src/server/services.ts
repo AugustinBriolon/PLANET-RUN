@@ -7,6 +7,7 @@ import { createNominatimClient } from "./osm/nominatim-client";
 import { createOverpassClient } from "./osm/overpass-client";
 import { createActivityRepository } from "./repositories/activity-repository";
 import { createAreaRepository } from "./repositories/area-repository";
+import { createCityCatalogRepository } from "./repositories/city-catalog-repository";
 import { createCityImportQueueRepository } from "./repositories/city-import-queue-repository";
 import { createCoverageRepository } from "./repositories/coverage-repository";
 import { createStravaAccountRepository } from "./repositories/strava-account-repository";
@@ -29,6 +30,7 @@ function buildServices(database: Database) {
   const accounts = createStravaAccountRepository(database);
   const activities = createActivityRepository(database);
   const areas = createAreaRepository(database);
+  const catalog = createCityCatalogRepository(database);
   const coverage = createCoverageRepository(database);
   const userCities = createUserCityRepository(database);
   const importQueue = createCityImportQueueRepository(database);
@@ -47,11 +49,13 @@ function buildServices(database: Database) {
     accounts,
     activities,
     areas,
+    catalog,
     coverage,
     userCities,
     cityDetection: createCityDetectionService({
       activities,
       areas,
+      catalog,
       userCities,
       importQueue,
       coverage,

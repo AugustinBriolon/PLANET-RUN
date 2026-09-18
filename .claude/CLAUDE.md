@@ -16,6 +16,10 @@ pnpm db:up                 # Postgres 17 + PostGIS in Docker (host port 5433), w
 pnpm db:migrate            # apply drizzle/ migrations to the DATABASE_URL in .env.local (currently production Neon!)
 pnpm db:generate --name x  # generate a migration after editing src/server/db/schema.ts (needs DATABASE_URL)
 pnpm osm:import-city <id>  # (re-)import a city's streets from OSM and re-match every runner against it
+pnpm osm:seed-idf-catalog  # seed Île-de-France commune boundaries into city_catalog (no streets)
+pnpm osm:enqueue-priority-cities  # enqueue large cities for street import
+pnpm osm:import-queue      # drain city_import_queue with a polite Overpass delay
+pnpm osm:purge-non-communes  # delete areas with admin_level <> 8 (département mistakes)
 pnpm dev                   # http://localhost:3000; reachable from a phone on the same LAN (next.config.ts allowedDevOrigins)
 
 pnpm lint && pnpm typecheck && pnpm format:check

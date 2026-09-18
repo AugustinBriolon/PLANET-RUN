@@ -17,10 +17,13 @@ const city: AreaImport = {
 describe("createCityImportService", () => {
   it("replaces the city's streets, then re-matches every run against them", async () => {
     const calls: string[] = [];
-    const overpass: OverpassClient = { fetchCity: vi.fn().mockResolvedValue(city) };
+    const overpass: OverpassClient = {
+      fetchCity: vi.fn().mockResolvedValue(city),
+      fetchAdminCitiesInRegion: vi.fn(),
+    };
     const areas: AreaRepository = {
       listAll: vi.fn(async () => []),
-      hasArea: vi.fn(async () => false),
+      hasStreetsImported: vi.fn(async () => false),
       findAreasContainingPoints: vi.fn(async () => []),
       filterPointsOutsideAreas: vi.fn(async (points) => points),
       replaceArea: vi.fn(async () => {

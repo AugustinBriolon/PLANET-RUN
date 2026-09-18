@@ -4,6 +4,7 @@ import { clusterPointsByGrid, gridCellKey } from "@/lib/geo/cluster-points";
 import type { NominatimClient } from "@/server/osm/nominatim-client";
 import type { ActivityRepository } from "@/server/repositories/activity-repository";
 import type { AreaRepository } from "@/server/repositories/area-repository";
+import type { CityCatalogRepository } from "@/server/repositories/city-catalog-repository";
 import type { CityImportQueueRepository } from "@/server/repositories/city-import-queue-repository";
 import type { CoverageRepository } from "@/server/repositories/coverage-repository";
 import type { UserCityRepository } from "@/server/repositories/user-city-repository";
@@ -23,7 +24,7 @@ export type CityDiscoveryResult = {
 export type CityDetectionService = {
   /**
    * Discovers every city the user ran in, links them immediately (no %), and enqueues
-   * street imports only for cities missing from the shared `areas` table.
+   * street imports only for cities missing shared street geometry (`areas` with streets).
    */
   discoverCitiesForUser: (userId: string) => Promise<CityDiscoveryResult>;
 };
@@ -31,11 +32,22 @@ export type CityDetectionService = {
 type Dependencies = {
   activities: ActivityRepository;
   areas: AreaRepository;
+  catalog: CityCatalogRepository;
   userCities: UserCityRepository;
   importQueue: CityImportQueueRepository;
   coverage: Pick<CoverageRepository, "matchPendingActivities">;
   nominatim: NominatimClient;
 };
+
+function mergeCities(
+  ...groups: Array<Array<{ osmRelationId: number; name: string }>>
+): Array<{ osmRelationId: number; name: string }> {
+  const byId = new Map<number, { osmRelationId: number; name: string }>();
+  for (const group of groups) {
+    for (const city of group) byId.set(city.osmRelationId, city);
+  }
+  return [...byId.values()];
+}
 
 function extractStartPoints(runs: Array<{ summaryPolyline: string | null }>) {
   const startPoints: Array<{ lat: number; lon: number }> = [];
@@ -57,6 +69,7 @@ function extractStartPoints(runs: Array<{ summaryPolyline: string | null }>) {
 export function createCityDetectionService({
   activities,
   areas,
+  catalog,
   userCities,
   importQueue,
   coverage,
@@ -70,12 +83,16 @@ export function createCityDetectionService({
       const clustered = clusterPointsByGrid(extractStartPoints(runs));
       if (clustered.length === 0) return { linkedCities: 0, queuedImports: 0, continues: false };
 
-      // Shared street cache: resolve cities already analyzed for anyone.
-      const knownCities = await areas.findAreasContainingPoints(clustered);
+      // Shared caches: streets already imported, or cheap catalog boundaries (no Nominatim).
+      const knownCities = mergeCities(
+        await areas.findAreasContainingPoints(clustered),
+        await catalog.findContainingPoints(clustered),
+      );
       await userCities.upsertMany(userId, knownCities);
 
       const attemptedCells = await userCities.listGeocodeCells(userId);
-      const unknownPoints = (await areas.filterPointsOutsideAreas(clustered)).filter(
+      const outsideStreets = await areas.filterPointsOutsideAreas(clustered);
+      const unknownPoints = (await catalog.filterPointsOutside(outsideStreets)).filter(
         (point) => !attemptedCells.has(gridCellKey(point)),
       );
 
@@ -95,7 +112,7 @@ export function createCityDetectionService({
       await userCities.markGeocodeCells(userId, triedCells);
       await userCities.upsertMany(userId, geocoded);
 
-      const candidates = [...knownCities, ...geocoded];
+      const candidates = mergeCities(knownCities, geocoded);
       const queuedImports = await importQueue.enqueueMissing(candidates);
 
       // Fast path: match runs against streets already in the shared tables.

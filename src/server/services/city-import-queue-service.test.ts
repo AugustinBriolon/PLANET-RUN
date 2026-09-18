@@ -23,12 +23,12 @@ describe("createCityImportQueueService", () => {
     };
     const areas: AreaRepository = {
       listAll: vi.fn(async () => []),
-      hasArea: vi.fn(async () => true),
+      hasStreetsImported: vi.fn(async () => true),
       findAreasContainingPoints: vi.fn(async () => []),
       filterPointsOutsideAreas: vi.fn(async (points) => points),
       replaceArea: vi.fn(),
     };
-    const overpass: OverpassClient = { fetchCity: vi.fn() };
+    const overpass: OverpassClient = { fetchCity: vi.fn(), fetchAdminCitiesInRegion: vi.fn() };
     const coverage: Pick<CoverageRepository, "markAllActivitiesPending" | "matchPendingActivities"> = {
       markAllActivitiesPending: vi.fn(),
       matchPendingActivities: vi.fn(async () => 0),
@@ -56,7 +56,7 @@ describe("createCityImportQueueService", () => {
     };
     const areas: AreaRepository = {
       listAll: vi.fn(async () => []),
-      hasArea: vi.fn(async () => false),
+      hasStreetsImported: vi.fn(async () => false),
       findAreasContainingPoints: vi.fn(async () => []),
       filterPointsOutsideAreas: vi.fn(async (points) => points),
       replaceArea: vi.fn(async () => ({ segmentCount: 10, streetLengthMeters: 1000 })),
@@ -69,6 +69,7 @@ describe("createCityImportQueueService", () => {
         boundaryLines: [],
         streets: [],
       })),
+      fetchAdminCitiesInRegion: vi.fn(),
     };
     const coverage: Pick<CoverageRepository, "markAllActivitiesPending" | "matchPendingActivities"> = {
       markAllActivitiesPending: vi.fn(async () => {}),

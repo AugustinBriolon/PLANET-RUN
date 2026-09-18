@@ -73,7 +73,7 @@ export const activities = pgTable(
   (table) => [index().on(table.userId, table.startDate)],
 );
 
-/** Administrative area imported from OpenStreetMap (admin_level 8 = city). */
+/** Administrative area with street segments imported (costly; shared across athletes). */
 export const areas = pgTable(
   "areas",
   {
@@ -82,6 +82,22 @@ export const areas = pgTable(
     adminLevel: smallint().notNull(),
     boundary: geometry({ type: "MultiPolygon" }).notNull(),
     streetLengthMeters: doublePrecision().notNull(),
+    ...timestamps,
+  },
+  (table) => [index().using("gist", table.boundary)],
+);
+
+/**
+ * Cheap boundary-only city registry (no street segments). Used to discover cities without Nominatim
+ * and to decide which heavy street imports to queue — keeps Neon storage focused on streets we need.
+ */
+export const cityCatalog = pgTable(
+  "city_catalog",
+  {
+    osmRelationId: bigint({ mode: "number" }).primaryKey(),
+    name: text().notNull(),
+    adminLevel: smallint().notNull(),
+    boundary: geometry({ type: "MultiPolygon" }).notNull(),
     ...timestamps,
   },
   (table) => [index().using("gist", table.boundary)],

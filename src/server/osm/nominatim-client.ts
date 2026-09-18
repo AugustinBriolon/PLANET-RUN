@@ -76,8 +76,8 @@ export function createNominatimClient({
         }
 
         const adminLevel = data.extratags?.admin_level ? Number(data.extratags.admin_level) : null;
-        // Accept admin_level 8 (municipality) to 6 (region) for flexibility
-        if (!adminLevel || adminLevel < 6 || adminLevel > 8) {
+        // Communes only (admin_level 8). Accepting 6–7 pulled whole départements into the street queue.
+        if (adminLevel !== 8) {
           return null;
         }
 

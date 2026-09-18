@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { buildCityQuery, createOverpassClient } from "./overpass-client";
+import {
+  buildAdminCitiesInDepartmentQuery,
+  buildAdminCitiesInRegionQuery,
+  buildCityQuery,
+  createOverpassClient,
+} from "./overpass-client";
 
 const cityResponse = {
   elements: [
@@ -56,6 +61,25 @@ describe("buildCityQuery", () => {
   });
 });
 
+describe("buildAdminCitiesInDepartmentQuery", () => {
+  it("scopes admin_level 8 communes to one INSEE department", () => {
+    const query = buildAdminCitiesInDepartmentQuery("92");
+    expect(query).toContain('["ref:INSEE"="92"]');
+    expect(query).toContain('["admin_level"="6"]');
+    expect(query).toContain('["admin_level"="8"]');
+    expect(query).not.toContain("highway");
+  });
+});
+
+describe("buildAdminCitiesInRegionQuery", () => {
+  it("selects admin_level 8 boundaries inside the region", () => {
+    const query = buildAdminCitiesInRegionQuery(8649);
+    expect(query).toContain("rel(id:8649)");
+    expect(query).toContain('["admin_level"="8"]');
+    expect(query).not.toContain("highway");
+  });
+});
+
 describe("createOverpassClient", () => {
   it("maps the boundary and streets to [longitude, latitude] lines", async () => {
     const { client, fetchMock } = setup(jsonResponse(cityResponse));
@@ -102,5 +126,51 @@ describe("createOverpassClient", () => {
     await expect(setup(jsonResponse(notACity)).client.fetchCity(91775)).rejects.toThrow(
       "OSM relation 91775 is not an administrative boundary",
     );
+  });
+
+  it("seeds catalog cities per IDF department and skips relations without members", async () => {
+    const departmentPayload = {
+      elements: [
+        {
+          type: "relation",
+          id: 91738,
+          tags: { boundary: "administrative", admin_level: "8", name: "Colombes" },
+          members: [
+            {
+              type: "way",
+              role: "outer",
+              geometry: [
+                { lat: 48.9, lon: 2.23 },
+                { lat: 48.91, lon: 2.26 },
+              ],
+            },
+          ],
+        },
+        {
+          type: "relation",
+          id: 999,
+          tags: { boundary: "administrative", admin_level: "8", name: "Incomplete" },
+          // Overpass sometimes omits members on large/truncated responses.
+        },
+      ],
+    };
+
+    const { client, fetchMock } = setup(...Array.from({ length: 8 }, () => jsonResponse(departmentPayload)));
+
+    const cities = await client.fetchAdminCitiesInRegion(8649);
+    expect(cities).toEqual([
+      {
+        osmRelationId: 91738,
+        name: "Colombes",
+        adminLevel: 8,
+        boundaryLines: [
+          [
+            [2.23, 48.9],
+            [2.26, 48.91],
+          ],
+        ],
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(8);
   });
 });

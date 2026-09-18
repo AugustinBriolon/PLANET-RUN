@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export const PRIVACY_LAST_UPDATED = "September 16, 2026";
+export const PRIVACY_LAST_UPDATED = "September 18, 2026";
 export const PRIVACY_CONTACT_EMAIL = "augustin.briolon@gmail.com";
 
 const INLINE_LINK_CLASS =
@@ -57,7 +57,10 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
       <PolicySection title="Who processes it" compact={compact}>
         <p>
           Planet Run is hosted on Vercel and stores data in a managed PostgreSQL database run by Neon. Countries are
-          computed on our servers without calling any external service. Map backgrounds are loaded from CARTO: like any
+          computed on our servers without calling any external service. To detect which cities you have run in, we
+          reverse-geocode a small number of run start points through OpenStreetMap Nominatim; those requests contain
+          approximate coordinates, not your full routes. Street geometry for coverage comes from the OpenStreetMap
+          Overpass API and is shared across athletes for the same city. Map backgrounds are loaded from CARTO: like any
           online map, tile requests reveal the area you are looking at, but not your runs.
         </p>
       </PolicySection>

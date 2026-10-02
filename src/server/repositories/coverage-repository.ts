@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CityCoverage, CoveredStreets } from "@/lib/coverage/street-coverage";
 import {
   buildRunPlanRoute,
+  planPocketExpandDegrees,
   runPlanRouteToGeoJson,
   type PlanSegment,
 } from "@/lib/coverage/run-plan-route";
@@ -218,7 +219,8 @@ export function createCoverageRepository(
 
     async getRunPlanStreets(userId, areaId, budgetMeters) {
       const budget = Math.max(500, Math.min(budgetMeters, 40_000));
-      // Uncovered streets in the city, plus nearby covered pieces that can bridge gaps (~200 m).
+      const expandDegrees = planPocketExpandDegrees(budget);
+      // Uncovered streets in the city, plus nearby covered pieces that can bridge gaps.
       const rows = await database.execute<{
         id: number;
         geometry: string;
@@ -232,7 +234,7 @@ export function createCoverageRepository(
             AND segment.id NOT IN (${segmentsCoveredBy(userId)})
         ),
         pocket AS (
-          SELECT ST_Expand(ST_Extent(path)::geometry, 0.002) AS bbox FROM uncovered
+          SELECT ST_Expand(ST_Extent(path)::geometry, ${expandDegrees}) AS bbox FROM uncovered
         )
         SELECT
           segment.id::int AS id,

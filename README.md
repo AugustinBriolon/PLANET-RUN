@@ -27,6 +27,11 @@ coverage, and badges.
   coverage) consumed by `planet-run-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
   from a position, and `GET /api/mobile/cities/plan` builds a run route — optionally starting from the runner's
   position (`startLat`/`startLng`), only within 1 km of the city boundary.
+- Sends runs **recorded in the app** to Strava: `POST /api/mobile/runs/upload` turns the GPS segments into a GPX
+  file and uploads it (idempotent per `clientRunId`), `GET /api/mobile/runs/upload/:uploadId` polls processing and
+  imports the activity as soon as Strava created it, so coverage updates without waiting for the webhook. The mobile
+  OAuth asks for `activity:write`; athletes who signed in before reconnect via `GET /api/mobile/auth/strava?reauth=1`
+  (403 `strava_write_permission_required` tells the app to offer it).
 
 **What it does not do (yet):**
 

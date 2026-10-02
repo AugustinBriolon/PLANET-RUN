@@ -4,8 +4,11 @@ import { NextResponse } from "next/server";
 
 import { getServerEnv } from "@/server/env";
 import { verifyMobileSessionToken } from "@/server/mobile/session-token";
+import { publicApiOrigin } from "@/server/mobile/public-api-origin";
 import type { User } from "@/server/db/schema";
 import { getServices } from "@/server/services";
+
+export { publicApiOrigin };
 
 export function bearerTokenFromRequest(request: Request): string | null {
   const header = request.headers.get("authorization");
@@ -34,14 +37,6 @@ export async function requireMobileUser(request: Request): Promise<User | NextRe
 
 export function isNextResponse(value: User | NextResponse): value is NextResponse {
   return value instanceof NextResponse;
-}
-
-/** Public origin used to build Strava redirect_uri (must match the API Authorization Callback Domain). */
-export function publicApiOrigin(request: Request): string {
-  const authUrl = process.env.AUTH_URL?.replace(/\/$/, "");
-  if (authUrl) return authUrl;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
-  return new URL(request.url).origin;
 }
 
 export const MOBILE_APP_OAUTH_REDIRECT = "planetrun://oauth";

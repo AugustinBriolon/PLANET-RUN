@@ -147,6 +147,17 @@ describe("street coverage in PostGIS", () => {
       await areas.replaceArea(squareCity);
     });
 
+    it("lists runs touching the city, including ones that leave it, and skips unrelated runs", async () => {
+      const runner = await linkRunner(43);
+      await recordRun(runner.id, 10, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.009));
+      await recordRun(runner.id, 11, encodeRoute(MAIN_STREET_LATITUDE, 2.005, 2.05));
+      await recordRun(runner.id, 12, encodeRoute(48.5, 2.5, 2.51));
+
+      const ids = await coverage.listActivityIdsInArea(runner.id, 1001);
+
+      expect([...ids].sort()).toEqual([10, 11]);
+    });
+
     it("covers the pieces a run follows, but not the street it only crosses", async () => {
       const runner = await linkRunner(42);
       await linkCity(runner.id, 1001, "Squareville");

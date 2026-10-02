@@ -32,6 +32,9 @@ export function createInMemoryCoverageRepository(
     async getUncoveredFocus() {
       return null;
     },
+    async listActivityIdsInArea() {
+      return new Set<number>();
+    },
     async getUncoveredStreets() {
       return { type: "FeatureCollection", features: [] };
     },

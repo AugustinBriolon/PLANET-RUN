@@ -26,11 +26,13 @@ export type CoverageRepository = {
   /**
    * Continuous run route through unfinished streets (short covered bridges allowed),
    * sized to about `budgetMeters`. `targetMeters` is uncovered length along that path.
+   * `salt` diversifies the start when the athlete regenerates.
    */
   getRunPlanStreets: (
     userId: string,
     areaId: number,
     budgetMeters: number,
+    salt?: number,
   ) => Promise<{ streets: CoveredStreets; targetMeters: number; pathMeters: number }>;
 };
 
@@ -217,7 +219,7 @@ export function createCoverageRepository(
       };
     },
 
-    async getRunPlanStreets(userId, areaId, budgetMeters) {
+    async getRunPlanStreets(userId, areaId, budgetMeters, salt = 0) {
       const budget = Math.max(500, Math.min(budgetMeters, 40_000));
       const expandDegrees = planPocketExpandDegrees(budget);
       // Uncovered streets in the city, plus nearby covered pieces that can bridge gaps.
@@ -261,7 +263,7 @@ export function createCoverageRepository(
         ];
       });
 
-      const route = buildRunPlanRoute(segments, { budgetMeters: budget });
+      const route = buildRunPlanRoute(segments, { budgetMeters: budget, salt });
       return {
         streets: runPlanRouteToGeoJson(route, areaId) as CoveredStreets,
         targetMeters: route.uncoveredMeters,

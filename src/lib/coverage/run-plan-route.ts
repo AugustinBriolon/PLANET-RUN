@@ -13,7 +13,7 @@ export type RunPlanRoute = {
   coordinates: Position[];
   /** Uncovered length along the path — drives the conquest % estimate. */
   uncoveredMeters: number;
-  /** Full path length including short covered bridges. */
+  /** Full path length including covered bridges and fill. */
   pathMeters: number;
   start: Position | null;
 };
@@ -25,6 +25,11 @@ export type RunPlanRouteOptions = {
   joinToleranceMeters?: number;
   /** Max length of already-covered bridging between unfinished streets. */
   maxBridgeMeters?: number;
+  /**
+   * Diversifies the start among central uncovered streets.
+   * Same salt → same route; change it on regenerate for a different outing.
+   */
+  salt?: number;
 };
 
 const DEFAULT_JOIN_TOLERANCE_METERS = 22;
@@ -49,7 +54,7 @@ export function distanceMeters(from: Position, to: Position): number {
 /** Covered-bridge budget scales with the outing so 12 km can hop farther than 5 km. */
 export function bridgeBudgetMeters(budgetMeters: number, override?: number): number {
   if (override != null) return override;
-  return Math.min(550, Math.max(140, budgetMeters * 0.06));
+  return Math.min(800, Math.max(160, budgetMeters * 0.08));
 }
 
 /**
@@ -57,7 +62,7 @@ export function bridgeBudgetMeters(budgetMeters: number, override?: number): num
  * Longer outings need a wider street pocket so the walk can keep growing.
  */
 export function planPocketExpandDegrees(budgetMeters: number): number {
-  const radiusMeters = Math.min(6_000, Math.max(250, budgetMeters * 0.45));
+  const radiusMeters = Math.min(8_000, Math.max(300, budgetMeters * 0.5));
   return radiusMeters / 111_320;
 }
 
@@ -101,9 +106,9 @@ type DirectedEdge = {
 
 type StreetGraph = {
   nodes: Position[];
-  /** Outgoing directed edges per node. */
   outgoing: Map<NodeId, DirectedEdge[]>;
-  segments: readonly PlanSegment[];
+  /** segment id → { startNode, endNode } for the forward coordinate order. */
+  segmentNodes: Map<number, { start: NodeId; end: NodeId }>;
 };
 
 /**
@@ -134,7 +139,6 @@ function buildStreetGraph(segments: readonly PlanSegment[], joinToleranceMeters:
     if (rootA !== rootB) parent[rootB] = rootA;
   }
 
-  // Spatial hash — only compare endpoints in nearby cells (avoids O(n²) on large cities).
   const cellDeg = joinToleranceMeters / 111_320;
   const cells = new Map<string, number[]>();
   for (let i = 0; i < endpoints.length; i++) {
@@ -178,6 +182,7 @@ function buildStreetGraph(segments: readonly PlanSegment[], joinToleranceMeters:
   }
 
   const outgoing = new Map<NodeId, DirectedEdge[]>();
+  const segmentNodes = new Map<number, { start: NodeId; end: NodeId }>();
   function addEdge(edge: DirectedEdge) {
     const list = outgoing.get(edge.from) ?? [];
     list.push(edge);
@@ -189,6 +194,7 @@ function buildStreetGraph(segments: readonly PlanSegment[], joinToleranceMeters:
     if (segment.coordinates.length < 2) continue;
     const start = rootToNode.get(find(endpointCursor++))!;
     const end = rootToNode.get(find(endpointCursor++))!;
+    segmentNodes.set(segment.id, { start, end });
     if (start === end) continue;
     addEdge({
       segmentId: segment.id,
@@ -208,7 +214,7 @@ function buildStreetGraph(segments: readonly PlanSegment[], joinToleranceMeters:
     });
   }
 
-  return { nodes, outgoing, segments };
+  return { nodes, outgoing, segmentNodes };
 }
 
 /**
@@ -236,7 +242,6 @@ function findBridgeToUncovered(
       if (nextMeters > maxBridgeMeters) continue;
 
       if (!edge.covered) {
-        // Reached an unfinished street — return the covered hops only; caller takes the uncovered edge next.
         return current.path;
       }
 
@@ -247,6 +252,43 @@ function findBridgeToUncovered(
     }
   }
   return null;
+}
+
+/** Walk unused covered streets to burn remaining budget when conquest streets are exhausted. */
+function findCoveredFillPath(
+  graph: StreetGraph,
+  from: NodeId,
+  usedSegments: ReadonlySet<number>,
+  maxMeters: number,
+): DirectedEdge[] | null {
+  type State = { node: NodeId; path: DirectedEdge[]; meters: number };
+  const queue: State[] = [{ node: from, path: [], meters: 0 }];
+  const best = new Map<NodeId, number>([[from, 0]]);
+  let bestPath: DirectedEdge[] | null = null;
+  let bestPathMeters = 0;
+
+  while (queue.length > 0) {
+    queue.sort((a, b) => a.meters - b.meters);
+    const current = queue.shift()!;
+    if (current.meters > (best.get(current.node) ?? Infinity)) continue;
+    if (current.path.length > 0 && current.meters > bestPathMeters) {
+      bestPath = current.path;
+      bestPathMeters = current.meters;
+      if (bestPathMeters >= maxMeters * 0.85) return bestPath;
+    }
+
+    for (const edge of graph.outgoing.get(current.node) ?? []) {
+      if (usedSegments.has(edge.segmentId)) continue;
+      if (!edge.covered) continue;
+      const nextMeters = current.meters + edge.lengthMeters;
+      if (nextMeters > maxMeters) continue;
+      const known = best.get(edge.to);
+      if (known != null && known <= nextMeters) continue;
+      best.set(edge.to, nextMeters);
+      queue.push({ node: edge.to, path: [...current.path, edge], meters: nextMeters });
+    }
+  }
+  return bestPath;
 }
 
 function pickUncoveredEdge(
@@ -263,10 +305,88 @@ function pickUncoveredEdge(
   });
 }
 
+function pickAnyUnusedEdge(
+  edges: DirectedEdge[],
+  usedSegments: ReadonlySet<number>,
+  preferUncovered: boolean,
+): DirectedEdge | null {
+  const unused = edges.filter((edge) => !usedSegments.has(edge.segmentId));
+  if (unused.length === 0) return null;
+  const pool = preferUncovered ? unused.filter((edge) => !edge.covered) : unused;
+  const candidates = pool.length > 0 ? pool : unused;
+  return candidates.reduce((best, edge) => (edge.lengthMeters > best.lengthMeters ? edge : best));
+}
+
+type ProximityJump = {
+  segment: PlanSegment;
+  /** Walk coordinates in this order after the optional connector. */
+  coordinates: Position[];
+  fromNode: NodeId;
+  toNode: NodeId;
+  jumpMeters: number;
+};
+
+/**
+ * When the street graph is locally stuck, hop to the nearest unused unfinished street
+ * within a distance that scales with the outing budget.
+ */
+function findProximityUncovered(
+  fromPoint: Position,
+  fromNode: NodeId,
+  segments: readonly PlanSegment[],
+  graph: StreetGraph,
+  usedSegments: ReadonlySet<number>,
+  maxJumpMeters: number,
+): ProximityJump | null {
+  let best: ProximityJump | null = null;
+
+  for (const segment of segments) {
+    if (segment.covered || usedSegments.has(segment.id) || segment.coordinates.length < 2) continue;
+    const nodes = graph.segmentNodes.get(segment.id);
+    if (!nodes) continue;
+    const ends = endsOf(segment);
+    const distStart = distanceMeters(fromPoint, ends.start);
+    const distEnd = distanceMeters(fromPoint, ends.end);
+
+    if (distStart <= maxJumpMeters && (best == null || distStart < best.jumpMeters)) {
+      best = {
+        segment,
+        coordinates: segment.coordinates,
+        fromNode: nodes.start,
+        toNode: nodes.end,
+        jumpMeters: distStart,
+      };
+    }
+    if (distEnd <= maxJumpMeters && (best == null || distEnd < best.jumpMeters)) {
+      best = {
+        segment,
+        coordinates: [...segment.coordinates].reverse(),
+        fromNode: nodes.end,
+        toNode: nodes.start,
+        jumpMeters: distEnd,
+      };
+    }
+  }
+
+  // Avoid no-op jumps that land on the same graph node without moving.
+  if (best && best.fromNode === fromNode && best.jumpMeters < 1) return null;
+  return best;
+}
+
+function pickSeed(uncovered: PlanSegment[], focus: Position, salt: number): PlanSegment {
+  const ranked = [...uncovered].sort(
+    (a, b) =>
+      distanceMeters(midpoint(a.coordinates), focus) - distanceMeters(midpoint(b.coordinates), focus),
+  );
+  const window = Math.min(12, ranked.length);
+  const index = ((salt % window) + window) % window;
+  return ranked[index]!;
+}
+
 /**
  * Walk the street graph into one continuous outing sized to `budgetMeters`.
- * Prefers unfinished streets; when stuck, bridges through already-covered streets up to a
- * distance-scaled limit so longer outings keep growing instead of freezing on the first pocket.
+ * Prefers unfinished streets; bridges through covered streets; when conquest streets
+ * run out, keeps filling with covered network so 5 km and 30 km actually differ.
  */
 export function buildRunPlanRoute(
   segments: readonly PlanSegment[],
@@ -275,6 +395,8 @@ export function buildRunPlanRoute(
   const budgetMeters = Math.max(0, options.budgetMeters);
   const joinToleranceMeters = options.joinToleranceMeters ?? DEFAULT_JOIN_TOLERANCE_METERS;
   const maxBridgeMeters = bridgeBudgetMeters(budgetMeters, options.maxBridgeMeters);
+  const maxJumpMeters = Math.min(1_200, Math.max(maxBridgeMeters, budgetMeters * 0.05));
+  const salt = options.salt ?? 0;
 
   const uncovered = segments.filter((segment) => !segment.covered && segment.coordinates.length >= 2);
   if (uncovered.length === 0 || budgetMeters <= 0) {
@@ -283,37 +405,28 @@ export function buildRunPlanRoute(
 
   const focus = centroidOf(uncovered.map((segment) => midpoint(segment.coordinates)));
   const graph = buildStreetGraph(segments, joinToleranceMeters);
+  const seed = pickSeed(uncovered, focus, salt);
 
-  const seed = uncovered.reduce((best, segment) =>
-    distanceMeters(midpoint(segment.coordinates), focus) < distanceMeters(midpoint(best.coordinates), focus)
-      ? segment
-      : best,
-  );
-
-  // Start at the seed end farther from focus so the first step walks into the pocket.
   const seedEnds = endsOf(seed);
   const startAtFirst =
     distanceMeters(seedEnds.start, focus) >= distanceMeters(seedEnds.end, focus);
   const seedCoords = startAtFirst ? seed.coordinates : [...seed.coordinates].reverse();
-
-  // Resolve seed endpoints to graph nodes.
-  function nearestNode(point: Position): NodeId {
-    let best = 0;
-    let bestDist = Infinity;
-    for (let i = 0; i < graph.nodes.length; i++) {
-      const dist = distanceMeters(point, graph.nodes[i]!);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = i;
-      }
-    }
-    return best;
-  }
+  const seedNodes = graph.segmentNodes.get(seed.id);
 
   const used = new Set<number>([seed.id]);
   const coords: Position[] = [...seedCoords];
-  let head = nearestNode(seedCoords[seedCoords.length - 1]!);
-  let tail = nearestNode(seedCoords[0]!);
+  let head =
+    seedNodes == null
+      ? 0
+      : startAtFirst
+        ? seedNodes.end
+        : seedNodes.start;
+  let tail =
+    seedNodes == null
+      ? 0
+      : startAtFirst
+        ? seedNodes.start
+        : seedNodes.end;
   let uncoveredMeters = seed.lengthMeters;
   let pathMeters = seed.lengthMeters;
 
@@ -330,44 +443,113 @@ export function buildRunPlanRoute(
     }
   }
 
-  function extend(end: "head" | "tail"): boolean {
+  function appendJump(jump: ProximityJump, end: "head" | "tail") {
+    const tip = end === "head" ? coords[coords.length - 1]! : coords[0]!;
+    const entry = jump.coordinates[0]!;
+    if (tip[0] !== entry[0] || tip[1] !== entry[1]) {
+      const gap = distanceMeters(tip, entry);
+      pathMeters += gap;
+      if (end === "head") coords.push(entry);
+      else coords.unshift(entry);
+    }
+    used.add(jump.segment.id);
+    pathMeters += jump.segment.lengthMeters;
+    uncoveredMeters += jump.segment.lengthMeters;
+    if (end === "head") {
+      coords.push(...jump.coordinates.slice(1));
+      head = jump.toNode;
+    } else {
+      coords.unshift(...jump.coordinates.slice(1).reverse());
+      tail = jump.toNode;
+    }
+  }
+
+  function extendConquest(end: "head" | "tail"): boolean {
     const remaining = budgetMeters - pathMeters;
     if (remaining <= 0) return false;
     const node = end === "head" ? head : tail;
+    const tip = end === "head" ? coords[coords.length - 1]! : coords[0]!;
     const edges = graph.outgoing.get(node) ?? [];
 
     const uncoveredEdge = pickUncoveredEdge(edges, used, focus);
-    if (uncoveredEdge && uncoveredEdge.lengthMeters <= remaining + 50) {
+    if (uncoveredEdge && uncoveredEdge.lengthMeters <= remaining + 80) {
       appendEdge(uncoveredEdge, end);
       return true;
     }
 
     const bridge = findBridgeToUncovered(graph, node, used, Math.min(maxBridgeMeters, remaining));
-    if (bridge == null) return false;
-
-    let bridgeMeters = bridge.reduce((sum, edge) => sum + edge.lengthMeters, 0);
-    if (bridgeMeters > remaining) return false;
-
-    // Apply covered hops, then take the uncovered edge waiting at the far end.
-    let cursor = node;
-    for (const hop of bridge) {
-      appendEdge(hop, end);
-      cursor = hop.to;
-      if (pathMeters >= budgetMeters) return true;
+    if (bridge != null) {
+      const bridgeMeters = bridge.reduce((sum, edge) => sum + edge.lengthMeters, 0);
+      if (bridgeMeters <= remaining) {
+        let cursor = node;
+        for (const hop of bridge) {
+          appendEdge(hop, end);
+          cursor = hop.to;
+          if (pathMeters >= budgetMeters) return true;
+        }
+        const nextUncovered = pickUncoveredEdge(graph.outgoing.get(cursor) ?? [], used, focus);
+        if (nextUncovered && nextUncovered.lengthMeters <= budgetMeters - pathMeters + 80) {
+          appendEdge(nextUncovered, end);
+          return true;
+        }
+        if (bridge.length > 0) return true;
+      }
     }
-    const nextUncovered = pickUncoveredEdge(graph.outgoing.get(cursor) ?? [], used, focus);
-    if (!nextUncovered) return bridge.length > 0;
-    if (nextUncovered.lengthMeters > budgetMeters - pathMeters + 50) return bridge.length > 0;
-    appendEdge(nextUncovered, end);
+
+    const jump = findProximityUncovered(
+      tip,
+      node,
+      segments,
+      graph,
+      used,
+      Math.min(maxJumpMeters, remaining),
+    );
+    if (jump && jump.segment.lengthMeters + jump.jumpMeters <= remaining + 80) {
+      appendJump(jump, end);
+      return true;
+    }
+
+    return false;
+  }
+
+  function extendFill(end: "head" | "tail"): boolean {
+    const remaining = budgetMeters - pathMeters;
+    if (remaining <= 0) return false;
+    const node = end === "head" ? head : tail;
+    const edges = graph.outgoing.get(node) ?? [];
+
+    const local = pickAnyUnusedEdge(edges, used, false);
+    if (local && local.lengthMeters <= remaining + 80) {
+      appendEdge(local, end);
+      return true;
+    }
+
+    const fill = findCoveredFillPath(graph, node, used, remaining);
+    if (!fill || fill.length === 0) return false;
+    for (const hop of fill) {
+      if (pathMeters >= budgetMeters) break;
+      if (hop.lengthMeters > budgetMeters - pathMeters + 80) break;
+      appendEdge(hop, end);
+    }
     return true;
   }
 
+  // Phase 1 — conquest: unfinished streets, covered bridges, proximity hops.
   let grew = true;
   let guard = 0;
-  while (grew && pathMeters < budgetMeters && guard < 20_000) {
+  while (grew && pathMeters < budgetMeters && guard < 30_000) {
     guard += 1;
-    const grewHead = extend("head");
-    const grewTail = pathMeters < budgetMeters ? extend("tail") : false;
+    const grewHead = extendConquest("head");
+    const grewTail = pathMeters < budgetMeters ? extendConquest("tail") : false;
+    grew = grewHead || grewTail;
+  }
+
+  // Phase 2 — fill: burn remaining budget on covered streets so distance preference matters.
+  grew = true;
+  while (grew && pathMeters < budgetMeters * 0.92 && guard < 60_000) {
+    guard += 1;
+    const grewHead = extendFill("head");
+    const grewTail = pathMeters < budgetMeters * 0.92 ? extendFill("tail") : false;
     grew = grewHead || grewTail;
   }
 

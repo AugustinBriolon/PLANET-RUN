@@ -8,11 +8,13 @@ import { getServices } from "@/server/services";
 const querySchema = z.object({
   areaId: z.coerce.number().int().positive(),
   distanceKm: z.coerce.number().min(2).max(30),
+  /** Changes the start among nearby unfinished streets on regenerate. */
+  salt: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
 });
 
 /**
  * Build a continuous run route for one city: unfinished streets chained into one path,
- * with short already-covered bridges so the athlete can follow a single gold tracé.
+ * filled to the requested distance with already-covered streets when needed.
  */
 export async function GET(request: Request) {
   const userOrError = await requireMobileUser(request);
@@ -22,6 +24,7 @@ export async function GET(request: Request) {
   const parsed = querySchema.safeParse({
     areaId: url.searchParams.get("areaId"),
     distanceKm: url.searchParams.get("distanceKm"),
+    salt: url.searchParams.get("salt") ?? undefined,
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_query" }, { status: 400 });
@@ -40,29 +43,41 @@ export async function GET(request: Request) {
   const share = toCoverageShare(city);
   const remainingMeters = Math.max(0, city.totalMeters - city.coveredMeters);
   const budgetMeters = parsed.data.distanceKm * 1000;
-  const plan = await services.coverage.getRunPlanStreets(userOrError.id, city.areaId, budgetMeters);
+  const plan = await services.coverage.getRunPlanStreets(
+    userOrError.id,
+    city.areaId,
+    budgetMeters,
+    parsed.data.salt,
+  );
   const estimatedShareGain =
     city.totalMeters <= 0 ? 0 : Math.min(1 - (share ?? 0), plan.targetMeters / city.totalMeters);
 
-  return NextResponse.json({
-    city: {
-      areaId: city.areaId,
-      name: city.name,
-      share,
-      coveredMeters: city.coveredMeters,
-      totalMeters: city.totalMeters,
-      remainingMeters,
-      bounds: city.bounds,
+  return NextResponse.json(
+    {
+      city: {
+        areaId: city.areaId,
+        name: city.name,
+        share,
+        coveredMeters: city.coveredMeters,
+        totalMeters: city.totalMeters,
+        remainingMeters,
+        bounds: city.bounds,
+      },
+      preference: { distanceKm: parsed.data.distanceKm },
+      plan: {
+        targetMeters: Math.round(plan.targetMeters),
+        targetKm: Math.round((plan.targetMeters / 1000) * 10) / 10,
+        pathMeters: Math.round(plan.pathMeters),
+        pathKm: Math.round((plan.pathMeters / 1000) * 10) / 10,
+        estimatedShareGain,
+        streets: plan.streets,
+        note: "Follow the gold route — unfinished streets first, filled to your distance with already-run streets where needed.",
+      },
     },
-    preference: { distanceKm: parsed.data.distanceKm },
-    plan: {
-      targetMeters: Math.round(plan.targetMeters),
-      targetKm: Math.round((plan.targetMeters / 1000) * 10) / 10,
-      pathMeters: Math.round(plan.pathMeters),
-      pathKm: Math.round((plan.pathMeters / 1000) * 10) / 10,
-      estimatedShareGain,
-      streets: plan.streets,
-      note: "Follow the gold route — unfinished streets chained into one outing at your distance, with short already-run bridges where needed.",
+    {
+      headers: {
+        "Cache-Control": "no-store",
+      },
     },
-  });
+  );
 }

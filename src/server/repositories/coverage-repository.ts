@@ -1,6 +1,11 @@
 import { sql } from "drizzle-orm";
 
 import type { CityCoverage, CoveredStreets } from "@/lib/coverage/street-coverage";
+import {
+  buildRunPlanRoute,
+  runPlanRouteToGeoJson,
+  type PlanSegment,
+} from "@/lib/coverage/run-plan-route";
 import { COVERAGE_RULES, type CoverageRules } from "@/server/coverage/coverage-rules";
 import type { Database } from "@/server/db/client";
 
@@ -18,14 +23,14 @@ export type CoverageRepository = {
   /** Centroid of still-uncovered street geometry — a practical “start here” for the next run. */
   getUncoveredFocus: (userId: string, areaId: number) => Promise<[number, number] | null>;
   /**
-   * Uncovered segments closest to the unfinished cluster, packed up to `budgetMeters`.
-   * Used as a visible “run these streets” target until a routed polyline exists.
+   * Continuous run route through unfinished streets (short covered bridges allowed),
+   * sized to about `budgetMeters`. `targetMeters` is uncovered length along that path.
    */
   getRunPlanStreets: (
     userId: string,
     areaId: number,
     budgetMeters: number,
-  ) => Promise<{ streets: CoveredStreets; targetMeters: number }>;
+  ) => Promise<{ streets: CoveredStreets; targetMeters: number; pathMeters: number }>;
 };
 
 export function createCoverageRepository(
@@ -213,49 +218,52 @@ export function createCoverageRepository(
 
     async getRunPlanStreets(userId, areaId, budgetMeters) {
       const budget = Math.max(500, Math.min(budgetMeters, 40_000));
-      const rows = await database.execute<{ geometry: string; length_meters: number; running: number }>(sql`
-        WITH focus AS (
-          SELECT ST_Centroid(ST_Collect(segment.path)) AS pt
+      // Uncovered streets in the city, plus nearby covered pieces that can bridge gaps (~200 m).
+      const rows = await database.execute<{
+        id: number;
+        geometry: string;
+        length_meters: number;
+        covered: boolean;
+      }>(sql`
+        WITH uncovered AS (
+          SELECT segment.id, segment.path
           FROM street_segments AS segment
           WHERE segment.area_id = ${areaId}
             AND segment.id NOT IN (${segmentsCoveredBy(userId)})
         ),
-        ranked AS (
-          SELECT
-            segment.path,
-            segment.length_meters::float8 AS length_meters,
-            ST_Distance(segment.path::geography, focus.pt::geography) AS dist
-          FROM street_segments AS segment
-          CROSS JOIN focus
-          WHERE segment.area_id = ${areaId}
-            AND segment.id NOT IN (${segmentsCoveredBy(userId)})
-            AND focus.pt IS NOT NULL
-        ),
-        packed AS (
-          SELECT
-            path,
-            length_meters,
-            SUM(length_meters) OVER (ORDER BY dist ASC, length_meters DESC) AS running
-          FROM ranked
+        pocket AS (
+          SELECT ST_Expand(ST_Extent(path)::geometry, 0.002) AS bbox FROM uncovered
         )
         SELECT
-          ST_AsGeoJSON(path, 6) AS geometry,
-          length_meters,
-          running
-        FROM packed
-        WHERE running - length_meters < ${budget}
-        ORDER BY running ASC
+          segment.id::int AS id,
+          ST_AsGeoJSON(segment.path, 6) AS geometry,
+          segment.length_meters::float8 AS length_meters,
+          (NOT EXISTS (SELECT 1 FROM uncovered WHERE uncovered.id = segment.id)) AS covered
+        FROM street_segments AS segment
+        CROSS JOIN pocket
+        WHERE segment.area_id = ${areaId}
+          AND pocket.bbox IS NOT NULL
+          AND segment.path && pocket.bbox
       `);
 
-      const features = rows.map((row) => ({
-        type: "Feature" as const,
-        geometry: JSON.parse(row.geometry) as CoveredStreets["features"][number]["geometry"],
-        properties: { areaId },
-      }));
-      const targetMeters = rows.reduce((sum, row) => sum + row.length_meters, 0);
+      const segments: PlanSegment[] = rows.flatMap((row) => {
+        const geometry = JSON.parse(row.geometry) as { type: string; coordinates: PlanSegment["coordinates"] };
+        if (geometry.type !== "LineString" || geometry.coordinates.length < 2) return [];
+        return [
+          {
+            id: row.id,
+            coordinates: geometry.coordinates,
+            lengthMeters: row.length_meters,
+            covered: Boolean(row.covered),
+          },
+        ];
+      });
+
+      const route = buildRunPlanRoute(segments, { budgetMeters: budget });
       return {
-        streets: { type: "FeatureCollection", features },
-        targetMeters,
+        streets: runPlanRouteToGeoJson(route, areaId) as CoveredStreets,
+        targetMeters: route.uncoveredMeters,
+        pathMeters: route.pathMeters,
       };
     },
   };

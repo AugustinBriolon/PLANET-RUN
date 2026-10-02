@@ -39,7 +39,7 @@ export function createInMemoryCoverageRepository(
       return { type: "FeatureCollection", features: [] };
     },
     async getRunPlanStreets() {
-      return { streets: { type: "FeatureCollection", features: [] }, targetMeters: 0 };
+      return { streets: { type: "FeatureCollection", features: [] }, targetMeters: 0, pathMeters: 0 };
     },
   };
 

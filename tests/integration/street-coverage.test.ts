@@ -158,6 +158,26 @@ describe("street coverage in PostGIS", () => {
       expect([...ids].sort()).toEqual([10, 11]);
     });
 
+    it("builds a continuous run plan through uncovered streets instead of a scattered highlight", async () => {
+      const runner = await linkRunner(99);
+      await linkCity(runner.id, 1001, "Squareville");
+      // Cover the western half of Main Street so the plan must start further east.
+      await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.004));
+      await coverage.matchPendingActivities({ userId: runner.id });
+
+      const plan = await coverage.getRunPlanStreets(runner.id, 1001, 800);
+
+      expect(plan.streets.features).toHaveLength(1);
+      expect(plan.streets.features[0]?.geometry.type).toBe("LineString");
+      expect(plan.streets.features[0]?.properties).toMatchObject({ areaId: 1001, kind: "route" });
+      expect(plan.targetMeters).toBeGreaterThan(200);
+      expect(plan.pathMeters).toBeGreaterThanOrEqual(plan.targetMeters);
+      const coordinates = plan.streets.features[0]?.geometry.type === "LineString"
+        ? plan.streets.features[0].geometry.coordinates
+        : [];
+      expect(coordinates.length).toBeGreaterThan(2);
+    });
+
     it("covers the pieces a run follows, but not the street it only crosses", async () => {
       const runner = await linkRunner(42);
       await linkCity(runner.id, 1001, "Squareville");

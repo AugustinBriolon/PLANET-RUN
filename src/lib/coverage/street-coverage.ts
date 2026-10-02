@@ -14,7 +14,10 @@ export type CityCoverage = {
   bounds: LngLatBounds | null;
 };
 
-export type CoveredStreets = FeatureCollection<LineString | MultiLineString, { areaId: number }>;
+export type CoveredStreets = FeatureCollection<
+  LineString | MultiLineString,
+  { areaId: number; kind?: "route" }
+>;
 
 export const NO_COVERED_STREETS: CoveredStreets = { type: "FeatureCollection", features: [] };
 

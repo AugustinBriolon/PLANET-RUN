@@ -11,9 +11,8 @@ const querySchema = z.object({
 });
 
 /**
- * Build a visible “run these uncovered streets” target for one city.
- * Packs unfinished segments near the uncovered cluster up to ~run distance.
- * Not a routed GPX yet — it is the conquest highlight layer athletes can see and chase.
+ * Build a continuous run route for one city: unfinished streets chained into one path,
+ * with short already-covered bridges so the athlete can follow a single gold tracé.
  */
 export async function GET(request: Request) {
   const userOrError = await requireMobileUser(request);
@@ -41,11 +40,7 @@ export async function GET(request: Request) {
   const share = toCoverageShare(city);
   const remainingMeters = Math.max(0, city.totalMeters - city.coveredMeters);
   const budgetMeters = parsed.data.distanceKm * 1000;
-  const plan = await services.coverage.getRunPlanStreets(
-    userOrError.id,
-    city.areaId,
-    budgetMeters,
-  );
+  const plan = await services.coverage.getRunPlanStreets(userOrError.id, city.areaId, budgetMeters);
   const estimatedShareGain =
     city.totalMeters <= 0 ? 0 : Math.min(1 - (share ?? 0), plan.targetMeters / city.totalMeters);
 
@@ -63,9 +58,11 @@ export async function GET(request: Request) {
     plan: {
       targetMeters: Math.round(plan.targetMeters),
       targetKm: Math.round((plan.targetMeters / 1000) * 10) / 10,
+      pathMeters: Math.round(plan.pathMeters),
+      pathKm: Math.round((plan.pathMeters / 1000) * 10) / 10,
       estimatedShareGain,
       streets: plan.streets,
-      note: "Highlighted streets are still uncovered and fit about one outing at your distance. Run that pocket to raise your conquest %.",
+      note: "Follow the gold route — unfinished streets chained into one outing at your distance, with short already-run bridges where needed.",
     },
   });
 }

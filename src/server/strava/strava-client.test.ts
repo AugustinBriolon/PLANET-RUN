@@ -49,6 +49,29 @@ describe("createStravaClient", () => {
     });
   });
 
+  it("exchanges an authorization code for tokens and athlete", async () => {
+    const { client, fetchMock } = setup(
+      jsonResponse({
+        access_token: "a",
+        refresh_token: "r",
+        expires_at: 99,
+        athlete: { id: 42, firstname: "Ada" },
+      }),
+    );
+
+    await expect(client.exchangeAuthorizationCode("auth-code")).resolves.toMatchObject({
+      access_token: "a",
+      athlete: { id: 42 },
+    });
+    const body = fetchMock.mock.calls[0]![1]?.body as URLSearchParams;
+    expect(Object.fromEntries(body)).toEqual({
+      client_id: "client-id",
+      client_secret: "client-secret",
+      code: "auth-code",
+      grant_type: "authorization_code",
+    });
+  });
+
   it("revokes the athlete's authorization", async () => {
     const { client, fetchMock } = setup(jsonResponse({ access_token: "revoked" }));
 

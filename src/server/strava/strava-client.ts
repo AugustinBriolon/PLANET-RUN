@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import {
   stravaActivitySchema,
+  stravaAuthorizationTokenResponseSchema,
   stravaTokenResponseSchema,
   type StravaActivity,
+  type StravaAuthorizationTokenResponse,
   type StravaTokenResponse,
 } from "./strava-types";
 
@@ -56,6 +58,8 @@ export type ListActivitiesOptions = {
 export type StravaClient = {
   listActivities: (accessToken: string, options: ListActivitiesOptions) => Promise<StravaActivity[]>;
   getActivity: (accessToken: string, activityId: number) => Promise<StravaActivity>;
+  /** Exchanges a mobile/web authorization code for tokens (+ embedded athlete). */
+  exchangeAuthorizationCode: (code: string) => Promise<StravaAuthorizationTokenResponse>;
   refreshAccessToken: (refreshToken: string) => Promise<StravaTokenResponse>;
   /** Revokes the application's access for the athlete owning the token. */
   deauthorize: (accessToken: string) => Promise<void>;
@@ -99,6 +103,16 @@ export function createStravaClient({
 
     getActivity(accessToken, activityId) {
       return request(`${API_BASE_URL}/activities/${activityId}`, authorized(accessToken), stravaActivitySchema);
+    },
+
+    exchangeAuthorizationCode(code) {
+      const body = new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        grant_type: "authorization_code",
+      });
+      return request(TOKEN_URL, { method: "POST", body }, stravaAuthorizationTokenResponseSchema);
     },
 
     refreshAccessToken(refreshToken) {

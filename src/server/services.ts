@@ -52,6 +52,7 @@ function buildServices(database: Database) {
     catalog,
     coverage,
     userCities,
+    strava,
     cityDetection: createCityDetectionService({
       activities,
       areas,

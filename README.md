@@ -5,6 +5,9 @@ globe, so you can see every place in the world you have ever run. It also tracks
 streets covered, starting with a Colombes / La Garenne-Colombes pilot. Next up: department, region and country
 coverage, and badges.
 
+> **Repo layout:** this package is `planet-run-web` (Next.js + Neon). The Expo client lives in the sibling
+> folder `../planet-run-app` and is a **separate** git repository — do not nest mobile code here.
+
 ## Scope and responsibilities
 
 **What it does:**
@@ -20,6 +23,8 @@ coverage, and badges.
   `/privacy`.
 - Installs from Safari/Chrome as a home-screen app (`src/app/manifest.ts`) for a full-bleed, browser-chrome-free
   view — true edge-to-edge under the notch/Dynamic Island only happens in that installed mode, not a browser tab.
+- Exposes a **mobile API** under `/api/mobile/*` (Strava OAuth callback → JWT, `GET /api/mobile/me` for cities /
+  coverage) consumed by `planet-run-app`.
 
 **What it does not do (yet):**
 

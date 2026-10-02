@@ -25,6 +25,13 @@ export const stravaTokenResponseSchema = z.object({
 
 export type StravaTokenResponse = z.infer<typeof stravaTokenResponseSchema>;
 
+/** Authorization-code exchange includes the athlete profile Strava embeds in the token response. */
+export const stravaAuthorizationTokenResponseSchema = stravaTokenResponseSchema.extend({
+  athlete: z.unknown(),
+});
+
+export type StravaAuthorizationTokenResponse = z.infer<typeof stravaAuthorizationTokenResponseSchema>;
+
 export const stravaWebhookEventSchema = z.object({
   object_type: z.enum(["activity", "athlete"]),
   object_id: z.number(),

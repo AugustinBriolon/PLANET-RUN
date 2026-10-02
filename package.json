@@ -1,5 +1,5 @@
 {
-  "name": "planet-run",
+  "name": "planet-run-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -33,6 +33,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "drizzle-orm": "^0.45.2",
+    "jose": "^6.2.12",
     "lucide-react": "^1.46.0",
     "maplibre-gl": "^6.10.0",
     "motion": "^13.4.0",

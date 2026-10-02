@@ -38,6 +38,9 @@ export function createInMemoryCoverageRepository(
     async getUncoveredStreets() {
       return { type: "FeatureCollection", features: [] };
     },
+    async listCityDistances() {
+      return new Map<number, number>();
+    },
     async getRunPlanStreets() {
       return { streets: { type: "FeatureCollection", features: [] }, targetMeters: 0, pathMeters: 0 };
     },

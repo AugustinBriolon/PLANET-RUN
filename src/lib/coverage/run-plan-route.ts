@@ -30,9 +30,15 @@ export type RunPlanRouteOptions = {
    * Same salt → same route; change it on regenerate for a different outing.
    */
   salt?: number;
+  /** Anchors the route at this [lng, lat] (the athlete's position) and only grows forward from it. */
+  start?: Position;
 };
 
 const DEFAULT_JOIN_TOLERANCE_METERS = 22;
+/** Longest street walk allowed to reach the first unfinished street from an anchored start. */
+const MAX_START_CONNECTOR_METERS = 2_500;
+/** Regenerating an anchored plan rotates among this many nearest unfinished streets. */
+const ANCHORED_SEED_CHOICES = 4;
 
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
@@ -373,14 +379,75 @@ function findProximityUncovered(
   return best;
 }
 
+function pickFromWindow<T>(ranked: T[], windowSize: number, salt: number): T {
+  const window = Math.min(windowSize, ranked.length);
+  const index = ((salt % window) + window) % window;
+  return ranked[index]!;
+}
+
 function pickSeed(uncovered: PlanSegment[], focus: Position, salt: number): PlanSegment {
   const ranked = [...uncovered].sort(
     (a, b) =>
       distanceMeters(midpoint(a.coordinates), focus) - distanceMeters(midpoint(b.coordinates), focus),
   );
-  const window = Math.min(12, ranked.length);
-  const index = ((salt % window) + window) % window;
-  return ranked[index]!;
+  return pickFromWindow(ranked, 12, salt);
+}
+
+function nearestEndDistance(segment: PlanSegment, point: Position): number {
+  const ends = endsOf(segment);
+  return Math.min(distanceMeters(point, ends.start), distanceMeters(point, ends.end));
+}
+
+function pickAnchoredSeed(uncovered: PlanSegment[], start: Position, salt: number): PlanSegment {
+  const ranked = [...uncovered].sort(
+    (a, b) => nearestEndDistance(a, start) - nearestEndDistance(b, start),
+  );
+  return pickFromWindow(ranked, ANCHORED_SEED_CHOICES, salt);
+}
+
+function nearestNode(graph: StreetGraph, point: Position): NodeId | null {
+  let best: NodeId | null = null;
+  let bestDist = Infinity;
+  for (let i = 0; i < graph.nodes.length; i++) {
+    const dist = distanceMeters(point, graph.nodes[i]!);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/** Shortest street walk (by meters) between two nodes over unused edges, or null beyond `maxMeters`. */
+function shortestPath(
+  graph: StreetGraph,
+  from: NodeId,
+  to: NodeId,
+  usedSegments: ReadonlySet<number>,
+  maxMeters: number,
+): DirectedEdge[] | null {
+  if (from === to) return [];
+  type State = { node: NodeId; path: DirectedEdge[]; meters: number };
+  const queue: State[] = [{ node: from, path: [], meters: 0 }];
+  const best = new Map<NodeId, number>([[from, 0]]);
+
+  while (queue.length > 0) {
+    queue.sort((a, b) => a.meters - b.meters);
+    const current = queue.shift()!;
+    if (current.node === to) return current.path;
+    if (current.meters > (best.get(current.node) ?? Infinity)) continue;
+
+    for (const edge of graph.outgoing.get(current.node) ?? []) {
+      if (usedSegments.has(edge.segmentId)) continue;
+      const nextMeters = current.meters + edge.lengthMeters;
+      if (nextMeters > maxMeters) continue;
+      const known = best.get(edge.to);
+      if (known != null && known <= nextMeters) continue;
+      best.set(edge.to, nextMeters);
+      queue.push({ node: edge.to, path: [...current.path, edge], meters: nextMeters });
+    }
+  }
+  return null;
 }
 
 /**
@@ -405,30 +472,41 @@ export function buildRunPlanRoute(
 
   const focus = centroidOf(uncovered.map((segment) => midpoint(segment.coordinates)));
   const graph = buildStreetGraph(segments, joinToleranceMeters);
-  const seed = pickSeed(uncovered, focus, salt);
+  const anchor = options.start;
+  const seed = anchor ? pickAnchoredSeed(uncovered, anchor, salt) : pickSeed(uncovered, focus, salt);
 
+  // Free plans enter the seed from the end farther from the pocket centre; anchored plans from the end nearer the athlete.
   const seedEnds = endsOf(seed);
-  const startAtFirst =
-    distanceMeters(seedEnds.start, focus) >= distanceMeters(seedEnds.end, focus);
+  const startAtFirst = anchor
+    ? distanceMeters(seedEnds.start, anchor) <= distanceMeters(seedEnds.end, anchor)
+    : distanceMeters(seedEnds.start, focus) >= distanceMeters(seedEnds.end, focus);
   const seedCoords = startAtFirst ? seed.coordinates : [...seed.coordinates].reverse();
   const seedNodes = graph.segmentNodes.get(seed.id);
+  const entryNode = seedNodes == null ? 0 : startAtFirst ? seedNodes.start : seedNodes.end;
+  const exitNode = seedNodes == null ? 0 : startAtFirst ? seedNodes.end : seedNodes.start;
 
   const used = new Set<number>([seed.id]);
-  const coords: Position[] = [...seedCoords];
-  let head =
-    seedNodes == null
-      ? 0
-      : startAtFirst
-        ? seedNodes.end
-        : seedNodes.start;
-  let tail =
-    seedNodes == null
-      ? 0
-      : startAtFirst
-        ? seedNodes.start
-        : seedNodes.end;
+  const coords: Position[] = [];
+  let head = exitNode;
+  let tail = entryNode;
   let uncoveredMeters = seed.lengthMeters;
   let pathMeters = seed.lengthMeters;
+
+  if (anchor) {
+    coords.push(anchor);
+    const startNode = nearestNode(graph, anchor);
+    const connector =
+      startNode == null ? null : shortestPath(graph, startNode, entryNode, used, MAX_START_CONNECTOR_METERS);
+    for (const edge of connector ?? []) {
+      used.add(edge.segmentId);
+      pathMeters += edge.lengthMeters;
+      if (!edge.covered) uncoveredMeters += edge.lengthMeters;
+      if (coords.length === 1) pathMeters += distanceMeters(anchor, edge.coordinates[0]!);
+      coords.push(...edge.coordinates);
+    }
+    if (coords.length === 1) pathMeters += distanceMeters(anchor, seedCoords[0]!);
+  }
+  coords.push(...seedCoords);
 
   function appendEdge(edge: DirectedEdge, end: "head" | "tail") {
     used.add(edge.segmentId);
@@ -534,13 +612,16 @@ export function buildRunPlanRoute(
     return true;
   }
 
+  // An anchored route keeps its tail at the athlete, so only the head grows.
+  const growTail = !anchor;
+
   // Phase 1 — conquest: unfinished streets, covered bridges, proximity hops.
   let grew = true;
   let guard = 0;
   while (grew && pathMeters < budgetMeters && guard < 30_000) {
     guard += 1;
     const grewHead = extendConquest("head");
-    const grewTail = pathMeters < budgetMeters ? extendConquest("tail") : false;
+    const grewTail = growTail && pathMeters < budgetMeters ? extendConquest("tail") : false;
     grew = grewHead || grewTail;
   }
 
@@ -549,7 +630,7 @@ export function buildRunPlanRoute(
   while (grew && pathMeters < budgetMeters * 0.92 && guard < 60_000) {
     guard += 1;
     const grewHead = extendFill("head");
-    const grewTail = pathMeters < budgetMeters * 0.92 ? extendFill("tail") : false;
+    const grewTail = growTail && pathMeters < budgetMeters * 0.92 ? extendFill("tail") : false;
     grew = grewHead || grewTail;
   }
 

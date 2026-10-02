@@ -24,7 +24,9 @@ coverage, and badges.
 - Installs from Safari/Chrome as a home-screen app (`src/app/manifest.ts`) for a full-bleed, browser-chrome-free
   view — true edge-to-edge under the notch/Dynamic Island only happens in that installed mode, not a browser tab.
 - Exposes a **mobile API** under `/api/mobile/*` (Strava OAuth callback → JWT, `GET /api/mobile/me` for cities /
-  coverage) consumed by `planet-run-app`.
+  coverage) consumed by `planet-run-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
+  from a position, and `GET /api/mobile/cities/plan` builds a run route — optionally starting from the runner's
+  position (`startLat`/`startLng`), only within 1 km of the city boundary.
 
 **What it does not do (yet):**
 

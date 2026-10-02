@@ -178,6 +178,35 @@ describe("street coverage in PostGIS", () => {
       expect(coordinates.length).toBeGreaterThan(2);
     });
 
+    it("measures the distance from a position to each city boundary, zero inside", async () => {
+      const runner = await linkRunner(77);
+      await linkCity(runner.id, 1001, "Squareville");
+
+      const inside = await coverage.listCityDistances(runner.id, { lng: 2.005, lat: 48.005 });
+      // 0.005° of longitude east of the boundary at 48° N is ~373 m.
+      const nearby = await coverage.listCityDistances(runner.id, { lng: 2.015, lat: 48.005 });
+      const far = await coverage.listCityDistances(runner.id, { lng: 2.05, lat: 48.005 });
+
+      expect(inside.get(1001)).toBe(0);
+      expect(nearby.get(1001)).toBeGreaterThan(330);
+      expect(nearby.get(1001)).toBeLessThan(420);
+      expect(far.get(1001)).toBeGreaterThan(2_900);
+    });
+
+    it("anchors a run plan at the athlete's position", async () => {
+      const runner = await linkRunner(78);
+      await linkCity(runner.id, 1001, "Squareville");
+      const athlete = { lng: 2.0005, lat: MAIN_STREET_LATITUDE };
+
+      const plan = await coverage.getRunPlanStreets(runner.id, 1001, 800, { start: athlete });
+
+      const geometry = plan.streets.features[0]?.geometry;
+      expect(geometry?.type).toBe("LineString");
+      const coordinates = geometry?.type === "LineString" ? geometry.coordinates : [];
+      expect(coordinates[0]).toEqual([athlete.lng, athlete.lat]);
+      expect(plan.targetMeters).toBeGreaterThan(200);
+    });
+
     it("covers the pieces a run follows, but not the street it only crosses", async () => {
       const runner = await linkRunner(42);
       await linkCity(runner.id, 1001, "Squareville");

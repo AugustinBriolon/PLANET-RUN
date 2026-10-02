@@ -204,6 +204,36 @@ describe("buildRunPlanRoute", () => {
     expect(a.start).not.toEqual(b.start);
   });
 
+  it("starts an anchored route at the athlete and walks streets to the nearest unfinished one", () => {
+    // Covered approach from the west, then unfinished streets further east.
+    const approach = chain(100, 3, true, 2.0, 100);
+    const unfinished = chain(1, 10, false, 2.0 + 3 * 0.00135, 100);
+    const athlete: [number, number] = [2.0, 48.0001];
+
+    const route = buildRunPlanRoute([...approach, ...unfinished], {
+      budgetMeters: 1_000,
+      start: athlete,
+    });
+
+    expect(route.start).toEqual(athlete);
+    expect(route.coordinates[0]).toEqual(athlete);
+    expect(route.uncoveredMeters).toBeGreaterThanOrEqual(600);
+    expect(route.pathMeters).toBeGreaterThan(route.uncoveredMeters);
+    for (let index = 1; index < route.coordinates.length; index++) {
+      expect(distanceMeters(route.coordinates[index - 1]!, route.coordinates[index]!)).toBeLessThan(120);
+    }
+  });
+
+  it("keeps the anchor as the start when growing toward the budget", () => {
+    const pieces = chain(1, 30, false);
+    const athlete: [number, number] = [2.0 + 15 * 0.00135, 48.0];
+
+    const route = buildRunPlanRoute(pieces, { budgetMeters: 1_500, start: athlete });
+
+    expect(route.start).toEqual(athlete);
+    expect(route.pathMeters).toBeGreaterThanOrEqual(1_300);
+  });
+
   it("stops around the budget instead of packing every uncovered street", () => {
     const route = buildRunPlanRoute(chain(1, 20, false), { budgetMeters: 350 });
     expect(route.pathMeters).toBeGreaterThanOrEqual(300);

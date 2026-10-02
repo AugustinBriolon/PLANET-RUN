@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 
+import type { LngLat } from "@/lib/coverage/plan-start";
 import type { CityCoverage, CoveredStreets } from "@/lib/coverage/street-coverage";
 import {
   buildRunPlanRoute,
@@ -23,18 +24,22 @@ export type CoverageRepository = {
   getUncoveredStreets: (userId: string, areaId: number) => Promise<CoveredStreets>;
   /** Centroid of still-uncovered street geometry — a practical “start here” for the next run. */
   getUncoveredFocus: (userId: string, areaId: number) => Promise<[number, number] | null>;
+  /** Distance in meters from a point to each of the athlete's city boundaries (0 when inside). */
+  listCityDistances: (userId: string, point: LngLat) => Promise<Map<number, number>>;
   /**
    * Continuous run route through unfinished streets (short covered bridges allowed),
    * sized to about `budgetMeters`. `targetMeters` is uncovered length along that path.
-   * `salt` diversifies the start when the athlete regenerates.
+   * `salt` diversifies the start when the athlete regenerates; `start` anchors the route there.
    */
   getRunPlanStreets: (
     userId: string,
     areaId: number,
     budgetMeters: number,
-    salt?: number,
+    options?: RunPlanRequestOptions,
   ) => Promise<{ streets: CoveredStreets; targetMeters: number; pathMeters: number }>;
 };
+
+export type RunPlanRequestOptions = { salt?: number; start?: LngLat };
 
 export function createCoverageRepository(
   database: Database,
@@ -219,9 +224,27 @@ export function createCoverageRepository(
       };
     },
 
-    async getRunPlanStreets(userId, areaId, budgetMeters, salt = 0) {
+    async listCityDistances(userId, point) {
+      const rows = await database.execute<{ area_id: string; distance_meters: number }>(sql`
+        SELECT user_cities.osm_relation_id AS area_id,
+               ST_Distance(
+                 coalesce(area.boundary, catalog.boundary)::geography,
+                 ST_SetSRID(ST_MakePoint(${point.lng}, ${point.lat}), 4326)::geography
+               )::float8 AS distance_meters
+        FROM user_cities
+        LEFT JOIN areas AS area ON area.osm_relation_id = user_cities.osm_relation_id
+        LEFT JOIN city_catalog AS catalog ON catalog.osm_relation_id = user_cities.osm_relation_id
+        WHERE user_cities.user_id = ${userId}
+          AND coalesce(area.boundary, catalog.boundary) IS NOT NULL
+      `);
+      return new Map(rows.map((row) => [Number(row.area_id), row.distance_meters]));
+    },
+
+    async getRunPlanStreets(userId, areaId, budgetMeters, { salt = 0, start } = {}) {
       const budget = Math.max(500, Math.min(budgetMeters, 40_000));
       const expandDegrees = planPocketExpandDegrees(budget);
+      // ST_Extent drops the SRID, so the start point must match it (SRID 0) to share one envelope.
+      const startPoint = start ? sql`ST_MakePoint(${start.lng}, ${start.lat})` : sql`NULL::geometry`;
       // Uncovered streets in the city, plus nearby covered pieces that can bridge gaps.
       const rows = await database.execute<{
         id: number;
@@ -236,7 +259,11 @@ export function createCoverageRepository(
             AND segment.id NOT IN (${segmentsCoveredBy(userId)})
         ),
         pocket AS (
-          SELECT ST_Expand(ST_Extent(path)::geometry, ${expandDegrees}) AS bbox FROM uncovered
+          SELECT ST_Expand(
+            ST_Envelope(ST_Collect(ST_Extent(path)::geometry, ${startPoint})),
+            ${expandDegrees}
+          ) AS bbox
+          FROM uncovered
         )
         SELECT
           segment.id::int AS id,
@@ -263,7 +290,11 @@ export function createCoverageRepository(
         ];
       });
 
-      const route = buildRunPlanRoute(segments, { budgetMeters: budget, salt });
+      const route = buildRunPlanRoute(segments, {
+        budgetMeters: budget,
+        salt,
+        start: start ? [start.lng, start.lat] : undefined,
+      });
       return {
         streets: runPlanRouteToGeoJson(route, areaId) as CoveredStreets,
         targetMeters: route.uncoveredMeters,

@@ -11,8 +11,19 @@ export type CoverageRepository = {
   markAllActivitiesPending: () => Promise<void>;
   listCityCoverage: (userId: string) => Promise<CityCoverage[]>;
   getCoveredStreets: (userId: string) => Promise<CoveredStreets>;
+  /** Still-uncovered street geometry for one city (merged), for conquest map layers. */
+  getUncoveredStreets: (userId: string, areaId: number) => Promise<CoveredStreets>;
   /** Centroid of still-uncovered street geometry — a practical “start here” for the next run. */
   getUncoveredFocus: (userId: string, areaId: number) => Promise<[number, number] | null>;
+  /**
+   * Uncovered segments closest to the unfinished cluster, packed up to `budgetMeters`.
+   * Used as a visible “run these streets” target until a routed polyline exists.
+   */
+  getRunPlanStreets: (
+    userId: string,
+    areaId: number,
+    budgetMeters: number,
+  ) => Promise<{ streets: CoveredStreets; targetMeters: number }>;
 };
 
 export function createCoverageRepository(
@@ -154,6 +165,77 @@ export function createCoverageRepository(
       const row = rows[0];
       if (!row || !Number.isFinite(row.lng) || !Number.isFinite(row.lat)) return null;
       return [row.lng, row.lat];
+    },
+
+    async getUncoveredStreets(userId, areaId) {
+      const rows = await database.execute<{ geometry: string }>(sql`
+        SELECT ST_AsGeoJSON(ST_LineMerge(ST_Collect(segment.path)), 6) AS geometry
+        FROM street_segments AS segment
+        WHERE segment.area_id = ${areaId}
+          AND segment.id NOT IN (${segmentsCoveredBy(userId)})
+      `);
+      const geometry = rows[0]?.geometry;
+      if (!geometry) {
+        return { type: "FeatureCollection", features: [] };
+      }
+      return {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: JSON.parse(geometry) as CoveredStreets["features"][number]["geometry"],
+            properties: { areaId },
+          },
+        ],
+      };
+    },
+
+    async getRunPlanStreets(userId, areaId, budgetMeters) {
+      const budget = Math.max(500, Math.min(budgetMeters, 40_000));
+      const rows = await database.execute<{ geometry: string; length_meters: number; running: number }>(sql`
+        WITH focus AS (
+          SELECT ST_Centroid(ST_Collect(segment.path)) AS pt
+          FROM street_segments AS segment
+          WHERE segment.area_id = ${areaId}
+            AND segment.id NOT IN (${segmentsCoveredBy(userId)})
+        ),
+        ranked AS (
+          SELECT
+            segment.path,
+            segment.length_meters::float8 AS length_meters,
+            ST_Distance(segment.path::geography, focus.pt::geography) AS dist
+          FROM street_segments AS segment
+          CROSS JOIN focus
+          WHERE segment.area_id = ${areaId}
+            AND segment.id NOT IN (${segmentsCoveredBy(userId)})
+            AND focus.pt IS NOT NULL
+        ),
+        packed AS (
+          SELECT
+            path,
+            length_meters,
+            SUM(length_meters) OVER (ORDER BY dist ASC, length_meters DESC) AS running
+          FROM ranked
+        )
+        SELECT
+          ST_AsGeoJSON(path, 6) AS geometry,
+          length_meters,
+          running
+        FROM packed
+        WHERE running - length_meters < ${budget}
+        ORDER BY running ASC
+      `);
+
+      const features = rows.map((row) => ({
+        type: "Feature" as const,
+        geometry: JSON.parse(row.geometry) as CoveredStreets["features"][number]["geometry"],
+        properties: { areaId },
+      }));
+      const targetMeters = rows.reduce((sum, row) => sum + row.length_meters, 0);
+      return {
+        streets: { type: "FeatureCollection", features },
+        targetMeters,
+      };
     },
   };
 }

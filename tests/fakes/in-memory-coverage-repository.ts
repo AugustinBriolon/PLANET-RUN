@@ -32,6 +32,12 @@ export function createInMemoryCoverageRepository(
     async getUncoveredFocus() {
       return null;
     },
+    async getUncoveredStreets() {
+      return { type: "FeatureCollection", features: [] };
+    },
+    async getRunPlanStreets() {
+      return { streets: { type: "FeatureCollection", features: [] }, targetMeters: 0 };
+    },
   };
 
   return { coverage, matchCalls };

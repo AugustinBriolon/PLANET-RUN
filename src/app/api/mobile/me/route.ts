@@ -25,6 +25,7 @@ export async function GET(request: Request) {
       share: toCoverageShare(city),
       coveredMeters: city.coveredMeters,
       totalMeters: city.totalMeters,
+      bounds: city.bounds,
     })),
   });
 }

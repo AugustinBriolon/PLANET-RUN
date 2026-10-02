@@ -11,6 +11,8 @@ export type CoverageRepository = {
   markAllActivitiesPending: () => Promise<void>;
   listCityCoverage: (userId: string) => Promise<CityCoverage[]>;
   getCoveredStreets: (userId: string) => Promise<CoveredStreets>;
+  /** Centroid of still-uncovered street geometry — a practical “start here” for the next run. */
+  getUncoveredFocus: (userId: string, areaId: number) => Promise<[number, number] | null>;
 };
 
 export function createCoverageRepository(
@@ -136,6 +138,22 @@ export function createCoverageRepository(
           properties: { areaId: Number(row.area_id) },
         })),
       };
+    },
+
+    async getUncoveredFocus(userId, areaId) {
+      const rows = await database.execute<{ lng: number; lat: number }>(sql`
+        SELECT ST_X(focus.pt)::float8 AS lng, ST_Y(focus.pt)::float8 AS lat
+        FROM (
+          SELECT ST_Centroid(ST_Collect(segment.path)) AS pt
+          FROM street_segments AS segment
+          WHERE segment.area_id = ${areaId}
+            AND segment.id NOT IN (${segmentsCoveredBy(userId)})
+        ) AS focus
+        WHERE focus.pt IS NOT NULL
+      `);
+      const row = rows[0];
+      if (!row || !Number.isFinite(row.lng) || !Number.isFinite(row.lat)) return null;
+      return [row.lng, row.lat];
     },
   };
 }

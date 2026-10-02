@@ -29,6 +29,9 @@ export function createInMemoryCoverageRepository(
     async getCoveredStreets() {
       return { type: "FeatureCollection", features: [] };
     },
+    async getUncoveredFocus() {
+      return null;
+    },
   };
 
   return { coverage, matchCalls };

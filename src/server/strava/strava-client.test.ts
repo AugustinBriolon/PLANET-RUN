@@ -82,6 +82,38 @@ describe("createStravaClient", () => {
     expect(Object.fromEntries(init?.body as URLSearchParams)).toEqual({ access_token: "access-token" });
   });
 
+  it("uploads a recorded run as a GPX file with a stable external id", async () => {
+    const { client, fetchMock } = setup(
+      jsonResponse({ id: 77, error: null, status: "Your activity is still being processed.", activity_id: null }, 201),
+    );
+
+    const upload = await client.uploadActivity("access-token", {
+      gpx: "<gpx/>",
+      name: "Rennes conquest",
+      externalId: "planet-run-abc",
+    });
+
+    expect(upload).toMatchObject({ id: 77, activity_id: null });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://www.strava.com/api/v3/uploads");
+    expect(init?.method).toBe("POST");
+    expect(init?.headers).toEqual({ Authorization: "Bearer access-token" });
+    const form = init?.body as FormData;
+    expect(form.get("data_type")).toBe("gpx");
+    expect(form.get("sport_type")).toBe("Run");
+    expect(form.get("external_id")).toBe("planet-run-abc");
+    expect(await (form.get("file") as Blob).text()).toBe("<gpx/>");
+  });
+
+  it("reads an upload's processing status", async () => {
+    const { client, fetchMock } = setup(
+      jsonResponse({ id: 77, error: null, status: "Your activity is ready.", activity_id: 1234 }),
+    );
+
+    await expect(client.getUpload("token", 77)).resolves.toMatchObject({ activity_id: 1234 });
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://www.strava.com/api/v3/uploads/77");
+  });
+
   it("raises a typed error for rate limiting", async () => {
     const { client } = setup(jsonResponse({ message: "Rate Limit Exceeded" }, 429));
     const error = await client.getActivity("token", 1).catch((caught: unknown) => caught);

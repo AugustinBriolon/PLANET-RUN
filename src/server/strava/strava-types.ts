@@ -32,6 +32,16 @@ export const stravaAuthorizationTokenResponseSchema = stravaTokenResponseSchema.
 
 export type StravaAuthorizationTokenResponse = z.infer<typeof stravaAuthorizationTokenResponseSchema>;
 
+/** Strava processes uploads asynchronously: `activity_id` appears once the file became an activity. */
+export const stravaUploadSchema = z.object({
+  id: z.number(),
+  error: z.string().nullish(),
+  status: z.string(),
+  activity_id: z.number().nullish(),
+});
+
+export type StravaUpload = z.infer<typeof stravaUploadSchema>;
+
 export const stravaWebhookEventSchema = z.object({
   object_type: z.enum(["activity", "athlete"]),
   object_id: z.number(),

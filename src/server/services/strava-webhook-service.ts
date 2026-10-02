@@ -10,6 +10,8 @@ import type { StravaTokenService } from "./strava-token-service";
 
 export type StravaWebhookService = {
   handleEvent: (event: StravaWebhookEvent) => Promise<void>;
+  /** Re-reads one activity from Strava and imports, updates or removes it. */
+  reconcileActivity: (athleteId: number, activityId: number) => Promise<void>;
 };
 
 type Dependencies = {
@@ -66,6 +68,8 @@ export function createStravaWebhookService({
   }
 
   return {
+    reconcileActivity,
+
     async handleEvent(event) {
       if (event.object_type === "athlete") {
         if (event.updates?.authorized === "false") await handleDeauthorization(event.owner_id);

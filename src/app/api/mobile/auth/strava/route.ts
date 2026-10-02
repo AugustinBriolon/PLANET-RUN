@@ -6,9 +6,14 @@ import { publicApiOrigin } from "@/server/mobile/request-auth";
 import { signMobileOAuthState } from "@/server/mobile/session-token";
 import { completeMobileStravaSignIn } from "@/server/mobile/strava-sign-in";
 
+// `activity:write` lets the app send runs recorded in Planet Run to Strava.
+const MOBILE_STRAVA_SCOPE = "read,activity:read_all,activity:write";
+
 /**
  * Starts the mobile Strava OAuth dance.
  * GET /api/mobile/auth/strava → 302 to Strava authorize.
+ * `?reauth=1` forces the consent screen: with `approval_prompt=auto` Strava silently reuses an older,
+ * narrower grant, so athletes who signed in before `activity:write` could never add it.
  */
 export async function GET(request: Request) {
   const env = getServerEnv();
@@ -20,8 +25,9 @@ export async function GET(request: Request) {
   authorize.searchParams.set("client_id", env.STRAVA_CLIENT_ID);
   authorize.searchParams.set("redirect_uri", redirectUri);
   authorize.searchParams.set("response_type", "code");
-  authorize.searchParams.set("approval_prompt", "auto");
-  authorize.searchParams.set("scope", "read,activity:read_all");
+  const reauth = new URL(request.url).searchParams.get("reauth") === "1";
+  authorize.searchParams.set("approval_prompt", reauth ? "force" : "auto");
+  authorize.searchParams.set("scope", MOBILE_STRAVA_SCOPE);
   authorize.searchParams.set("state", state);
 
   return NextResponse.redirect(authorize);

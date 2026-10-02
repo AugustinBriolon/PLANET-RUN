@@ -18,6 +18,7 @@ import { createAccountLinkingService } from "./services/account-linking-service"
 import { createCityDetectionService } from "./services/city-detection-service";
 import { createCityImportQueueService } from "./services/city-import-queue-service";
 import { createRunSyncService } from "./services/run-sync-service";
+import { createRunUploadService } from "./services/run-upload-service";
 import { createStravaTokenService } from "./services/strava-token-service";
 import { createStravaWebhookService } from "./services/strava-webhook-service";
 import { createStravaClient } from "./strava/strava-client";
@@ -43,6 +44,7 @@ function buildServices(database: Database) {
     cipher: createTokenCipher(env.TOKEN_ENCRYPTION_KEY),
     now,
   });
+  const stravaWebhook = createStravaWebhookService({ users, accounts, activities, strava, tokens, coverage });
 
   return {
     users,
@@ -73,7 +75,13 @@ function buildServices(database: Database) {
       coverage,
       now,
     }),
-    stravaWebhook: createStravaWebhookService({ users, accounts, activities, strava, tokens, coverage }),
+    stravaWebhook,
+    runUpload: createRunUploadService({
+      accounts,
+      strava,
+      tokens,
+      importActivity: stravaWebhook.reconcileActivity,
+    }),
   };
 }
 

@@ -4,9 +4,11 @@ import {
   stravaActivitySchema,
   stravaAuthorizationTokenResponseSchema,
   stravaTokenResponseSchema,
+  stravaUploadSchema,
   type StravaActivity,
   type StravaAuthorizationTokenResponse,
   type StravaTokenResponse,
+  type StravaUpload,
 } from "./strava-types";
 
 const API_BASE_URL = "https://www.strava.com/api/v3";
@@ -55,9 +57,19 @@ export type ListActivitiesOptions = {
   perPage: number;
 };
 
+export type UploadActivityInput = {
+  gpx: string;
+  name: string;
+  /** Stable per recorded run so a retried upload is reported as a duplicate, not a second activity. */
+  externalId: string;
+};
+
 export type StravaClient = {
   listActivities: (accessToken: string, options: ListActivitiesOptions) => Promise<StravaActivity[]>;
   getActivity: (accessToken: string, activityId: number) => Promise<StravaActivity>;
+  /** Requires the `activity:write` scope. */
+  uploadActivity: (accessToken: string, input: UploadActivityInput) => Promise<StravaUpload>;
+  getUpload: (accessToken: string, uploadId: number) => Promise<StravaUpload>;
   /** Exchanges a mobile/web authorization code for tokens (+ embedded athlete). */
   exchangeAuthorizationCode: (code: string) => Promise<StravaAuthorizationTokenResponse>;
   refreshAccessToken: (refreshToken: string) => Promise<StravaTokenResponse>;
@@ -103,6 +115,20 @@ export function createStravaClient({
 
     getActivity(accessToken, activityId) {
       return request(`${API_BASE_URL}/activities/${activityId}`, authorized(accessToken), stravaActivitySchema);
+    },
+
+    uploadActivity(accessToken, { gpx, name, externalId }) {
+      const body = new FormData();
+      body.set("file", new Blob([gpx], { type: "application/gpx+xml" }), `${externalId}.gpx`);
+      body.set("data_type", "gpx");
+      body.set("sport_type", "Run");
+      body.set("name", name);
+      body.set("external_id", externalId);
+      return request(`${API_BASE_URL}/uploads`, { method: "POST", body, ...authorized(accessToken) }, stravaUploadSchema);
+    },
+
+    getUpload(accessToken, uploadId) {
+      return request(`${API_BASE_URL}/uploads/${uploadId}`, authorized(accessToken), stravaUploadSchema);
     },
 
     exchangeAuthorizationCode(code) {

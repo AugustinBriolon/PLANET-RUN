@@ -6,6 +6,18 @@ export function createFakeStravaClient() {
   return {
     listActivities: vi.fn<StravaClient["listActivities"]>().mockResolvedValue([]),
     getActivity: vi.fn<StravaClient["getActivity"]>().mockRejectedValue(new StravaApiError(404, "Not Found")),
+    uploadActivity: vi.fn<StravaClient["uploadActivity"]>().mockResolvedValue({
+      id: 500,
+      error: null,
+      status: "Your activity is still being processed.",
+      activity_id: null,
+    }),
+    getUpload: vi.fn<StravaClient["getUpload"]>().mockResolvedValue({
+      id: 500,
+      error: null,
+      status: "Your activity is still being processed.",
+      activity_id: null,
+    }),
     exchangeAuthorizationCode: vi.fn<StravaClient["exchangeAuthorizationCode"]>().mockResolvedValue({
       access_token: "exchanged-access",
       refresh_token: "exchanged-refresh",

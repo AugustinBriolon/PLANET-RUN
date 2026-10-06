@@ -55,7 +55,8 @@ export function createRunSyncService({
       }
 
       const startPage = account.historySyncPage ?? 1;
-      const pageBudget = isFirstImport || account.historySyncPage ? FIRST_HISTORY_PAGES_PER_HOP : Number.POSITIVE_INFINITY;
+      const pageBudget =
+        isFirstImport || account.historySyncPage ? FIRST_HISTORY_PAGES_PER_HOP : Number.POSITIVE_INFINITY;
 
       let syncedRuns = 0;
       let lastFetchedPage = startPage - 1;

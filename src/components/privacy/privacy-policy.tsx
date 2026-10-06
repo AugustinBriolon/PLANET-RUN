@@ -27,8 +27,8 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
         <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">Last updated {PRIVACY_LAST_UPDATED}</p>
         {!compact && <h1 className="text-4xl font-semibold tracking-tight">Privacy</h1>}
         <p className={`text-muted-foreground ${compact ? "text-sm leading-relaxed" : "text-base leading-relaxed"}`}>
-          Your runs reveal where you live and train. Cityfil keeps only what it needs to draw them on your globe,
-          shows them to nobody but you, and lets you erase everything in one click.
+          Your runs reveal where you live and train. Cityfil keeps only what it needs to draw them on your globe, shows
+          them to nobody but you, and lets you erase everything in one click.
         </p>
       </div>
 
@@ -75,8 +75,8 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
       <PolicySection title="Deleting your data" compact={compact}>
         <p>
           Open the settings icon on your globe and choose <span className="text-foreground">Delete my data</span>. Your
-          profile, runs and tokens are permanently erased and Cityfil&apos;s access to Strava is revoked. You can
-          also revoke access at any time from{" "}
+          profile, runs and tokens are permanently erased and Cityfil&apos;s access to Strava is revoked. You can also
+          revoke access at any time from{" "}
           <a href="https://www.strava.com/settings/apps" className={INLINE_LINK_CLASS}>
             strava.com/settings/apps
           </a>

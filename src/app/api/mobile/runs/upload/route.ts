@@ -15,10 +15,7 @@ export async function POST(request: Request) {
 
   const parsed = runUploadBodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "invalid_body", reason: "This run could not be read." },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "invalid_body", reason: "This run could not be read." }, { status: 400 });
   }
 
   return respondWithUpload(userOrError.id, () => getServices().runUpload.uploadRun(userOrError.id, parsed.data));

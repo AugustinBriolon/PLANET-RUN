@@ -37,7 +37,9 @@ export function createInMemoryConquestRepository(): ConquestRepository & {
     },
     async insertRivalry(areaId, userA, userB) {
       const pair = orderedUserPair(userA, userB);
-      if (rivalries.some((row) => row.areaId === areaId && row.userLow === pair.userLow && row.userHigh === pair.userHigh)) {
+      if (
+        rivalries.some((row) => row.areaId === areaId && row.userLow === pair.userLow && row.userHigh === pair.userHigh)
+      ) {
         return;
       }
       rivalries.push({ areaId, ...pair });

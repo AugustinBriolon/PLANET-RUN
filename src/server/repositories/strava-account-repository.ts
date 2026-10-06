@@ -42,7 +42,10 @@ export function createStravaAccountRepository(database: Database): StravaAccount
         .where(eq(stravaAccounts.athleteId, athleteId));
     },
     async setHistorySyncPage(athleteId, page) {
-      await database.update(stravaAccounts).set({ historySyncPage: page }).where(eq(stravaAccounts.athleteId, athleteId));
+      await database
+        .update(stravaAccounts)
+        .set({ historySyncPage: page })
+        .where(eq(stravaAccounts.athleteId, athleteId));
     },
   };
 }

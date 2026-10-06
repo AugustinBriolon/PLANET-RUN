@@ -2,11 +2,7 @@ import type { Metadata } from "next";
 
 import { CityfilLogo } from "@/components/brand/cityfil-logo";
 import { formatPercent } from "@/lib/format";
-import {
-  inviteShareDescription,
-  inviteShareHeadline,
-  titleChips,
-} from "@/lib/conquest/invite-share-card";
+import { inviteShareDescription, inviteShareHeadline, titleChips } from "@/lib/conquest/invite-share-card";
 import { loadInvitePreview } from "@/server/conquest/load-invite-preview";
 
 type PageProps = { params: Promise<{ token: string }> };
@@ -66,8 +62,8 @@ export default async function InviteLandingPage({ params }: PageProps) {
               ))}
             </ul>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Open Cityfil to compare your streets on this city. New here? Install the app, sign in with Strava,
-              then tap the invite again.
+              Open Cityfil to compare your streets on this city. New here? Install the app, sign in with Strava, then
+              tap the invite again.
             </p>
             <a
               href={appUrl}

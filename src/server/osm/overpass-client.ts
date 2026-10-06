@@ -4,8 +4,7 @@ import { countsForCoverage, PLAN_HIGHWAY_TYPES } from "@/server/coverage/coverag
 import type { AreaImport } from "@/server/repositories/area-repository";
 import type { CatalogCityBoundary } from "@/server/repositories/city-catalog-repository";
 
-const DEFAULT_ENDPOINT =
-  process.env.OVERPASS_URL?.trim() || "https://overpass-api.de/api/interpreter";
+const DEFAULT_ENDPOINT = process.env.OVERPASS_URL?.trim() || "https://overpass-api.de/api/interpreter";
 // Overpass usage policy asks clients to identify themselves.
 const USER_AGENT = "Cityfil/0.1 (+https://cityfil.run)";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);

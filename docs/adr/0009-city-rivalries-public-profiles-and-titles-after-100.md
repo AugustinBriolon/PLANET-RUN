@@ -31,28 +31,35 @@ historical Founder from old runs; the stamp is the first time the pipeline obser
 ## Options considered
 
 ### Option A — City rivalry + three titles (chosen)
+
 - Pros: 100% stays meaningful; invite is enough to start without a global friend graph; privacy is explicit.
 - Cons: Founder among people who already had 100% before this ships is whoever is processed first.
 
 ### Option B — Coverage decay if you stop running
+
 - Pros: forces return visits.
 - Cons: steals the 100% the product promised.
 
 ### Option C — Global leaderboard of %
+
 - Pros: simple.
 - Cons: collapses to a tie at 100%; no reason to finish a popular city.
 
 ## Consequences
 
 ### Positive
+
 - Two runners can compare the same city; 100% opens a second game instead of a ceiling.
 
 ### Negative
+
 - Invite accept needs the app (or the landing page to open it). A web-only visitor cannot become a rival yet.
   The inviter opening their own link is not an error: they are sent to that city.
 
 ### Neutral
+
 - Invite share previews are Open Graph images on the invite URL (see [ADR 0010](0010-per-invite-open-graph-share-cards.md)).
 
 ## References
+
 - `src/lib/conquest/`, `src/server/services/conquest-service.ts`, `drizzle/0004_city_rivalry.sql`

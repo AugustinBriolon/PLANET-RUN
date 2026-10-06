@@ -204,7 +204,9 @@ describe("street coverage in PostGIS", () => {
       const coordinates = plan.streets.features.flatMap((feature) =>
         feature.geometry.type === "LineString" ? feature.geometry.coordinates : [],
       );
-      expect(coordinates[0]).toEqual([athlete.lng, athlete.lat]);
+      // Plans snap onto the street graph near the athlete (no long GPS→street diagonal).
+      expect(coordinates[0]).toBeDefined();
+      expect(Math.hypot(coordinates[0]![0]! - athlete.lng, coordinates[0]![1]! - athlete.lat)).toBeLessThan(0.002);
       expect(plan.targetMeters).toBeGreaterThan(200);
     });
 

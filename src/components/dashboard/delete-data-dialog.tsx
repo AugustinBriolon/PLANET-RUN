@@ -37,8 +37,8 @@ export function DeleteDataDialog({ open, onOpenChange, deleteAction }: DeleteDat
         <AlertDialogHeader>
           <AlertDialogTitle>Delete all your Cityfil data?</AlertDialogTitle>
           <AlertDialogDescription>
-            Your imported runs and profile are permanently erased and Cityfil loses access to your Strava account.
-            Your activities on Strava are not affected. This cannot be undone.
+            Your imported runs and profile are permanently erased and Cityfil loses access to your Strava account. Your
+            activities on Strava are not affected. This cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

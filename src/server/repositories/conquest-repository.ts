@@ -36,7 +36,11 @@ export function createConquestRepository(database: Database): ConquestRepository
     },
     async findReusableInvite(inviterId, areaId, now) {
       return database.query.cityInvites.findFirst({
-        where: and(eq(cityInvites.inviterId, inviterId), eq(cityInvites.areaId, areaId), gt(cityInvites.expiresAt, now)),
+        where: and(
+          eq(cityInvites.inviterId, inviterId),
+          eq(cityInvites.areaId, areaId),
+          gt(cityInvites.expiresAt, now),
+        ),
       });
     },
     async insertInvite(row) {

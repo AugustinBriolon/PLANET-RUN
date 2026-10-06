@@ -56,9 +56,9 @@ describe("softBandMeters", () => {
 
 describe("bridgeBudgetMeters", () => {
   it("scales with the outing and stays within bounds", () => {
-    expect(bridgeBudgetMeters(5_000)).toBe(1_000);
-    expect(bridgeBudgetMeters(12_000)).toBe(2_200);
-    expect(bridgeBudgetMeters(500)).toBe(320);
+    expect(bridgeBudgetMeters(5_000)).toBe(2_000);
+    expect(bridgeBudgetMeters(12_000)).toBe(4_800);
+    expect(bridgeBudgetMeters(500)).toBe(450);
     expect(bridgeBudgetMeters(5_000, 90)).toBe(90);
   });
 });
@@ -223,9 +223,34 @@ describe("buildRunPlanRoute", () => {
   });
 
   it("walks a pedestrian connector instead of jumping across a block", () => {
-    const left = seg(1, [[2.0, 48.0], [2.001, 48.0]], false, 80);
-    const connector = seg(2, [[2.001, 48.0], [2.0015, 48.0]], true, 40, false);
-    const right = seg(3, [[2.0015, 48.0], [2.0025, 48.0]], false, 80);
+    const left = seg(
+      1,
+      [
+        [2.0, 48.0],
+        [2.001, 48.0],
+      ],
+      false,
+      80,
+    );
+    const connector = seg(
+      2,
+      [
+        [2.001, 48.0],
+        [2.0015, 48.0],
+      ],
+      true,
+      40,
+      false,
+    );
+    const right = seg(
+      3,
+      [
+        [2.0015, 48.0],
+        [2.0025, 48.0],
+      ],
+      false,
+      80,
+    );
 
     const route = buildRunPlanRoute([left, connector, right], { budgetMeters: 250 });
 
@@ -235,9 +260,33 @@ describe("buildRunPlanRoute", () => {
   });
 
   it("stops under budget rather than aerial-hopping a long covered gap", () => {
-    const left = seg(1, [[2.0, 48.0], [2.001, 48.0]], false, 80);
-    const longBridge = seg(2, [[2.001, 48.0], [2.004, 48.0]], true, 250);
-    const right = seg(3, [[2.004, 48.0], [2.005, 48.0]], false, 80);
+    const left = seg(
+      1,
+      [
+        [2.0, 48.0],
+        [2.001, 48.0],
+      ],
+      false,
+      80,
+    );
+    const longBridge = seg(
+      2,
+      [
+        [2.001, 48.0],
+        [2.004, 48.0],
+      ],
+      true,
+      250,
+    );
+    const right = seg(
+      3,
+      [
+        [2.004, 48.0],
+        [2.005, 48.0],
+      ],
+      false,
+      80,
+    );
 
     const route = buildRunPlanRoute([left, longBridge, right], {
       budgetMeters: 500,
@@ -268,7 +317,15 @@ describe("buildRunPlanRoute", () => {
     // Grow east through 3 × 100 m into a 200 m street; budget 450 → soft max 540.
     const pieces = [
       ...chain(1, 3, false, 2.0, 100),
-      seg(50, [[2.0 + 3 * 0.00135, 48.0], [2.0 + 3 * 0.00135 + 0.0027, 48.0]], false, 200),
+      seg(
+        50,
+        [
+          [2.0 + 3 * 0.00135, 48.0],
+          [2.0 + 3 * 0.00135 + 0.0027, 48.0],
+        ],
+        false,
+        200,
+      ),
     ];
     const route = buildRunPlanRoute(pieces, { budgetMeters: 450, salt: 0 });
     expect(route.pathMeters).toBeGreaterThanOrEqual(400);
@@ -330,6 +387,112 @@ describe("buildRunPlanRoute", () => {
     expect(route.pathMeters).toBeGreaterThanOrEqual(softBandMeters(1_500).minMeters);
     // Path begins on the street network, not at the distant GPS fix.
     expect(route.start?.[1]).toBeCloseTo(48.0, 3);
+  });
+
+  it("escapes a dead-end by re-walking covered streets to the next unfinished pocket", () => {
+    // Cul-de-sac of unfinished streets, then a covered corridor south to more unfinished.
+    const pocketA = chain(1, 3, false, 2.0, 100);
+    const coveredBack = [
+      seg(
+        50,
+        [
+          [2.0 + 3 * 0.00135, 48.0],
+          [2.0 + 2 * 0.00135, 48.0],
+        ],
+        true,
+        100,
+      ),
+      seg(
+        51,
+        [
+          [2.0 + 2 * 0.00135, 48.0],
+          [2.0 + 1 * 0.00135, 48.0],
+        ],
+        true,
+        100,
+      ),
+      seg(
+        52,
+        [
+          [2.0 + 1 * 0.00135, 48.0],
+          [2.0, 48.0],
+        ],
+        true,
+        100,
+      ),
+    ];
+    const spur = [
+      seg(
+        60,
+        [
+          [2.0, 48.0],
+          [2.0, 48.0 - 0.00135],
+        ],
+        true,
+        100,
+      ),
+      ...chain(70, 8, false, 2.0, 100).map((piece, index) =>
+        seg(
+          70 + index,
+          [
+            [2.0 + index * 0.00135, 48.0 - 0.00135],
+            [2.0 + (index + 1) * 0.00135, 48.0 - 0.00135],
+          ],
+          false,
+          100,
+        ),
+      ),
+    ];
+    // Force start at the west end of pocket A so growth hits the cul-de-sac first.
+    const route = buildRunPlanRoute([...pocketA, ...coveredBack, ...spur], {
+      budgetMeters: 1_500,
+      salt: 0,
+      start: [2.0, 48.0],
+    });
+
+    expect(route.uncoveredMeters).toBeGreaterThan(600);
+    expect(route.pathMeters).toBeGreaterThan(900);
+    expect(route.jumpCount).toBe(0);
+  });
+
+  it("prefers continuing straight over a boulevard U-turn", () => {
+    const east = chain(1, 6, false, 2.0, 100);
+    // Parallel unfinished street immediately south — a U-turn would grab it first without bearing rules.
+    const parallel = chain(100, 6, false, 2.0, 100).map((piece, index) =>
+      seg(
+        100 + index,
+        [
+          [2.0 + index * 0.00135, 48.0 - 0.0002],
+          [2.0 + (index + 1) * 0.00135, 48.0 - 0.0002],
+        ],
+        false,
+        100,
+      ),
+    );
+    // Vertical connectors at each junction so both corridors are on the graph.
+    const links = east.map((piece, index) =>
+      seg(
+        200 + index,
+        [
+          [2.0 + index * 0.00135, 48.0],
+          [2.0 + index * 0.00135, 48.0 - 0.0002],
+        ],
+        true,
+        25,
+        false,
+      ),
+    );
+    const route = buildRunPlanRoute([...east, ...parallel, ...links], {
+      budgetMeters: 500,
+      salt: 0,
+      start: [2.0, 48.0],
+    });
+
+    // First ~400 m should stay on the northern corridor (lat ≈ 48.0), not ping-pong south.
+    const early = route.coordinates.slice(0, 5);
+    for (const point of early) {
+      expect(point[1]).toBeGreaterThan(47.9995);
+    }
   });
 
   it("never draws long off-street chords between consecutive vertices", () => {

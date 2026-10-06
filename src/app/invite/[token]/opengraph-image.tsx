@@ -65,9 +65,7 @@ function InviteCard({ preview }: { preview: InviteSharePreview | null }) {
     >
       <Brand />
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <div style={{ fontSize: 28, color: "#ff8a4c", letterSpacing: 4, textTransform: "uppercase" }}>
-          City rivalry
-        </div>
+        <div style={{ fontSize: 28, color: "#ff8a4c", letterSpacing: 4, textTransform: "uppercase" }}>City rivalry</div>
         <div
           style={{
             marginTop: 16,

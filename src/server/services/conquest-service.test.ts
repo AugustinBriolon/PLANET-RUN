@@ -8,10 +8,7 @@ import { createInMemoryConquestRepository } from "@tests/fakes/in-memory-conques
 import { createInMemoryCoverageRepository } from "@tests/fakes/in-memory-coverage-repository";
 import { createInMemoryRepositories } from "@tests/fakes/in-memory-repositories";
 
-import {
-  CityNotOnProfileError,
-  createConquestService,
-} from "./conquest-service";
+import { CityNotOnProfileError, createConquestService } from "./conquest-service";
 
 const NOW = new Date("2026-10-06T10:00:00Z");
 const RENNES = 7;
@@ -137,9 +134,7 @@ describe("createConquestService", () => {
     await harness.service.acceptInvite(grace.id, token);
 
     const adaBoard = await harness.service.getCityBoard(ada.id, RENNES);
-    expect(adaBoard?.rivals).toEqual([
-      expect.objectContaining({ userId: grace.id, displayName: "Grace", share: 1 }),
-    ]);
+    expect(adaBoard?.rivals).toEqual([expect.objectContaining({ userId: grace.id, displayName: "Grace", share: 1 })]);
     expect(adaBoard?.hall.founder?.displayName).toBe("Grace");
     expect(adaBoard?.you.isFounder).toBe(false);
 

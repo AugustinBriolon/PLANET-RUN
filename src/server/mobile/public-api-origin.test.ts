@@ -5,7 +5,9 @@ import { publicApiOrigin } from "./public-api-origin";
 
 describe("publicApiOrigin", () => {
   it("prefers AUTH_URL when set", () => {
-    const request = new Request("https://planet-neghusqat-augustin-briolons-projects.vercel.app/api/mobile/auth/strava");
+    const request = new Request(
+      "https://planet-neghusqat-augustin-briolons-projects.vercel.app/api/mobile/auth/strava",
+    );
     expect(publicApiOrigin(request, { AUTH_URL: "https://cityfil.app" })).toBe("https://cityfil.app");
   });
 

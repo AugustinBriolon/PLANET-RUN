@@ -124,7 +124,11 @@ export function createStravaClient({
       body.set("sport_type", "Run");
       body.set("name", name);
       body.set("external_id", externalId);
-      return request(`${API_BASE_URL}/uploads`, { method: "POST", body, ...authorized(accessToken) }, stravaUploadSchema);
+      return request(
+        `${API_BASE_URL}/uploads`,
+        { method: "POST", body, ...authorized(accessToken) },
+        stravaUploadSchema,
+      );
     },
 
     getUpload(accessToken, uploadId) {

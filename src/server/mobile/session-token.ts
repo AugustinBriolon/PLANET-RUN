@@ -21,10 +21,7 @@ export async function signMobileSessionToken(userId: string, authSecret: string)
     .sign(secretKey(authSecret));
 }
 
-export async function verifyMobileSessionToken(
-  token: string,
-  authSecret: string,
-): Promise<MobileSessionClaims | null> {
+export async function verifyMobileSessionToken(token: string, authSecret: string): Promise<MobileSessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey(authSecret), { algorithms: ["HS256"] });
     if (payload.typ !== MOBILE_TOKEN_TYP || typeof payload.sub !== "string" || payload.sub.length === 0) {

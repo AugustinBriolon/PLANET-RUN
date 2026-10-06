@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  inviteShareDescription,
-  inviteShareHeadline,
-  openTitleNames,
-  titleChips,
-} from "./invite-share-card";
+import { inviteShareDescription, inviteShareHeadline, openTitleNames, titleChips } from "./invite-share-card";
 
 const base = {
   inviterName: "Ada",

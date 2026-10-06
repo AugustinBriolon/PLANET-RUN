@@ -31,10 +31,7 @@ export async function GET(request: Request) {
   }
 
   if (areaId == null || !Number.isFinite(areaId)) {
-    return NextResponse.json(
-      { error: "areaId_required_for_uncovered" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "areaId_required_for_uncovered" }, { status: 400 });
   }
 
   const uncovered = await coverage.getUncoveredStreets(userOrError.id, areaId);

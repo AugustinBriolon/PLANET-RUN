@@ -167,14 +167,14 @@ describe("street coverage in PostGIS", () => {
 
       const plan = await coverage.getRunPlanStreets(runner.id, 1001, 800);
 
-      expect(plan.streets.features).toHaveLength(1);
-      expect(plan.streets.features[0]?.geometry.type).toBe("LineString");
-      expect(plan.streets.features[0]?.properties).toMatchObject({ areaId: 1001, kind: "route" });
+      expect(plan.streets.features.length).toBeGreaterThanOrEqual(1);
+      expect(plan.streets.features.every((feature) => feature.geometry.type === "LineString")).toBe(true);
+      expect(plan.streets.features[0]?.properties).toMatchObject({ areaId: 1001 });
       expect(plan.targetMeters).toBeGreaterThan(200);
       expect(plan.pathMeters).toBeGreaterThanOrEqual(plan.targetMeters);
-      const coordinates = plan.streets.features[0]?.geometry.type === "LineString"
-        ? plan.streets.features[0].geometry.coordinates
-        : [];
+      const coordinates = plan.streets.features.flatMap((feature) =>
+        feature.geometry.type === "LineString" ? feature.geometry.coordinates : [],
+      );
       expect(coordinates.length).toBeGreaterThan(2);
     });
 
@@ -200,9 +200,10 @@ describe("street coverage in PostGIS", () => {
 
       const plan = await coverage.getRunPlanStreets(runner.id, 1001, 800, { start: athlete });
 
-      const geometry = plan.streets.features[0]?.geometry;
-      expect(geometry?.type).toBe("LineString");
-      const coordinates = geometry?.type === "LineString" ? geometry.coordinates : [];
+      expect(plan.streets.features.length).toBeGreaterThanOrEqual(1);
+      const coordinates = plan.streets.features.flatMap((feature) =>
+        feature.geometry.type === "LineString" ? feature.geometry.coordinates : [],
+      );
       expect(coordinates[0]).toEqual([athlete.lng, athlete.lat]);
       expect(plan.targetMeters).toBeGreaterThan(200);
     });

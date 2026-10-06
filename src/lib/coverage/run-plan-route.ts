@@ -108,7 +108,9 @@ export function bridgeBudgetMeters(budgetMeters: number, override?: number): num
 }
 
 /** Aerial hop budget — always zero; plans must stay on the street/connector graph. */
-export function jumpBudgetMeters(_budgetMeters: number, _bridgeMeters: number): number {
+export function jumpBudgetMeters(budgetMeters: number, bridgeMeters: number): number {
+  void budgetMeters;
+  void bridgeMeters;
   return MAX_AERIAL_JUMP_METERS;
 }
 
@@ -174,8 +176,11 @@ export function mergePlanLegs(legs: readonly RunPlanLeg[]): RunPlanLeg[] {
   return merged;
 }
 
-/** Drop any vertex-to-vertex chord longer than a street piece — last-resort map hygiene. */
-export function splitPathOnGaps(coordinates: readonly Position[], maxGapMeters = 40): Position[][] {
+/**
+ * Drop vertex-to-vertex chords that cannot be a street piece.
+ * Must stay above `COVERAGE_RULES.maxSegmentMeters` (50 m) or every plan polyline is discarded.
+ */
+export function splitPathOnGaps(coordinates: readonly Position[], maxGapMeters = 80): Position[][] {
   if (coordinates.length < 2) return [];
   const lines: Position[][] = [];
   let current: Position[] = [coordinates[0]!];
@@ -428,65 +433,6 @@ function pickUncoveredEdge(
   });
 }
 
-type ProximityJump = {
-  segment: PlanSegment;
-  /** Walk coordinates in this order after the optional connector. */
-  coordinates: Position[];
-  fromNode: NodeId;
-  toNode: NodeId;
-  jumpMeters: number;
-};
-
-/**
- * When the street graph is locally stuck, hop to the nearest unused unfinished street
- * within a short aerial distance — longer gaps stop the plan instead.
- */
-function findProximityUncovered(
-  fromPoint: Position,
-  fromNode: NodeId,
-  segments: readonly PlanSegment[],
-  graph: StreetGraph,
-  usedSegments: ReadonlySet<number>,
-  maxJumpMeters: number,
-  neighborhoodMeters: (segment: PlanSegment) => number,
-): ProximityJump | null {
-  let best: ProximityJump | null = null;
-  let bestScore = -Infinity;
-
-  for (const segment of segments) {
-    if (segment.covered || !isCoverageSegment(segment) || usedSegments.has(segment.id) || segment.coordinates.length < 2) {
-      continue;
-    }
-    const nodes = graph.segmentNodes.get(segment.id);
-    if (!nodes) continue;
-    const ends = endsOf(segment);
-    const candidates: { jumpMeters: number; coordinates: Position[]; fromNode: NodeId; toNode: NodeId }[] = [
-      {
-        jumpMeters: distanceMeters(fromPoint, ends.start),
-        coordinates: segment.coordinates,
-        fromNode: nodes.start,
-        toNode: nodes.end,
-      },
-      {
-        jumpMeters: distanceMeters(fromPoint, ends.end),
-        coordinates: [...segment.coordinates].reverse(),
-        fromNode: nodes.end,
-        toNode: nodes.start,
-      },
-    ];
-    for (const candidate of candidates) {
-      if (candidate.jumpMeters > maxJumpMeters) continue;
-      if (candidate.fromNode === fromNode && candidate.jumpMeters < 1) continue;
-      const score = segment.lengthMeters + neighborhoodMeters(segment) * 0.35 - candidate.jumpMeters;
-      if (score <= bestScore) continue;
-      bestScore = score;
-      best = { segment, ...candidate };
-    }
-  }
-
-  return best;
-}
-
 function pickFromWindow<T>(ranked: T[], windowSize: number, salt: number): T {
   const window = Math.min(windowSize, ranked.length);
   const index = ((salt % window) + window) % window;
@@ -607,7 +553,7 @@ function emptyRoute(): RunPlanRoute {
  */
 export function buildRunPlanRoute(segments: readonly PlanSegment[], options: RunPlanRouteOptions): RunPlanRoute {
   const budgetMeters = Math.max(0, options.budgetMeters);
-  const { minMeters, maxMeters } = softBandMeters(budgetMeters);
+  const { maxMeters } = softBandMeters(budgetMeters);
   const joinToleranceMeters = options.joinToleranceMeters ?? DEFAULT_JOIN_TOLERANCE_METERS;
   const maxBridgeMeters = bridgeBudgetMeters(budgetMeters, options.maxBridgeMeters);
   const salt = options.salt ?? 0;
@@ -641,8 +587,8 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   let head = exitNode;
   let uncoveredMeters = seed.lengthMeters;
   let pathMeters = seed.lengthMeters;
-  let jumpCount = 0;
-  let jumpMeters = 0;
+  const jumpCount = 0;
+  const jumpMeters = 0;
   let inboundBearing: number | null = null;
 
   function pushLeg(coordinates: Position[], kind: PlanLegKind) {

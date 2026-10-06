@@ -10,6 +10,7 @@ import {
   planPocketExpandDegrees,
   runPlanRouteToGeoJson,
   softBandMeters,
+  splitPathOnGaps,
   type PlanSegment,
 } from "./run-plan-route";
 
@@ -118,6 +119,30 @@ describe("mergePlanLegs", () => {
       },
     ]);
     expect(merged).toHaveLength(2);
+  });
+});
+
+describe("splitPathOnGaps", () => {
+  it("keeps consecutive street pieces up to maxSegmentMeters", () => {
+    // ~50 m east steps — matching COVERAGE_RULES.maxSegmentMeters after OSM cut.
+    const step = 0.000675;
+    const coordinates: [number, number][] = Array.from({ length: 5 }, (_, index) => [2 + index * step, 48]);
+    const pieces = splitPathOnGaps(coordinates);
+    expect(pieces).toHaveLength(1);
+    expect(pieces[0]).toHaveLength(5);
+  });
+
+  it("splits when a chord exceeds the gap budget", () => {
+    const pieces = splitPathOnGaps(
+      [
+        [2, 48],
+        [2.0005, 48],
+        [2.01, 48],
+        [2.0105, 48],
+      ],
+      80,
+    );
+    expect(pieces.length).toBeGreaterThanOrEqual(2);
   });
 });
 

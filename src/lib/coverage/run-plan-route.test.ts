@@ -4,6 +4,7 @@ import {
   bridgeBudgetMeters,
   buildRunPlanRoute,
   distanceMeters,
+  jumpBudgetMeters,
   planPocketExpandDegrees,
   runPlanRouteToGeoJson,
   type PlanSegment,
@@ -50,10 +51,20 @@ function chain(
 
 describe("bridgeBudgetMeters", () => {
   it("scales with the outing and stays within bounds", () => {
-    expect(bridgeBudgetMeters(5_000)).toBe(400);
-    expect(bridgeBudgetMeters(12_000)).toBe(800);
-    expect(bridgeBudgetMeters(500)).toBe(160);
+    expect(bridgeBudgetMeters(5_000)).toBe(1_000);
+    expect(bridgeBudgetMeters(12_000)).toBe(2_200);
+    expect(bridgeBudgetMeters(500)).toBe(320);
     expect(bridgeBudgetMeters(5_000, 90)).toBe(90);
+  });
+});
+
+describe("jumpBudgetMeters", () => {
+  it("lets a longer outing hop farther to the next unfinished pocket", () => {
+    const short = jumpBudgetMeters(5_000, bridgeBudgetMeters(5_000));
+    const long = jumpBudgetMeters(12_000, bridgeBudgetMeters(12_000));
+    expect(short).toBeGreaterThanOrEqual(1_000);
+    expect(long).toBeGreaterThan(short);
+    expect(long).toBeLessThanOrEqual(2_800);
   });
 });
 
@@ -232,6 +243,26 @@ describe("buildRunPlanRoute", () => {
 
     expect(route.start).toEqual(athlete);
     expect(route.pathMeters).toBeGreaterThanOrEqual(1_300);
+  });
+
+  it("collects a second unfinished pocket instead of burning the budget on already-run streets", () => {
+    const west = chain(1, 4, false, 2.0, 100);
+    const gap = chain(50, 6, true, 2.0 + 4 * 0.00135, 100);
+    const east = chain(100, 10, false, 2.0 + 10 * 0.00135, 100);
+
+    const route = buildRunPlanRoute([...west, ...gap, ...east], { budgetMeters: 2_200, salt: 0 });
+
+    expect(route.uncoveredMeters).toBeGreaterThanOrEqual(1_200);
+    expect(route.pathMeters).toBeGreaterThan(route.uncoveredMeters);
+  });
+
+  it("starts in the denser unfinished neighbourhood", () => {
+    const sparse = chain(1, 2, false, 2.0, 100);
+    const dense = chain(20, 12, false, 2.08, 100);
+
+    const route = buildRunPlanRoute([...sparse, ...dense], { budgetMeters: 800, salt: 0 });
+    const startLng = route.start?.[0] ?? 0;
+    expect(startLng).toBeGreaterThan(2.07);
   });
 
   it("stops around the budget instead of packing every uncovered street", () => {

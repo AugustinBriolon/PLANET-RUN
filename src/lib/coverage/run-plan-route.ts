@@ -35,6 +35,8 @@ export type RunPlanRouteOptions = {
 };
 
 const DEFAULT_JOIN_TOLERANCE_METERS = 22;
+/** Grid used to start (and hop) in the densest remaining unfinished neighbourhood. */
+const DENSITY_CELL_METERS = 280;
 /** Longest street walk allowed to reach the first unfinished street from an anchored start. */
 const MAX_START_CONNECTOR_METERS = 2_500;
 /** Regenerating an anchored plan rotates among this many nearest unfinished streets. */
@@ -57,10 +59,18 @@ export function distanceMeters(from: Position, to: Position): number {
   return 2 * earthRadiusMeters * Math.asin(Math.sqrt(haversine));
 }
 
-/** Covered-bridge budget scales with the outing so 12 km can hop farther than 5 km. */
+/**
+ * Covered-bridge budget: walk already-run streets only to reach the next unfinished pocket.
+ * Generous enough to cross a neighbourhood, still bounded so a 5 km outing doesn't detour 3 km.
+ */
 export function bridgeBudgetMeters(budgetMeters: number, override?: number): number {
   if (override != null) return override;
-  return Math.min(800, Math.max(160, budgetMeters * 0.08));
+  return Math.min(2_200, Math.max(320, budgetMeters * 0.2));
+}
+
+/** Aerial hop to the next unfinished pocket when the graph has no covered bridge. */
+export function jumpBudgetMeters(budgetMeters: number, bridgeMeters: number): number {
+  return Math.min(2_800, Math.max(bridgeMeters, budgetMeters * 0.22));
 }
 
 /**
@@ -297,16 +307,36 @@ function findCoveredFillPath(
   return bestPath;
 }
 
+function unusedUncoveredLengthAt(
+  graph: StreetGraph,
+  node: NodeId,
+  usedSegments: ReadonlySet<number>,
+): number {
+  let meters = 0;
+  const seen = new Set<number>();
+  for (const edge of graph.outgoing.get(node) ?? []) {
+    if (edge.covered || usedSegments.has(edge.segmentId) || seen.has(edge.segmentId)) continue;
+    seen.add(edge.segmentId);
+    meters += edge.lengthMeters;
+  }
+  return meters;
+}
+
+/** Prefer the unfinished street that unlocks the most remaining unexplored length at the far end. */
 function pickUncoveredEdge(
   edges: DirectedEdge[],
   usedSegments: ReadonlySet<number>,
-  focus: Position,
+  graph: StreetGraph,
 ): DirectedEdge | null {
   const unused = edges.filter((edge) => !usedSegments.has(edge.segmentId) && !edge.covered);
   if (unused.length === 0) return null;
   return unused.reduce((best, edge) => {
-    const score = edge.lengthMeters - distanceMeters(midpoint(edge.coordinates), focus) * 0.2;
-    const bestScore = best.lengthMeters - distanceMeters(midpoint(best.coordinates), focus) * 0.2;
+    const usedNext = new Set(usedSegments);
+    usedNext.add(edge.segmentId);
+    const score = edge.lengthMeters + unusedUncoveredLengthAt(graph, edge.to, usedNext) * 0.7;
+    const usedBest = new Set(usedSegments);
+    usedBest.add(best.segmentId);
+    const bestScore = best.lengthMeters + unusedUncoveredLengthAt(graph, best.to, usedBest) * 0.7;
     return score > bestScore ? edge : best;
   });
 }
@@ -343,39 +373,36 @@ function findProximityUncovered(
   graph: StreetGraph,
   usedSegments: ReadonlySet<number>,
   maxJumpMeters: number,
+  neighborhoodMeters: (segment: PlanSegment) => number,
 ): ProximityJump | null {
   let best: ProximityJump | null = null;
+  let bestScore = -Infinity;
 
   for (const segment of segments) {
     if (segment.covered || usedSegments.has(segment.id) || segment.coordinates.length < 2) continue;
     const nodes = graph.segmentNodes.get(segment.id);
     if (!nodes) continue;
     const ends = endsOf(segment);
-    const distStart = distanceMeters(fromPoint, ends.start);
-    const distEnd = distanceMeters(fromPoint, ends.end);
-
-    if (distStart <= maxJumpMeters && (best == null || distStart < best.jumpMeters)) {
-      best = {
-        segment,
-        coordinates: segment.coordinates,
-        fromNode: nodes.start,
-        toNode: nodes.end,
-        jumpMeters: distStart,
-      };
-    }
-    if (distEnd <= maxJumpMeters && (best == null || distEnd < best.jumpMeters)) {
-      best = {
-        segment,
+    const candidates: { jumpMeters: number; coordinates: Position[]; fromNode: NodeId; toNode: NodeId }[] = [
+      { jumpMeters: distanceMeters(fromPoint, ends.start), coordinates: segment.coordinates, fromNode: nodes.start, toNode: nodes.end },
+      {
+        jumpMeters: distanceMeters(fromPoint, ends.end),
         coordinates: [...segment.coordinates].reverse(),
         fromNode: nodes.end,
         toNode: nodes.start,
-        jumpMeters: distEnd,
-      };
+      },
+    ];
+    for (const candidate of candidates) {
+      if (candidate.jumpMeters > maxJumpMeters) continue;
+      if (candidate.fromNode === fromNode && candidate.jumpMeters < 1) continue;
+      const score =
+        segment.lengthMeters + neighborhoodMeters(segment) * 0.35 - candidate.jumpMeters;
+      if (score <= bestScore) continue;
+      bestScore = score;
+      best = { segment, ...candidate };
     }
   }
 
-  // Avoid no-op jumps that land on the same graph node without moving.
-  if (best && best.fromNode === fromNode && best.jumpMeters < 1) return null;
   return best;
 }
 
@@ -385,12 +412,47 @@ function pickFromWindow<T>(ranked: T[], windowSize: number, salt: number): T {
   return ranked[index]!;
 }
 
-function pickSeed(uncovered: PlanSegment[], focus: Position, salt: number): PlanSegment {
-  const ranked = [...uncovered].sort(
-    (a, b) =>
-      distanceMeters(midpoint(a.coordinates), focus) - distanceMeters(midpoint(b.coordinates), focus),
-  );
-  return pickFromWindow(ranked, 12, salt);
+function densityCellDegrees(): number {
+  return DENSITY_CELL_METERS / 111_320;
+}
+
+function indexUncoveredDensity(uncovered: readonly PlanSegment[]): Map<string, number> {
+  const cellDeg = densityCellDegrees();
+  const metersByCell = new Map<string, number>();
+  for (const segment of uncovered) {
+    const mid = midpoint(segment.coordinates);
+    const key = `${Math.floor(mid[0]! / cellDeg)},${Math.floor(mid[1]! / cellDeg)}`;
+    metersByCell.set(key, (metersByCell.get(key) ?? 0) + segment.lengthMeters);
+  }
+  return metersByCell;
+}
+
+function neighborhoodUncoveredMeters(point: Position, metersByCell: Map<string, number>): number {
+  const cellDeg = densityCellDegrees();
+  const cx = Math.floor(point[0]! / cellDeg);
+  const cy = Math.floor(point[1]! / cellDeg);
+  let meters = 0;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      meters += metersByCell.get(`${cx + dx},${cy + dy}`) ?? 0;
+    }
+  }
+  return meters;
+}
+
+function pickSeed(
+  uncovered: PlanSegment[],
+  metersByCell: Map<string, number>,
+  salt: number,
+): PlanSegment {
+  const ranked = [...uncovered].sort((a, b) => {
+    const densityDelta =
+      neighborhoodUncoveredMeters(midpoint(b.coordinates), metersByCell) -
+      neighborhoodUncoveredMeters(midpoint(a.coordinates), metersByCell);
+    if (densityDelta !== 0) return densityDelta;
+    return a.id - b.id;
+  });
+  return pickFromWindow(ranked, 8, salt);
 }
 
 function nearestEndDistance(segment: PlanSegment, point: Position): number {
@@ -452,8 +514,8 @@ function shortestPath(
 
 /**
  * Walk the street graph into one continuous outing sized to `budgetMeters`.
- * Prefers unfinished streets; bridges through covered streets; when conquest streets
- * run out, keeps filling with covered network so 5 km and 30 km actually differ.
+ * Prefers unfinished streets in dense remaining pockets; bridges through covered streets
+ * only to reach more unexplored length; fills with already-run streets last so distance still matches.
  */
 export function buildRunPlanRoute(
   segments: readonly PlanSegment[],
@@ -462,7 +524,7 @@ export function buildRunPlanRoute(
   const budgetMeters = Math.max(0, options.budgetMeters);
   const joinToleranceMeters = options.joinToleranceMeters ?? DEFAULT_JOIN_TOLERANCE_METERS;
   const maxBridgeMeters = bridgeBudgetMeters(budgetMeters, options.maxBridgeMeters);
-  const maxJumpMeters = Math.min(1_200, Math.max(maxBridgeMeters, budgetMeters * 0.05));
+  const maxJumpMeters = jumpBudgetMeters(budgetMeters, maxBridgeMeters);
   const salt = options.salt ?? 0;
 
   const uncovered = segments.filter((segment) => !segment.covered && segment.coordinates.length >= 2);
@@ -471,9 +533,10 @@ export function buildRunPlanRoute(
   }
 
   const focus = centroidOf(uncovered.map((segment) => midpoint(segment.coordinates)));
+  const metersByCell = indexUncoveredDensity(uncovered);
   const graph = buildStreetGraph(segments, joinToleranceMeters);
   const anchor = options.start;
-  const seed = anchor ? pickAnchoredSeed(uncovered, anchor, salt) : pickSeed(uncovered, focus, salt);
+  const seed = anchor ? pickAnchoredSeed(uncovered, anchor, salt) : pickSeed(uncovered, metersByCell, salt);
 
   // Free plans enter the seed from the end farther from the pocket centre; anchored plans from the end nearer the athlete.
   const seedEnds = endsOf(seed);
@@ -549,7 +612,7 @@ export function buildRunPlanRoute(
     const tip = end === "head" ? coords[coords.length - 1]! : coords[0]!;
     const edges = graph.outgoing.get(node) ?? [];
 
-    const uncoveredEdge = pickUncoveredEdge(edges, used, focus);
+    const uncoveredEdge = pickUncoveredEdge(edges, used, graph);
     if (uncoveredEdge && uncoveredEdge.lengthMeters <= remaining + 80) {
       appendEdge(uncoveredEdge, end);
       return true;
@@ -565,7 +628,7 @@ export function buildRunPlanRoute(
           cursor = hop.to;
           if (pathMeters >= budgetMeters) return true;
         }
-        const nextUncovered = pickUncoveredEdge(graph.outgoing.get(cursor) ?? [], used, focus);
+        const nextUncovered = pickUncoveredEdge(graph.outgoing.get(cursor) ?? [], used, graph);
         if (nextUncovered && nextUncovered.lengthMeters <= budgetMeters - pathMeters + 80) {
           appendEdge(nextUncovered, end);
           return true;
@@ -581,6 +644,7 @@ export function buildRunPlanRoute(
       graph,
       used,
       Math.min(maxJumpMeters, remaining),
+      (segment) => neighborhoodUncoveredMeters(midpoint(segment.coordinates), metersByCell),
     );
     if (jump && jump.segment.lengthMeters + jump.jumpMeters <= remaining + 80) {
       appendJump(jump, end);

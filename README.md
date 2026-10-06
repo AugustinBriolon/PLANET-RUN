@@ -25,7 +25,7 @@ coverage, and badges.
   view — true edge-to-edge under the notch/Dynamic Island only happens in that installed mode, not a browser tab.
 - Exposes a **mobile API** under `/api/mobile/*` (Strava OAuth callback → JWT, `GET /api/mobile/me` for cities /
   coverage) consumed by `planet-run-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
-  from a position, and `GET /api/mobile/cities/plan` builds a run route — optionally starting from the runner's
+  from a position, and `GET /api/mobile/cities/plan` builds a run route that prefers unfinished streets (dense remaining pockets, then hops to the next pocket) so the chosen distance maximises exploration %. Optionally starts from the runner's
   position (`startLat`/`startLng`), only within 1 km of the city boundary.
 - City rivalries: `POST /api/mobile/cities/invite` mints a 14-day link, `POST /api/mobile/cities/invite/accept`
   pairs two runners on one city, `GET /api/mobile/cities/:areaId/board` returns rivals plus Founder / Conqueror /

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decideInvite } from "./invite";
+import { decideInvite, isInviteToken } from "./invite";
 import { canSeeRunner, orderedUserPair, parseProfileVisibility } from "./visibility";
 
 describe("canSeeRunner", () => {
@@ -51,7 +51,18 @@ describe("decideInvite", () => {
 
   it("rejects expired, missing and self invites", () => {
     expect(decideInvite(undefined, "grace", new Date())).toEqual({ status: "not-found" });
-    expect(decideInvite(invite, "ada", new Date("2026-10-06T00:00:00Z"))).toEqual({ status: "own-invite" });
+    expect(decideInvite(invite, "ada", new Date("2026-10-06T00:00:00Z"))).toEqual({
+      status: "own-invite",
+      areaId: 7,
+    });
     expect(decideInvite(invite, "grace", new Date("2027-01-01T00:00:00Z"))).toEqual({ status: "expired" });
+  });
+});
+
+describe("isInviteToken", () => {
+  it("accepts only 32 lowercase hex characters", () => {
+    expect(isInviteToken("a".repeat(32))).toBe(true);
+    expect(isInviteToken("invite-token")).toBe(false);
+    expect(isInviteToken("A".repeat(32))).toBe(false);
   });
 });

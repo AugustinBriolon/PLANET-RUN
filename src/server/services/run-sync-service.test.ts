@@ -20,27 +20,34 @@ describe("createRunSyncService", () => {
       harness.buildOwnedActivity({ id: 3, sport_type: "TrailRun" }),
     ]);
 
-    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 2 });
+    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 2, continues: false });
 
     expect([...harness.activityRows.keys()]).toEqual([1, 3]);
     expect((await harness.accounts.findByAthleteId(HARNESS_ATHLETE_ID))?.lastSyncedAt).toEqual(HARNESS_NOW);
   });
 
-  it("fetches the whole history page by page on first import", async () => {
+  it("returns after the first Strava page on first import so the client can show traces immediately", async () => {
     const fullPage = Array.from({ length: 200 }, (_, index) => harness.buildOwnedActivity({ id: index + 1 }));
     harness.strava.listActivities
       .mockResolvedValueOnce(fullPage)
       .mockResolvedValueOnce([harness.buildOwnedActivity({ id: 999 })]);
 
-    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 201 });
+    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 200, continues: true });
 
-    expect(harness.strava.listActivities).toHaveBeenCalledTimes(2);
-    expect(harness.strava.listActivities).toHaveBeenNthCalledWith(1, "access", {
+    expect(harness.strava.listActivities).toHaveBeenCalledTimes(1);
+    expect(harness.strava.listActivities).toHaveBeenCalledWith("access", {
       afterEpochSeconds: undefined,
       page: 1,
       perPage: 200,
     });
+    expect((await harness.accounts.findByAthleteId(HARNESS_ATHLETE_ID))?.lastSyncedAt).toBeNull();
+    expect((await harness.accounts.findByAthleteId(HARNESS_ATHLETE_ID))?.historySyncPage).toBe(2);
+    expect((await harness.users.findById(harness.user.id))?.analysisNotifyPending).toBe(true);
+
+    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 1, continues: false });
     expect(harness.strava.listActivities.mock.calls[1]![1].page).toBe(2);
+    expect((await harness.accounts.findByAthleteId(HARNESS_ATHLETE_ID))?.lastSyncedAt).toEqual(HARNESS_NOW);
+    expect((await harness.accounts.findByAthleteId(HARNESS_ATHLETE_ID))?.historySyncPage).toBeNull();
   });
 
   it("re-scans a one-week window before the previous sync", async () => {
@@ -75,7 +82,7 @@ describe("createRunSyncService", () => {
     vi.spyOn(harness.coverage, "matchPendingActivities").mockRejectedValueOnce(new Error("postgis down"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 1 });
+    await expect(service.syncRuns(harness.user.id)).resolves.toEqual({ syncedRuns: 1, continues: false });
   });
 
   it("fails for users without a linked Strava account", async () => {

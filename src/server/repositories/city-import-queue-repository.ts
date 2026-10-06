@@ -11,12 +11,14 @@ export type CityImportJob = {
 
 export type CityImportQueueRepository = {
   /** Enqueues cities that are not already imported into the shared `areas` table. */
-  enqueueMissing: (cities: Array<{ osmRelationId: number; name: string }>) => Promise<number>;
+  enqueueMissing: (cities: Array<{ osmRelationId: number; name: string; priority?: number }>) => Promise<number>;
   /** Claims the next pending job (or retries a failed one), marking it importing. */
   claimNext: () => Promise<CityImportJob | null>;
   complete: (osmRelationId: number) => Promise<void>;
   fail: (osmRelationId: number, error: string) => Promise<void>;
   hasWork: () => Promise<boolean>;
+  /** Whether this runner still has cities waiting for street import. */
+  hasWorkForUser: (userId: string) => Promise<boolean>;
 };
 
 const MAX_ATTEMPTS = 3;
@@ -31,19 +33,22 @@ export function createCityImportQueueRepository(database: Database): CityImportQ
         [...unique.values()].map((city) => ({
           osmRelationId: city.osmRelationId,
           name: city.name,
+          priority: city.priority ?? 0,
         })),
       );
 
       const rows = await database.execute<{ osm_relation_id: string }>(sql`
-        INSERT INTO city_import_queue (osm_relation_id, name, status)
-        SELECT (item->>'osmRelationId')::bigint, item->>'name', 'pending'
+        INSERT INTO city_import_queue (osm_relation_id, name, status, priority)
+        SELECT (item->>'osmRelationId')::bigint, item->>'name', 'pending', COALESCE((item->>'priority')::int, 0)
         FROM jsonb_array_elements(${values}::jsonb) AS item
         WHERE NOT EXISTS (
           SELECT 1 FROM areas
           WHERE areas.osm_relation_id = (item->>'osmRelationId')::bigint
             AND areas.street_length_meters > 0
         )
-        ON CONFLICT (osm_relation_id) DO NOTHING
+        ON CONFLICT (osm_relation_id) DO UPDATE
+        SET priority = GREATEST(city_import_queue.priority, EXCLUDED.priority),
+            name = EXCLUDED.name
         RETURNING osm_relation_id
       `);
       return rows.length;
@@ -62,7 +67,7 @@ export function createCityImportQueueRepository(database: Database): CityImportQ
           SELECT osm_relation_id
           FROM city_import_queue
           WHERE status = 'pending' OR (status = 'failed' AND attempts < ${MAX_ATTEMPTS})
-          ORDER BY created_at
+          ORDER BY priority DESC, created_at
           FOR UPDATE SKIP LOCKED
           LIMIT 1
         ) AS next
@@ -97,6 +102,18 @@ export function createCityImportQueueRepository(database: Database): CityImportQ
         SELECT count(*)::int AS remaining
         FROM city_import_queue
         WHERE status = 'pending' OR (status = 'failed' AND attempts < ${MAX_ATTEMPTS})
+      `);
+      return (row?.remaining ?? 0) > 0;
+    },
+    async hasWorkForUser(userId) {
+      const [row] = await database.execute<{ remaining: number }>(sql`
+        SELECT count(*)::int AS remaining
+        FROM city_import_queue
+        JOIN user_cities
+          ON user_cities.osm_relation_id = city_import_queue.osm_relation_id
+         AND user_cities.user_id = ${userId}
+        WHERE city_import_queue.status = 'pending'
+           OR (city_import_queue.status = 'failed' AND city_import_queue.attempts < ${MAX_ATTEMPTS})
       `);
       return (row?.remaining ?? 0) > 0;
     },

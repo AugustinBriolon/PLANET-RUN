@@ -19,3 +19,16 @@ export function clusterPointsByGrid(points: LatLon[], gridDegrees: number = CITY
   }
   return [...representatives.values()];
 }
+
+/** How many start points fall in each grid cell — denser cells are geocoded first. */
+export function countPointsByGrid(
+  points: LatLon[],
+  gridDegrees: number = CITY_CLUSTER_GRID_DEGREES,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const point of points) {
+    const key = gridCellKey(point, gridDegrees);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}

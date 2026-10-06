@@ -14,6 +14,7 @@ import { createCoverageRepository } from "./repositories/coverage-repository";
 import { createStravaAccountRepository } from "./repositories/strava-account-repository";
 import { createUserCityRepository } from "./repositories/user-city-repository";
 import { createUserRepository } from "./repositories/user-repository";
+import { createAnalysisNotifyService } from "./services/analysis-notify-service";
 import { createAccountDeletionService } from "./services/account-deletion-service";
 import { createAccountLinkingService } from "./services/account-linking-service";
 import { createCityDetectionService } from "./services/city-detection-service";
@@ -69,6 +70,7 @@ function buildServices(database: Database) {
       nominatim,
     }),
     cityImportQueue: createCityImportQueueService({ areas, importQueue, overpass, coverage }),
+    analysisNotify: createAnalysisNotifyService({ users }),
     accountLinking: createAccountLinkingService({ users, accounts, tokens }),
     accountDeletion: createAccountDeletionService({ users, accounts, strava, tokens, reportError: console.error }),
     runSync: createRunSyncService({
@@ -77,6 +79,7 @@ function buildServices(database: Database) {
       strava,
       tokens,
       coverage,
+      users,
       now,
     }),
     stravaWebhook,

@@ -83,6 +83,7 @@ describe("createCityDetectionService", () => {
       complete: vi.fn(),
       fail: vi.fn(),
       hasWork: vi.fn(async () => false),
+      hasWorkForUser: vi.fn(async () => false),
     };
     coverage = {
       matchPendingActivities: vi.fn(async () => 0),
@@ -116,6 +117,9 @@ describe("createCityDetectionService", () => {
 
     expect(nominatim.reverseGeocode).not.toHaveBeenCalled();
     expect(userCities.upsertMany).toHaveBeenCalledWith("user-1", [{ osmRelationId: 91738, name: "Colombes" }]);
+    expect(importQueue.enqueueMissing).toHaveBeenCalledWith([
+      { osmRelationId: 91738, name: "Colombes", priority: 1 },
+    ]);
     expect(coverage.matchPendingActivities).toHaveBeenCalledWith({ userId: "user-1" });
   });
 

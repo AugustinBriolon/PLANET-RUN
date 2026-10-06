@@ -28,6 +28,14 @@ export function createInMemoryRepositories() {
       const user = userRows.get(userId);
       if (user) userRows.set(userId, { ...user, profileVisibility });
     },
+    async updatePushToken(userId, expoPushToken) {
+      const user = userRows.get(userId);
+      if (user) userRows.set(userId, { ...user, expoPushToken });
+    },
+    async setAnalysisNotifyPending(userId, pending) {
+      const user = userRows.get(userId);
+      if (user) userRows.set(userId, { ...user, analysisNotifyPending: pending });
+    },
     async delete(userId) {
       userRows.delete(userId);
       for (const [athleteId, account] of accountRows) if (account.userId === userId) accountRows.delete(athleteId);
@@ -48,6 +56,8 @@ export function createInMemoryRepositories() {
         id: `user-${nextUserNumber++}`,
         ...profile,
         profileVisibility: "private",
+        expoPushToken: null,
+        analysisNotifyPending: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -56,6 +66,7 @@ export function createInMemoryRepositories() {
         ...account,
         userId: user.id,
         lastSyncedAt: null,
+        historySyncPage: null,
         createdAt: now,
         updatedAt: now,
       });
@@ -67,7 +78,11 @@ export function createInMemoryRepositories() {
     },
     async markSynced(athleteId, syncedAt) {
       const account = accountRows.get(athleteId);
-      if (account) accountRows.set(athleteId, { ...account, lastSyncedAt: syncedAt });
+      if (account) accountRows.set(athleteId, { ...account, lastSyncedAt: syncedAt, historySyncPage: null });
+    },
+    async setHistorySyncPage(athleteId, page) {
+      const account = accountRows.get(athleteId);
+      if (account) accountRows.set(athleteId, { ...account, historySyncPage: page });
     },
   };
 

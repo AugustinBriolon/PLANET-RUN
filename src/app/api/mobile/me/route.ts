@@ -12,7 +12,10 @@ export async function GET(request: Request) {
   if (isNextResponse(userOrError)) return userOrError;
 
   const services = getServices();
-  const cities = await services.coverage.listCityCoverage(userOrError.id);
+  const [cities, account] = await Promise.all([
+    services.coverage.listCityCoverage(userOrError.id),
+    services.accounts.findByUserId(userOrError.id),
+  ]);
 
   return NextResponse.json({
     user: {
@@ -20,6 +23,10 @@ export async function GET(request: Request) {
       displayName: userOrError.displayName,
       avatarUrl: userOrError.avatarUrl,
       profileVisibility: userOrError.profileVisibility,
+    },
+    sync: {
+      historyComplete: Boolean(account?.lastSyncedAt),
+      analysisPending: userOrError.analysisNotifyPending,
     },
     cities: cities.map((city) => ({
       areaId: city.areaId,
@@ -33,19 +40,34 @@ export async function GET(request: Request) {
   });
 }
 
-const patchSchema = z.object({
-  profileVisibility: z.enum(["public", "private"]),
-});
+const patchSchema = z
+  .object({
+    profileVisibility: z.enum(["public", "private"]).optional(),
+    expoPushToken: z.string().min(8).nullable().optional(),
+  })
+  .refine((value) => value.profileVisibility !== undefined || value.expoPushToken !== undefined);
 
-/** Update the signed-in runner's hall-of-fame visibility. */
+/** Update visibility and/or the Expo push token used when analysis finishes in the background. */
 export async function PATCH(request: Request) {
   const userOrError = await requireMobileUser(request);
   if (isNextResponse(userOrError)) return userOrError;
 
   const parsed = patchSchema.safeParse(await request.json().catch(() => null));
-  const visibility = parsed.success ? parseProfileVisibility(parsed.data.profileVisibility) : null;
-  if (!visibility) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
 
-  await getServices().conquest.setVisibility(userOrError.id, visibility);
-  return NextResponse.json({ profileVisibility: visibility });
+  const services = getServices();
+  if (parsed.data.profileVisibility) {
+    const visibility = parseProfileVisibility(parsed.data.profileVisibility);
+    if (!visibility) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+    await services.conquest.setVisibility(userOrError.id, visibility);
+  }
+  if (parsed.data.expoPushToken !== undefined) {
+    await services.users.updatePushToken(userOrError.id, parsed.data.expoPushToken);
+  }
+
+  const user = await services.users.findById(userOrError.id);
+  return NextResponse.json({
+    profileVisibility: user?.profileVisibility ?? userOrError.profileVisibility,
+    expoPushTokenRegistered: Boolean(user?.expoPushToken),
+  });
 }

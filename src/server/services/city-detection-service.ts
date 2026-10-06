@@ -1,6 +1,6 @@
 import polyline from "@mapbox/polyline";
 
-import { clusterPointsByGrid, gridCellKey } from "@/lib/geo/cluster-points";
+import { clusterPointsByGrid, countPointsByGrid, gridCellKey } from "@/lib/geo/cluster-points";
 import type { NominatimClient } from "@/server/osm/nominatim-client";
 import type { ActivityRepository } from "@/server/repositories/activity-repository";
 import type { AreaRepository } from "@/server/repositories/area-repository";
@@ -80,8 +80,11 @@ export function createCityDetectionService({
       const runs = await activities.listByUser(userId);
       if (runs.length === 0) return { linkedCities: 0, queuedImports: 0, continues: false };
 
-      const clustered = clusterPointsByGrid(extractStartPoints(runs));
+      const startPoints = extractStartPoints(runs);
+      const clustered = clusterPointsByGrid(startPoints);
       if (clustered.length === 0) return { linkedCities: 0, queuedImports: 0, continues: false };
+
+      const cellCounts = countPointsByGrid(startPoints);
 
       // Shared caches: streets already imported, or cheap catalog boundaries (no Nominatim).
       const knownCities = mergeCities(
@@ -92,9 +95,9 @@ export function createCityDetectionService({
 
       const attemptedCells = await userCities.listGeocodeCells(userId);
       const outsideStreets = await areas.filterPointsOutsideAreas(clustered);
-      const unknownPoints = (await catalog.filterPointsOutside(outsideStreets)).filter(
-        (point) => !attemptedCells.has(gridCellKey(point)),
-      );
+      const unknownPoints = (await catalog.filterPointsOutside(outsideStreets))
+        .filter((point) => !attemptedCells.has(gridCellKey(point)))
+        .sort((a, b) => (cellCounts.get(gridCellKey(b)) ?? 0) - (cellCounts.get(gridCellKey(a)) ?? 0));
 
       const alreadyLinked = new Set((await userCities.listByUser(userId)).map((city) => city.osmRelationId));
       const chunk = unknownPoints.slice(0, MAX_NOMINATIM_LOOKUPS_PER_CHUNK);
@@ -112,14 +115,17 @@ export function createCityDetectionService({
       await userCities.markGeocodeCells(userId, triedCells);
       await userCities.upsertMany(userId, geocoded);
 
-      const candidates = mergeCities(knownCities, geocoded);
+      const candidates = mergeCities(knownCities, geocoded).map((city) => ({
+        ...city,
+        priority: startPoints.length,
+      }));
       const queuedImports = await importQueue.enqueueMissing(candidates);
 
       // Fast path: match runs against streets already in the shared tables.
       await coverage.matchPendingActivities({ userId }).catch((error: unknown) => console.error(error));
 
       return {
-        linkedCities: candidates.length,
+        linkedCities: mergeCities(knownCities, geocoded).length,
         queuedImports,
         continues,
       };

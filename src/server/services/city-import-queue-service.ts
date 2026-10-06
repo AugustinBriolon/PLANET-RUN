@@ -14,6 +14,7 @@ export type CityImportQueueResult = {
 export type CityImportQueueService = {
   /** Imports the next queued city into the shared street tables (or skips if another job already did). */
   processNext: () => Promise<CityImportQueueResult>;
+  hasWorkForUser: (userId: string) => Promise<boolean>;
 };
 
 type Dependencies = {
@@ -53,6 +54,9 @@ export function createCityImportQueueService({
         await importQueue.fail(job.osmRelationId, message);
         return { imported: false, cityName: job.name, hasMore: await importQueue.hasWork() };
       }
+    },
+    async hasWorkForUser(userId) {
+      return importQueue.hasWorkForUser(userId);
     },
   };
 }

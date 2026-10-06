@@ -1,6 +1,7 @@
 import {
   bigint,
   bigserial,
+  boolean,
   customType,
   doublePrecision,
   index,
@@ -34,6 +35,10 @@ export const users = pgTable("users", {
   avatarUrl: text(),
   /** Public profiles appear on a city's hall of fame; private ones only to invited rivals. */
   profileVisibility: text().notNull().default("private"),
+  /** Expo push token for "your streets are ready" when the first import finishes in the background. */
+  expoPushToken: text(),
+  /** Set while the first history + city analysis is in flight; cleared after the completion push. */
+  analysisNotifyPending: boolean().notNull().default(false),
   ...timestamps,
 });
 
@@ -51,6 +56,8 @@ export const stravaAccounts = pgTable("strava_accounts", {
   refreshTokenEncrypted: text().notNull(),
   tokenExpiresAt: timestamp({ withTimezone: true }).notNull(),
   lastSyncedAt: timestamp({ withTimezone: true }),
+  /** Next Strava activity page to fetch during the first full-history import; null when idle. */
+  historySyncPage: integer(),
   ...timestamps,
 });
 
@@ -172,6 +179,8 @@ export const cityImportQueue = pgTable("city_import_queue", {
   status: text().notNull().default("pending"),
   attempts: integer().notNull().default(0),
   lastError: text(),
+  /** Higher values are imported first (this user's run count on that city). */
+  priority: integer().notNull().default(0),
   ...timestamps,
 });
 

@@ -20,6 +20,7 @@ describe("createCityImportQueueService", () => {
       complete: vi.fn(),
       fail: vi.fn(),
       hasWork: vi.fn(async () => false),
+      hasWorkForUser: vi.fn(async () => false),
     };
     const areas: AreaRepository = {
       listAll: vi.fn(async () => []),
@@ -53,6 +54,7 @@ describe("createCityImportQueueService", () => {
       complete: vi.fn(),
       fail: vi.fn(),
       hasWork: vi.fn(async () => true),
+      hasWorkForUser: vi.fn(async () => true),
     };
     const areas: AreaRepository = {
       listAll: vi.fn(async () => []),

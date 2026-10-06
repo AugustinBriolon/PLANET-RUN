@@ -34,6 +34,10 @@ coverage, and badges.
   show coverage and vacant titles, not the names of private title holders. See
   [ADR 0009](docs/adr/0009-city-rivalries-public-profiles-and-titles-after-100.md) and
   [ADR 0010](docs/adr/0010-per-invite-open-graph-share-cards.md).
+- First Strava import returns after one activity page so the globe can draw traces immediately; remaining pages
+  and OpenStreetMap street imports continue in `after()` hops, with the runner's cities jumping the import queue.
+  When that work finishes, Expo sends a push if a token was registered (`PATCH /api/mobile/me` `expoPushToken`).
+  See [ADR 0011](docs/adr/0011-first-login-sync-returns-a-page-then-notifies.md).
 - Sends runs **recorded in the app** to Strava: `POST /api/mobile/runs/upload` turns the GPS segments into a GPX
   file and uploads it (idempotent per `clientRunId`), `GET /api/mobile/runs/upload/:uploadId` polls processing and
   imports the activity as soon as Strava created it, so coverage updates without waiting for the webhook. The mobile

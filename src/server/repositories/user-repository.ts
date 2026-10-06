@@ -8,6 +8,8 @@ export type UserRepository = {
   findByIds: (userIds: readonly string[]) => Promise<User[]>;
   updateProfile: (userId: string, profile: Pick<User, "displayName" | "avatarUrl">) => Promise<void>;
   updateVisibility: (userId: string, profileVisibility: User["profileVisibility"]) => Promise<void>;
+  updatePushToken: (userId: string, expoPushToken: string | null) => Promise<void>;
+  setAnalysisNotifyPending: (userId: string, pending: boolean) => Promise<void>;
   delete: (userId: string) => Promise<void>;
 };
 
@@ -26,6 +28,12 @@ export function createUserRepository(database: Database): UserRepository {
     },
     async updateVisibility(userId, profileVisibility) {
       await database.update(users).set({ profileVisibility }).where(eq(users.id, userId));
+    },
+    async updatePushToken(userId, expoPushToken) {
+      await database.update(users).set({ expoPushToken }).where(eq(users.id, userId));
+    },
+    async setAnalysisNotifyPending(userId, pending) {
+      await database.update(users).set({ analysisNotifyPending: pending }).where(eq(users.id, userId));
     },
     async delete(userId) {
       await database.delete(users).where(eq(users.id, userId));

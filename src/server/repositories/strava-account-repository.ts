@@ -14,6 +14,7 @@ export type StravaAccountRepository = {
   ) => Promise<User>;
   updateTokens: (athleteId: number, tokens: StravaTokens) => Promise<void>;
   markSynced: (athleteId: number, syncedAt: Date) => Promise<void>;
+  setHistorySyncPage: (athleteId: number, page: number | null) => Promise<void>;
 };
 
 export function createStravaAccountRepository(database: Database): StravaAccountRepository {
@@ -37,8 +38,11 @@ export function createStravaAccountRepository(database: Database): StravaAccount
     async markSynced(athleteId, syncedAt) {
       await database
         .update(stravaAccounts)
-        .set({ lastSyncedAt: syncedAt })
+        .set({ lastSyncedAt: syncedAt, historySyncPage: null })
         .where(eq(stravaAccounts.athleteId, athleteId));
+    },
+    async setHistorySyncPage(athleteId, page) {
+      await database.update(stravaAccounts).set({ historySyncPage: page }).where(eq(stravaAccounts.athleteId, athleteId));
     },
   };
 }

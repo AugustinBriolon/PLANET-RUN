@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { isNextResponse, requireMobileUser } from "@/server/mobile/request-auth";
 import { MANUAL_SYNC_MAX_ATTEMPTS, tryConsumeManualSync } from "@/server/runs/manual-sync-rate-limit";
 import { toSyncFailure } from "@/server/runs/to-sync-failure";
-import { scheduleCityPipeline } from "@/server/services/city-pipeline";
+import { scheduleCityPipeline, scheduleHistoryThenCities } from "@/server/services/city-pipeline";
 import { getServices } from "@/server/services";
 
 /** Manual Strava sync for the mobile client (same rate limit as the web globe). */
@@ -25,9 +25,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { syncedRuns } = await getServices().runSync.syncRuns(userOrError.id);
+    const result = await getServices().runSync.syncRuns(userOrError.id);
+    if (result.continues) scheduleHistoryThenCities(userOrError.id);
     scheduleCityPipeline(userOrError.id);
-    return NextResponse.json({ status: "success", syncedRuns });
+    return NextResponse.json({ status: "success", syncedRuns: result.syncedRuns, continues: result.continues });
   } catch (error) {
     console.error("Mobile run sync failed", error);
     return NextResponse.json({ status: "error", ...toSyncFailure(error) }, { status: 502 });

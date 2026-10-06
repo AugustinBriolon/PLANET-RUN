@@ -27,6 +27,10 @@ coverage, and badges.
   coverage) consumed by `planet-run-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
   from a position, and `GET /api/mobile/cities/plan` builds a run route — optionally starting from the runner's
   position (`startLat`/`startLng`), only within 1 km of the city boundary.
+- City rivalries: `POST /api/mobile/cities/invite` mints a 14-day link, `POST /api/mobile/cities/invite/accept`
+  pairs two runners on one city, `GET /api/mobile/cities/:areaId/board` returns rivals plus Founder / Conqueror /
+  Keeper titles. `PATCH /api/mobile/me` sets `profileVisibility` (`private` by default). Public names appear on the
+  hall of fame; private ones only to invited rivals. See [ADR 0009](docs/adr/0009-city-rivalries-public-profiles-and-titles-after-100.md).
 - Sends runs **recorded in the app** to Strava: `POST /api/mobile/runs/upload` turns the GPS segments into a GPX
   file and uploads it (idempotent per `clientRunId`), `GET /api/mobile/runs/upload/:uploadId` polls processing and
   imports the activity as soon as Strava created it, so coverage updates without waiting for the webhook. The mobile
@@ -36,9 +40,9 @@ coverage, and badges.
 **What it does not do (yet):**
 
 - Import full GPS streams or export GPX files — only Strava's simplified `summary_polyline` is stored.
-- Compute coverage above city level (department, region, country), award badges, sell re-link tokens, or connect
+- Compute coverage above city level (department, region, country), sell re-link tokens, or connect
   Garmin (shown as "coming soon").
-- Show a runner's data to anyone else.
+- Generate share images for Stories; invite links are text URLs for now.
 
 **Main dependencies:**
 

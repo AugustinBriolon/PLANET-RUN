@@ -167,14 +167,13 @@ describe("street coverage in PostGIS", () => {
 
       const plan = await coverage.getRunPlanStreets(runner.id, 1001, 800);
 
-      expect(plan.streets.features.length).toBeGreaterThanOrEqual(1);
-      expect(plan.streets.features.every((feature) => feature.geometry.type === "LineString")).toBe(true);
-      expect(plan.streets.features[0]?.properties).toMatchObject({ areaId: 1001 });
+      expect(plan.streets.features).toHaveLength(1);
+      expect(plan.streets.features[0]?.geometry.type).toBe("LineString");
+      expect(plan.streets.features[0]?.properties).toMatchObject({ areaId: 1001, kind: "route" });
       expect(plan.targetMeters).toBeGreaterThan(200);
       expect(plan.pathMeters).toBeGreaterThanOrEqual(plan.targetMeters);
-      const coordinates = plan.streets.features.flatMap((feature) =>
-        feature.geometry.type === "LineString" ? feature.geometry.coordinates : [],
-      );
+      const coordinates =
+        plan.streets.features[0]?.geometry.type === "LineString" ? plan.streets.features[0].geometry.coordinates : [];
       expect(coordinates.length).toBeGreaterThan(2);
     });
 
@@ -200,13 +199,11 @@ describe("street coverage in PostGIS", () => {
 
       const plan = await coverage.getRunPlanStreets(runner.id, 1001, 800, { start: athlete });
 
-      expect(plan.streets.features.length).toBeGreaterThanOrEqual(1);
-      const coordinates = plan.streets.features.flatMap((feature) =>
-        feature.geometry.type === "LineString" ? feature.geometry.coordinates : [],
-      );
-      // Plans snap onto the street graph near the athlete (no long GPS→street diagonal).
-      expect(coordinates[0]).toBeDefined();
-      expect(Math.hypot(coordinates[0]![0]! - athlete.lng, coordinates[0]![1]! - athlete.lat)).toBeLessThan(0.002);
+      expect(plan.streets.features).toHaveLength(1);
+      const geometry = plan.streets.features[0]?.geometry;
+      expect(geometry?.type).toBe("LineString");
+      const coordinates = geometry?.type === "LineString" ? geometry.coordinates : [];
+      expect(coordinates[0]).toEqual([athlete.lng, athlete.lat]);
       expect(plan.pathMeters).toBeGreaterThan(200);
       expect(plan.targetMeters).toBeGreaterThan(200);
     });

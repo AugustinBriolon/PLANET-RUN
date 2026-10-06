@@ -26,10 +26,10 @@ export type RunPlanRoute = {
   coordinates: Position[];
   /** Uncovered length along the path — drives the conquest % estimate. */
   uncoveredMeters: number;
-  /** Full path length including covered bridges (no distance-padding fill). */
+  /** Full path length including covered bridges and fill. */
   pathMeters: number;
   start: Position | null;
-  /** Aerial hops used when the walkable graph could not connect pockets. */
+  /** Short aerial hops used when the walkable graph could not connect pockets. */
   jumpCount: number;
   jumpMeters: number;
   /** Styled legs for the map (gold conquest vs gray connectors / jumps). */
@@ -37,7 +37,7 @@ export type RunPlanRoute = {
 };
 
 export type RunPlanRouteOptions = {
-  /** Approximate outing length in meters — a soft target, not a hard cut. */
+  /** Target outing length in meters (clamped by the caller). */
   budgetMeters: number;
   /** Snap / junction tolerance when joining segment ends. */
   joinToleranceMeters?: number;
@@ -52,33 +52,19 @@ export type RunPlanRouteOptions = {
   start?: Position;
 };
 
-/**
- * Endpoint clustering for the street graph. Kept tight so we do not invent shortcuts
- * across blocks (larger values produce diagonal chords through buildings).
- */
-const DEFAULT_JOIN_TOLERANCE_METERS = 14;
-/**
- * Refuse tip→start chords longer than this when stitching OSM geometries.
- * Must stay ≥ join tolerance so clustered junctions still connect on the map.
- */
-const MAX_GEOMETRY_GAP_METERS = 18;
-/** Grid used to start in the densest remaining unfinished neighbourhood. */
+/** Endpoint clustering — wide enough to join real OSM junctions without inventing block shortcuts. */
+const DEFAULT_JOIN_TOLERANCE_METERS = 22;
+/** Grid used to start (and hop) in the densest remaining unfinished neighbourhood. */
 const DENSITY_CELL_METERS = 280;
 /** Longest street walk allowed to reach the first unfinished street from an anchored start. */
 const MAX_START_CONNECTOR_METERS = 2_500;
 /** Regenerating an anchored plan rotates among this many nearest unfinished streets. */
 const ANCHORED_SEED_CHOICES = 4;
-/** Turns at or above this are rejected when a straighter unfinished edge exists. */
-const MAX_PREFERRED_TURN_DEGREES = 135;
-
-/** Soft band around the requested distance: coherence beats exact meters. */
-export const PLAN_DISTANCE_SOFT_MIN = 0.85;
-export const PLAN_DISTANCE_SOFT_MAX = 1.2;
 /**
- * Aerial (off-street) hops are disabled for plans — they cut through buildings.
- * Tiny gaps at true junctions are handled by geometry stitching, not hops.
+ * Hard cap on off-street hops. Long aerial chords cut through buildings; short hops only
+ * reconnect nearby street ends when the graph is locally broken.
  */
-export const MAX_AERIAL_JUMP_METERS = 0;
+export const MAX_AERIAL_JUMP_METERS = 120;
 
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
@@ -96,28 +82,22 @@ export function distanceMeters(from: Position, to: Position): number {
   return 2 * earthRadiusMeters * Math.asin(Math.sqrt(haversine));
 }
 
-export function softBandMeters(budgetMeters: number): { minMeters: number; maxMeters: number } {
-  return {
-    minMeters: budgetMeters * PLAN_DISTANCE_SOFT_MIN,
-    maxMeters: budgetMeters * PLAN_DISTANCE_SOFT_MAX,
-  };
-}
-
 /**
- * Covered-bridge budget: walk already-run streets to reach the next unfinished pocket.
- * Scales with the outing so a 12 km run can cross covered neighbourhoods without padding
- * purely for distance once unfinished streets are exhausted.
+ * Covered-bridge budget: walk already-run streets only to reach the next unfinished pocket.
+ * Generous enough to cross a neighbourhood, still bounded so a 5 km outing doesn't detour 3 km.
  */
 export function bridgeBudgetMeters(budgetMeters: number, override?: number): number {
   if (override != null) return override;
-  return Math.min(6_000, Math.max(450, budgetMeters * 0.4));
+  return Math.min(2_200, Math.max(320, budgetMeters * 0.2));
 }
 
-/** Aerial hop budget — always zero; plans must stay on the street/connector graph. */
+/**
+ * Aerial hop to the next unfinished pocket when the graph has no covered bridge.
+ * Capped tightly so plans never slash across blocks the way the old multi-km hops did.
+ */
 export function jumpBudgetMeters(budgetMeters: number, bridgeMeters: number): number {
-  void budgetMeters;
   void bridgeMeters;
-  return MAX_AERIAL_JUMP_METERS;
+  return Math.min(MAX_AERIAL_JUMP_METERS, Math.max(80, budgetMeters * 0.025));
 }
 
 /**
@@ -154,75 +134,6 @@ function dedupe(path: Position[]): Position[] {
     coordinates.push(point);
   }
   return coordinates;
-}
-
-/**
- * Merge consecutive legs of the same kind into fewer polylines for a readable map.
- * Never stitch across a spatial gap — that would draw the diagonal chords athletes see on the map.
- */
-export function mergePlanLegs(legs: readonly RunPlanLeg[]): RunPlanLeg[] {
-  const merged: RunPlanLeg[] = [];
-  for (const leg of legs) {
-    const clean = dedupe(leg.coordinates);
-    if (clean.length < 2) continue;
-    const last = merged[merged.length - 1];
-    const lastTip = last?.coordinates[last.coordinates.length - 1];
-    const nextStart = clean[0]!;
-    const canJoin =
-      last != null &&
-      last.kind === leg.kind &&
-      lastTip != null &&
-      distanceMeters(lastTip, nextStart) <= MAX_GEOMETRY_GAP_METERS;
-    if (canJoin) {
-      last!.coordinates = dedupe([...last!.coordinates, ...clean]);
-      continue;
-    }
-    merged.push({ kind: leg.kind, coordinates: clean });
-  }
-  return merged;
-}
-
-/**
- * Drop vertex-to-vertex chords that cannot be a street piece.
- * Must stay above `COVERAGE_RULES.maxSegmentMeters` (50 m) or every plan polyline is discarded.
- */
-export function splitPathOnGaps(coordinates: readonly Position[], maxGapMeters = 80): Position[][] {
-  if (coordinates.length < 2) return [];
-  const lines: Position[][] = [];
-  let current: Position[] = [coordinates[0]!];
-  for (let index = 1; index < coordinates.length; index++) {
-    const point = coordinates[index]!;
-    const prev = current[current.length - 1]!;
-    if (distanceMeters(prev, point) > maxGapMeters) {
-      if (current.length >= 2) lines.push(current);
-      current = [point];
-      continue;
-    }
-    current.push(point);
-  }
-  if (current.length >= 2) lines.push(current);
-  return lines;
-}
-
-function bearingDegrees(from: Position, to: Position): number {
-  const [lng1, lat1] = from as [number, number];
-  const [lng2, lat2] = to as [number, number];
-  const y = Math.sin(toRadians(lng2 - lng1)) * Math.cos(toRadians(lat2));
-  const x =
-    Math.cos(toRadians(lat1)) * Math.sin(toRadians(lat2)) -
-    Math.sin(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.cos(toRadians(lng2 - lng1));
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
-
-function turnDeltaDegrees(inbound: number, outbound: number): number {
-  const delta = Math.abs(inbound - outbound) % 360;
-  return delta > 180 ? 360 - delta : delta;
-}
-
-function edgeOutboundBearing(edge: DirectedEdge): number {
-  const from = edge.coordinates[0]!;
-  const to = edge.coordinates[Math.min(1, edge.coordinates.length - 1)]!;
-  return bearingDegrees(from, to);
 }
 
 function isCoverageSegment(segment: PlanSegment): boolean {
@@ -362,24 +273,18 @@ function buildStreetGraph(segments: readonly PlanSegment[], joinToleranceMeters:
   return { nodes, outgoing, segmentNodes };
 }
 
-/** Unfinished coverage streets are one-shot; covered / connector edges may be re-walked. */
 function isConquestEdge(edge: DirectedEdge): boolean {
   return !edge.covered && edge.countsForCoverage;
 }
 
-function canTraverse(edge: DirectedEdge, usedConquest: ReadonlySet<number>): boolean {
-  if (isConquestEdge(edge)) return !usedConquest.has(edge.segmentId);
-  return true;
-}
-
 /**
- * Shortest path (by meters) from `from` to any unused uncovered edge tip, walking
- * covered streets + navigation connectors (those may be re-traversed to escape dead-ends).
+ * Shortest path (by meters) from `from` to any unused uncovered edge tip, walking only unused
+ * covered edges / connectors — used to bridge between unfinished pockets without breaking continuity.
  */
 function findBridgeToUncovered(
   graph: StreetGraph,
   from: NodeId,
-  usedConquest: ReadonlySet<number>,
+  usedSegments: ReadonlySet<number>,
   maxBridgeMeters: number,
 ): DirectedEdge[] | null {
   type State = { node: NodeId; path: DirectedEdge[]; meters: number };
@@ -392,11 +297,10 @@ function findBridgeToUncovered(
     if (current.meters > (best.get(current.node) ?? Infinity)) continue;
 
     for (const edge of graph.outgoing.get(current.node) ?? []) {
-      if (!canTraverse(edge, usedConquest)) continue;
+      if (usedSegments.has(edge.segmentId)) continue;
       const nextMeters = current.meters + edge.lengthMeters;
       if (nextMeters > maxBridgeMeters) continue;
 
-      // Reached an unfinished coverage street — return the bridge walked to get there.
       if (isConquestEdge(edge)) {
         return current.path;
       }
@@ -410,51 +314,147 @@ function findBridgeToUncovered(
   return null;
 }
 
+/** Walk unused covered streets to burn remaining budget when conquest streets are exhausted. */
+function findCoveredFillPath(
+  graph: StreetGraph,
+  from: NodeId,
+  usedSegments: ReadonlySet<number>,
+  maxMeters: number,
+): DirectedEdge[] | null {
+  type State = { node: NodeId; path: DirectedEdge[]; meters: number };
+  const queue: State[] = [{ node: from, path: [], meters: 0 }];
+  const best = new Map<NodeId, number>([[from, 0]]);
+  let bestPath: DirectedEdge[] | null = null;
+  let bestPathMeters = 0;
+
+  while (queue.length > 0) {
+    queue.sort((a, b) => a.meters - b.meters);
+    const current = queue.shift()!;
+    if (current.meters > (best.get(current.node) ?? Infinity)) continue;
+    if (current.path.length > 0 && current.meters > bestPathMeters) {
+      bestPath = current.path;
+      bestPathMeters = current.meters;
+      if (bestPathMeters >= maxMeters * 0.85) return bestPath;
+    }
+
+    for (const edge of graph.outgoing.get(current.node) ?? []) {
+      if (usedSegments.has(edge.segmentId)) continue;
+      if (isConquestEdge(edge)) continue;
+      const nextMeters = current.meters + edge.lengthMeters;
+      if (nextMeters > maxMeters) continue;
+      const known = best.get(edge.to);
+      if (known != null && known <= nextMeters) continue;
+      best.set(edge.to, nextMeters);
+      queue.push({ node: edge.to, path: [...current.path, edge], meters: nextMeters });
+    }
+  }
+  return bestPath;
+}
+
 function unusedUncoveredLengthAt(graph: StreetGraph, node: NodeId, usedSegments: ReadonlySet<number>): number {
   let meters = 0;
   const seen = new Set<number>();
   for (const edge of graph.outgoing.get(node) ?? []) {
-    if (edge.covered || !edge.countsForCoverage || usedSegments.has(edge.segmentId) || seen.has(edge.segmentId)) {
-      continue;
-    }
+    if (!isConquestEdge(edge) || usedSegments.has(edge.segmentId) || seen.has(edge.segmentId)) continue;
     seen.add(edge.segmentId);
     meters += edge.lengthMeters;
   }
   return meters;
 }
 
-/**
- * Prefer unfinished streets that continue straight and unlock more unexplored length.
- * Sharp U-turns are rejected when a straighter option exists (avoids boulevard out-and-backs).
- */
+/** Prefer the unfinished street that unlocks the most remaining unexplored length at the far end. */
 function pickUncoveredEdge(
   edges: DirectedEdge[],
   usedSegments: ReadonlySet<number>,
   graph: StreetGraph,
-  inboundBearing: number | null,
 ): DirectedEdge | null {
   const unused = edges.filter((edge) => !usedSegments.has(edge.segmentId) && isConquestEdge(edge));
   if (unused.length === 0) return null;
-
-  const withTurn = unused.map((edge) => ({
-    edge,
-    turn: inboundBearing == null ? 0 : turnDeltaDegrees(inboundBearing, edgeOutboundBearing(edge)),
-  }));
-  const hasStraightish = withTurn.some((entry) => entry.turn < MAX_PREFERRED_TURN_DEGREES);
-  const candidates = hasStraightish ? withTurn.filter((entry) => entry.turn < MAX_PREFERRED_TURN_DEGREES) : withTurn;
-
-  return candidates.reduce((best, entry) => {
+  return unused.reduce((best, edge) => {
     const usedNext = new Set(usedSegments);
-    usedNext.add(entry.edge.segmentId);
-    const score =
-      entry.edge.lengthMeters + unusedUncoveredLengthAt(graph, entry.edge.to, usedNext) * 0.7 - entry.turn * 2.5;
+    usedNext.add(edge.segmentId);
+    const score = edge.lengthMeters + unusedUncoveredLengthAt(graph, edge.to, usedNext) * 0.7;
     const usedBest = new Set(usedSegments);
-    usedBest.add(best.edge.segmentId);
-    const bestTurn = inboundBearing == null ? 0 : turnDeltaDegrees(inboundBearing, edgeOutboundBearing(best.edge));
-    const bestScore =
-      best.edge.lengthMeters + unusedUncoveredLengthAt(graph, best.edge.to, usedBest) * 0.7 - bestTurn * 2.5;
-    return score > bestScore ? entry : best;
-  }).edge;
+    usedBest.add(best.segmentId);
+    const bestScore = best.lengthMeters + unusedUncoveredLengthAt(graph, best.to, usedBest) * 0.7;
+    return score > bestScore ? edge : best;
+  });
+}
+
+function pickAnyUnusedEdge(
+  edges: DirectedEdge[],
+  usedSegments: ReadonlySet<number>,
+  preferUncovered: boolean,
+): DirectedEdge | null {
+  const unused = edges.filter((edge) => !usedSegments.has(edge.segmentId));
+  if (unused.length === 0) return null;
+  const pool = preferUncovered ? unused.filter((edge) => isConquestEdge(edge)) : unused;
+  const candidates = pool.length > 0 ? pool : unused;
+  return candidates.reduce((best, edge) => (edge.lengthMeters > best.lengthMeters ? edge : best));
+}
+
+type ProximityJump = {
+  segment: PlanSegment;
+  /** Walk coordinates in this order after the optional connector. */
+  coordinates: Position[];
+  fromNode: NodeId;
+  toNode: NodeId;
+  jumpMeters: number;
+};
+
+/**
+ * When the street graph is locally stuck, hop to the nearest unused unfinished street
+ * within a short aerial distance — longer gaps stop the plan from inventing diagonals.
+ */
+function findProximityUncovered(
+  fromPoint: Position,
+  fromNode: NodeId,
+  segments: readonly PlanSegment[],
+  graph: StreetGraph,
+  usedSegments: ReadonlySet<number>,
+  maxJumpMeters: number,
+  neighborhoodMeters: (segment: PlanSegment) => number,
+): ProximityJump | null {
+  let best: ProximityJump | null = null;
+  let bestScore = -Infinity;
+
+  for (const segment of segments) {
+    if (
+      segment.covered ||
+      !isCoverageSegment(segment) ||
+      usedSegments.has(segment.id) ||
+      segment.coordinates.length < 2
+    ) {
+      continue;
+    }
+    const nodes = graph.segmentNodes.get(segment.id);
+    if (!nodes) continue;
+    const ends = endsOf(segment);
+    const candidates: { jumpMeters: number; coordinates: Position[]; fromNode: NodeId; toNode: NodeId }[] = [
+      {
+        jumpMeters: distanceMeters(fromPoint, ends.start),
+        coordinates: segment.coordinates,
+        fromNode: nodes.start,
+        toNode: nodes.end,
+      },
+      {
+        jumpMeters: distanceMeters(fromPoint, ends.end),
+        coordinates: [...segment.coordinates].reverse(),
+        fromNode: nodes.end,
+        toNode: nodes.start,
+      },
+    ];
+    for (const candidate of candidates) {
+      if (candidate.jumpMeters > maxJumpMeters) continue;
+      if (candidate.fromNode === fromNode && candidate.jumpMeters < 1) continue;
+      const score = segment.lengthMeters + neighborhoodMeters(segment) * 0.35 - candidate.jumpMeters;
+      if (score <= bestScore) continue;
+      bestScore = score;
+      best = { segment, ...candidate };
+    }
+  }
+
+  return best;
 }
 
 function pickFromWindow<T>(ranked: T[], windowSize: number, salt: number): T {
@@ -525,12 +525,12 @@ function nearestNode(graph: StreetGraph, point: Position): NodeId | null {
   return best;
 }
 
-/** Shortest street walk (by meters) between two nodes, or null beyond `maxMeters`. */
+/** Shortest street walk (by meters) between two nodes over unused edges, or null beyond `maxMeters`. */
 function shortestPath(
   graph: StreetGraph,
   from: NodeId,
   to: NodeId,
-  usedConquest: ReadonlySet<number>,
+  usedSegments: ReadonlySet<number>,
   maxMeters: number,
 ): DirectedEdge[] | null {
   if (from === to) return [];
@@ -545,7 +545,7 @@ function shortestPath(
     if (current.meters > (best.get(current.node) ?? Infinity)) continue;
 
     for (const edge of graph.outgoing.get(current.node) ?? []) {
-      if (!canTraverse(edge, usedConquest)) continue;
+      if (usedSegments.has(edge.segmentId)) continue;
       const nextMeters = current.meters + edge.lengthMeters;
       if (nextMeters > maxMeters) continue;
       const known = best.get(edge.to);
@@ -570,16 +570,16 @@ function emptyRoute(): RunPlanRoute {
 }
 
 /**
- * Walk the street graph into one continuous outing aimed at `budgetMeters`.
+ * Walk the street graph into one continuous outing sized to `budgetMeters`.
  * Prefers unfinished streets in dense remaining pockets; bridges through covered streets
- * and pedestrian connectors. Distance is a soft band (±15–20%): finish streets and stop
- * cleanly rather than padding or cutting mid-block to hit an exact meter count.
+ * only to reach more unexplored length; fills with already-run streets last so distance still matches.
+ * Short aerial hops (≤ {@link MAX_AERIAL_JUMP_METERS}) reconnect nearby pockets when needed.
  */
 export function buildRunPlanRoute(segments: readonly PlanSegment[], options: RunPlanRouteOptions): RunPlanRoute {
   const budgetMeters = Math.max(0, options.budgetMeters);
-  const { minMeters, maxMeters } = softBandMeters(budgetMeters);
   const joinToleranceMeters = options.joinToleranceMeters ?? DEFAULT_JOIN_TOLERANCE_METERS;
   const maxBridgeMeters = bridgeBudgetMeters(budgetMeters, options.maxBridgeMeters);
+  const maxJumpMeters = jumpBudgetMeters(budgetMeters, maxBridgeMeters);
   const salt = options.salt ?? 0;
 
   const uncovered = segments.filter(
@@ -595,7 +595,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   const anchor = options.start;
   const seed = anchor ? pickAnchoredSeed(uncovered, anchor, salt) : pickSeed(uncovered, metersByCell, salt);
 
-  // Orient the seed so the exit faces the longer unfinished continuation (avoids walking into a cul-de-sac).
+  // Prefer the exit that unlocks more unfinished street (avoids walking into a cul-de-sac).
   const seedNodes = graph.segmentNodes.get(seed.id);
   const seedUsed = new Set<number>([seed.id]);
   const forwardUnlock = seedNodes == null ? 0 : unusedUncoveredLengthAt(graph, seedNodes.end, seedUsed);
@@ -611,174 +611,195 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   const entryNode = seedNodes == null ? 0 : startAtFirst ? seedNodes.start : seedNodes.end;
   const exitNode = seedNodes == null ? 0 : startAtFirst ? seedNodes.end : seedNodes.start;
 
-  /** Only unfinished conquest streets — covered / connectors stay reusable for bridging. */
-  const usedConquest = new Set<number>([seed.id]);
+  const used = new Set<number>([seed.id]);
   const coords: Position[] = [];
   const legs: RunPlanLeg[] = [];
   let head = exitNode;
+  let tail = entryNode;
   let uncoveredMeters = seed.lengthMeters;
   let pathMeters = seed.lengthMeters;
-  const jumpCount = 0;
-  const jumpMeters = 0;
-  let inboundBearing: number | null = null;
-  let lastSegmentId: number | null = seed.id;
+  let jumpCount = 0;
+  let jumpMeters = 0;
 
   function pushLeg(coordinates: Position[], kind: PlanLegKind) {
     const clean = dedupe(coordinates);
     if (clean.length < 2) return;
+    const last = legs[legs.length - 1];
+    if (last && last.kind === kind) {
+      last.coordinates = dedupe([...last.coordinates, ...clean]);
+      return;
+    }
     legs.push({ coordinates: clean, kind });
   }
 
-  /**
-   * Append a street edge using its full OSM geometry. Refuses large tip→start chords so
-   * clustered junctions cannot draw diagonals through blocks.
-   */
-  function appendEdge(edge: DirectedEdge): boolean {
-    const tip = coords[coords.length - 1];
-    const start = edge.coordinates[0]!;
-    const gap = tip ? distanceMeters(tip, start) : 0;
-    if (tip && gap > MAX_GEOMETRY_GAP_METERS) return false;
-    // Avoid immediate reverse on the same piece (boulevard out-and-back).
-    if (lastSegmentId != null && edge.segmentId === lastSegmentId) return false;
+  if (anchor) {
+    coords.push(anchor);
+    const startNode = nearestNode(graph, anchor);
+    const connector =
+      startNode == null ? null : shortestPath(graph, startNode, entryNode, used, MAX_START_CONNECTOR_METERS);
+    for (const edge of connector ?? []) {
+      used.add(edge.segmentId);
+      pathMeters += edge.lengthMeters;
+      if (isConquestEdge(edge)) uncoveredMeters += edge.lengthMeters;
+      if (coords.length === 1) pathMeters += distanceMeters(anchor, edge.coordinates[0]!);
+      const pieceStart = coords[coords.length - 1]!;
+      coords.push(...edge.coordinates);
+      pushLeg([pieceStart, ...edge.coordinates], legKindForEdge(edge));
+    }
+    if (coords.length === 1) pathMeters += distanceMeters(anchor, seedCoords[0]!);
+  }
+  const seedLegStart = coords[coords.length - 1];
+  coords.push(...seedCoords);
+  pushLeg(seedLegStart ? [seedLegStart, ...seedCoords] : seedCoords, "conquest");
 
-    if (isConquestEdge(edge)) usedConquest.add(edge.segmentId);
+  function appendEdge(edge: DirectedEdge, end: "head" | "tail") {
+    used.add(edge.segmentId);
     pathMeters += edge.lengthMeters;
     if (isConquestEdge(edge)) uncoveredMeters += edge.lengthMeters;
-
-    const piece: Position[] = tip ? [tip] : [];
-    if (!tip || tip[0] !== start[0] || tip[1] !== start[1]) {
-      if (tip) pathMeters += gap;
-      piece.push(...edge.coordinates);
-      coords.push(...edge.coordinates);
-    } else {
-      piece.push(...edge.coordinates.slice(1));
+    const kind = legKindForEdge(edge);
+    if (end === "head") {
+      const tip = coords[coords.length - 1]!;
       coords.push(...edge.coordinates.slice(1));
+      pushLeg([tip, ...edge.coordinates.slice(1)], kind);
+      head = edge.to;
+    } else {
+      const tip = coords[0]!;
+      coords.unshift(...edge.coordinates.slice(1).reverse());
+      pushLeg([...edge.coordinates.slice(1).reverse(), tip], kind);
+      // Prepended legs stay readable if we keep them in path order at the front.
+      const prepended = legs.pop()!;
+      legs.unshift(prepended);
+      tail = edge.to;
     }
-    pushLeg(piece, legKindForEdge(edge));
-    head = edge.to;
-    lastSegmentId = edge.segmentId;
-    if (edge.coordinates.length >= 2) {
-      inboundBearing = bearingDegrees(
-        edge.coordinates[edge.coordinates.length - 2]!,
-        edge.coordinates[edge.coordinates.length - 1]!,
-      );
+  }
+
+  function appendJump(jump: ProximityJump, end: "head" | "tail") {
+    const tip = end === "head" ? coords[coords.length - 1]! : coords[0]!;
+    const entry = jump.coordinates[0]!;
+    if (tip[0] !== entry[0] || tip[1] !== entry[1]) {
+      const gap = distanceMeters(tip, entry);
+      pathMeters += gap;
+      jumpCount += 1;
+      jumpMeters += gap;
+      if (end === "head") {
+        coords.push(entry);
+        pushLeg([tip, entry], "jump");
+      } else {
+        coords.unshift(entry);
+        pushLeg([entry, tip], "jump");
+        const prepended = legs.pop()!;
+        legs.unshift(prepended);
+      }
+    }
+    used.add(jump.segment.id);
+    pathMeters += jump.segment.lengthMeters;
+    uncoveredMeters += jump.segment.lengthMeters;
+    if (end === "head") {
+      const from = coords[coords.length - 1]!;
+      coords.push(...jump.coordinates.slice(1));
+      pushLeg([from, ...jump.coordinates.slice(1)], "conquest");
+      head = jump.toNode;
+    } else {
+      const from = coords[0]!;
+      coords.unshift(...jump.coordinates.slice(1).reverse());
+      pushLeg([...jump.coordinates.slice(1).reverse(), from], "conquest");
+      const prepended = legs.pop()!;
+      legs.unshift(prepended);
+      tail = jump.toNode;
+    }
+  }
+
+  function extendConquest(end: "head" | "tail"): boolean {
+    const remaining = budgetMeters - pathMeters;
+    if (remaining <= 0) return false;
+    const node = end === "head" ? head : tail;
+    const tip = end === "head" ? coords[coords.length - 1]! : coords[0]!;
+    const edges = graph.outgoing.get(node) ?? [];
+
+    const uncoveredEdge = pickUncoveredEdge(edges, used, graph);
+    if (uncoveredEdge && uncoveredEdge.lengthMeters <= remaining + 80) {
+      appendEdge(uncoveredEdge, end);
+      return true;
+    }
+
+    const bridge = findBridgeToUncovered(graph, node, used, Math.min(maxBridgeMeters, remaining));
+    if (bridge != null) {
+      const bridgeMeters = bridge.reduce((sum, edge) => sum + edge.lengthMeters, 0);
+      if (bridgeMeters <= remaining) {
+        let cursor = node;
+        for (const hop of bridge) {
+          appendEdge(hop, end);
+          cursor = hop.to;
+          if (pathMeters >= budgetMeters) return true;
+        }
+        const nextUncovered = pickUncoveredEdge(graph.outgoing.get(cursor) ?? [], used, graph);
+        if (nextUncovered && nextUncovered.lengthMeters <= budgetMeters - pathMeters + 80) {
+          appendEdge(nextUncovered, end);
+          return true;
+        }
+        if (bridge.length > 0) return true;
+      }
+    }
+
+    const jump = findProximityUncovered(
+      tip,
+      node,
+      segments,
+      graph,
+      used,
+      Math.min(maxJumpMeters, remaining),
+      (segment) => neighborhoodUncoveredMeters(midpoint(segment.coordinates), metersByCell),
+    );
+    if (jump && jump.segment.lengthMeters + jump.jumpMeters <= remaining + 80) {
+      appendJump(jump, end);
+      return true;
+    }
+
+    return false;
+  }
+
+  function extendFill(end: "head" | "tail"): boolean {
+    const remaining = budgetMeters - pathMeters;
+    if (remaining <= 0) return false;
+    const node = end === "head" ? head : tail;
+    const edges = graph.outgoing.get(node) ?? [];
+
+    const local = pickAnyUnusedEdge(edges, used, false);
+    if (local && local.lengthMeters <= remaining + 80) {
+      appendEdge(local, end);
+      return true;
+    }
+
+    const fill = findCoveredFillPath(graph, node, used, remaining);
+    if (!fill || fill.length === 0) return false;
+    for (const hop of fill) {
+      if (pathMeters >= budgetMeters) break;
+      if (hop.lengthMeters > budgetMeters - pathMeters + 80) break;
+      appendEdge(hop, end);
     }
     return true;
   }
 
-  if (anchor) {
-    const startNode = nearestNode(graph, anchor);
-    const connector =
-      startNode == null ? null : shortestPath(graph, startNode, entryNode, usedConquest, MAX_START_CONNECTOR_METERS);
-    if (connector != null) {
-      coords.push(anchor);
-      let connected = true;
-      for (const edge of connector) {
-        if (!appendEdge(edge)) {
-          connected = false;
-          break;
-        }
-      }
-      const tip = coords[coords.length - 1]!;
-      if (!connected || distanceMeters(tip, seedCoords[0]!) > MAX_GEOMETRY_GAP_METERS) {
-        // No off-street diagonal from GPS — fall back to starting on the seed street.
-        coords.length = 0;
-        legs.length = 0;
-        usedConquest.clear();
-        usedConquest.add(seed.id);
-        pathMeters = seed.lengthMeters;
-        uncoveredMeters = seed.lengthMeters;
-        inboundBearing = null;
-        lastSegmentId = seed.id;
-        head = exitNode;
-      }
-    }
-  }
-  coords.push(...seedCoords);
-  pushLeg(seedCoords, "conquest");
-  head = exitNode;
-  lastSegmentId = seed.id;
-  if (seedCoords.length >= 2) {
-    inboundBearing = bearingDegrees(seedCoords[seedCoords.length - 2]!, seedCoords[seedCoords.length - 1]!);
-  }
+  // An anchored route keeps its tail at the athlete, so only the head grows.
+  const growTail = !anchor;
 
-  function roomTo(max: number): number {
-    return max - pathMeters;
-  }
-
-  function activeBridgeBudget(): number {
-    // Under the soft minimum, search farther through covered streets before giving up.
-    const scale = pathMeters < minMeters ? 1.75 : 1;
-    return Math.min(maxBridgeMeters * scale, Math.max(0, roomTo(maxMeters)));
-  }
-
-  function extendConquest(): boolean {
-    if (pathMeters >= maxMeters) return false;
-    const edges = graph.outgoing.get(head) ?? [];
-
-    const uncoveredEdge = pickUncoveredEdge(edges, usedConquest, graph, inboundBearing);
-    if (uncoveredEdge) {
-      const nextMeters = pathMeters + uncoveredEdge.lengthMeters;
-      if (nextMeters <= maxMeters || (pathMeters < maxMeters && pathMeters < budgetMeters)) {
-        return appendEdge(uncoveredEdge);
-      }
-    }
-
-    const bridge = findBridgeToUncovered(graph, head, usedConquest, activeBridgeBudget());
-    // `[]` means an unfinished street is already adjacent — still take it.
-    if (bridge != null) {
-      const bridgeMeters = bridge.reduce((sum, edge) => sum + edge.lengthMeters, 0);
-      if (pathMeters + bridgeMeters <= maxMeters) {
-        const saved = {
-          coords: coords.length,
-          legs: legs.length,
-          pathMeters,
-          uncoveredMeters,
-          head,
-          inboundBearing,
-          lastSegmentId,
-          used: new Set(usedConquest),
-        };
-        const restore = () => {
-          coords.length = saved.coords;
-          legs.length = saved.legs;
-          pathMeters = saved.pathMeters;
-          uncoveredMeters = saved.uncoveredMeters;
-          head = saved.head;
-          inboundBearing = saved.inboundBearing;
-          lastSegmentId = saved.lastSegmentId;
-          usedConquest.clear();
-          for (const id of saved.used) usedConquest.add(id);
-        };
-        for (const hop of bridge) {
-          if (!appendEdge(hop)) {
-            restore();
-            return false;
-          }
-          if (pathMeters >= maxMeters) return true;
-        }
-        const nextUncovered = pickUncoveredEdge(graph.outgoing.get(head) ?? [], usedConquest, graph, inboundBearing);
-        if (nextUncovered) {
-          const nextMeters = pathMeters + nextUncovered.lengthMeters;
-          if (nextMeters <= maxMeters || (pathMeters < maxMeters && pathMeters < budgetMeters)) {
-            if (appendEdge(nextUncovered)) return true;
-          }
-        }
-        // Never keep a covered-only detour that claimed no new street.
-        restore();
-      }
-    }
-
-    // Soft-band stop — never aerial-hop to pad distance or reach another pocket.
-    return false;
-  }
-
-  // Forward-only growth: bidirectional expansion folded the path into unreadable scribbles.
+  // Phase 1 — conquest: unfinished streets, covered bridges, short proximity hops.
   let grew = true;
   let guard = 0;
-  while (grew && pathMeters < maxMeters && guard < 30_000) {
+  while (grew && pathMeters < budgetMeters && guard < 30_000) {
     guard += 1;
-    grew = extendConquest();
+    const grewHead = extendConquest("head");
+    const grewTail = growTail && pathMeters < budgetMeters ? extendConquest("tail") : false;
+    grew = grewHead || grewTail;
+  }
+
+  // Phase 2 — fill: burn remaining budget on covered streets so distance preference matters.
+  grew = true;
+  while (grew && pathMeters < budgetMeters * 0.92 && guard < 60_000) {
+    guard += 1;
+    const grewHead = extendFill("head");
+    const grewTail = growTail && pathMeters < budgetMeters * 0.92 ? extendFill("tail") : false;
+    grew = grewHead || grewTail;
   }
 
   const coordinates = dedupe(coords);
@@ -793,7 +814,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
     start: coordinates[0]!,
     jumpCount,
     jumpMeters,
-    legs: mergePlanLegs(legs),
+    legs,
   };
 }
 
@@ -801,29 +822,14 @@ export function runPlanRouteToGeoJson(
   route: RunPlanRoute,
   areaId: number,
 ): FeatureCollection<LineString, { areaId: number; kind: PlanLegKind | "route" }> {
-  const legs = mergePlanLegs(route.legs);
-  if (legs.length > 0) {
-    const features: Feature<LineString, { areaId: number; kind: PlanLegKind | "route" }>[] = [];
-    for (const leg of legs) {
-      for (const coordinates of splitPathOnGaps(leg.coordinates)) {
-        features.push({
-          type: "Feature",
-          geometry: { type: "LineString", coordinates },
-          properties: { areaId, kind: leg.kind },
-        });
-      }
-    }
-    return { type: "FeatureCollection", features };
-  }
-  if (route.coordinates.length < 2) {
-    return { type: "FeatureCollection", features: [] };
-  }
-  return {
-    type: "FeatureCollection",
-    features: splitPathOnGaps(route.coordinates).map((coordinates) => ({
+  // Prefer one continuous LineString — fragmented legs made the map look broken.
+  if (route.coordinates.length >= 2) {
+    const feature: Feature<LineString, { areaId: number; kind: "route" }> = {
       type: "Feature",
-      geometry: { type: "LineString", coordinates },
-      properties: { areaId, kind: "route" as const },
-    })),
-  };
+      geometry: { type: "LineString", coordinates: route.coordinates },
+      properties: { areaId, kind: "route" },
+    };
+    return { type: "FeatureCollection", features: [feature] };
+  }
+  return { type: "FeatureCollection", features: [] };
 }

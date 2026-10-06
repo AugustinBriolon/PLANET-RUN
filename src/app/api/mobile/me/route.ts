@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
+import { parseProfileVisibility } from "@/lib/conquest/visibility";
 import { toCoverageShare } from "@/lib/coverage/street-coverage";
 import { isNextResponse, requireMobileUser } from "@/server/mobile/request-auth";
 import { getServices } from "@/server/services";
@@ -17,6 +19,7 @@ export async function GET(request: Request) {
       id: userOrError.id,
       displayName: userOrError.displayName,
       avatarUrl: userOrError.avatarUrl,
+      profileVisibility: userOrError.profileVisibility,
     },
     cities: cities.map((city) => ({
       areaId: city.areaId,
@@ -28,4 +31,21 @@ export async function GET(request: Request) {
       bounds: city.bounds,
     })),
   });
+}
+
+const patchSchema = z.object({
+  profileVisibility: z.enum(["public", "private"]),
+});
+
+/** Update the signed-in runner's hall-of-fame visibility. */
+export async function PATCH(request: Request) {
+  const userOrError = await requireMobileUser(request);
+  if (isNextResponse(userOrError)) return userOrError;
+
+  const parsed = patchSchema.safeParse(await request.json().catch(() => null));
+  const visibility = parsed.success ? parseProfileVisibility(parsed.data.profileVisibility) : null;
+  if (!visibility) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+
+  await getServices().conquest.setVisibility(userOrError.id, visibility);
+  return NextResponse.json({ profileVisibility: visibility });
 }

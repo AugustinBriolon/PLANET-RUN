@@ -37,6 +37,14 @@ export type CoverageRepository = {
     budgetMeters: number,
     options?: RunPlanRequestOptions,
   ) => Promise<{ streets: CoveredStreets; targetMeters: number; pathMeters: number }>;
+  /** GPS distance of every run that touched at least one street in the city. */
+  sumActivityDistanceInArea: (userId: string, areaId: number) => Promise<number>;
+  /** Unique street metres matched by each runner in the city during [from, to). */
+  listSeasonCoveredMeters: (
+    areaId: number,
+    from: Date,
+    to: Date,
+  ) => Promise<{ userId: string; meters: number }[]>;
 };
 
 export type RunPlanRequestOptions = { salt?: number; start?: LngLat };
@@ -300,6 +308,37 @@ export function createCoverageRepository(
         targetMeters: route.uncoveredMeters,
         pathMeters: route.pathMeters,
       };
+    },
+
+    async sumActivityDistanceInArea(userId, areaId) {
+      const rows = await database.execute<{ meters: number }>(sql`
+        SELECT coalesce(sum(activities.distance_meters), 0)::float8 AS meters
+        FROM activities
+        WHERE activities.user_id = ${userId}
+          AND EXISTS (
+            SELECT 1
+            FROM activity_street_segments AS covered
+            JOIN street_segments AS segment ON segment.id = covered.segment_id
+            WHERE covered.activity_id = activities.strava_activity_id
+              AND segment.area_id = ${areaId}
+          )
+      `);
+      return rows[0]?.meters ?? 0;
+    },
+
+    async listSeasonCoveredMeters(areaId, from, to) {
+      const rows = await database.execute<{ user_id: string; meters: number }>(sql`
+        SELECT activities.user_id,
+               coalesce(sum(segment.length_meters), 0)::float8 AS meters
+        FROM activities
+        JOIN activity_street_segments AS covered ON covered.activity_id = activities.strava_activity_id
+        JOIN street_segments AS segment ON segment.id = covered.segment_id
+        WHERE segment.area_id = ${areaId}
+          AND activities.start_date >= ${from}
+          AND activities.start_date < ${to}
+        GROUP BY activities.user_id
+      `);
+      return rows.map((row) => ({ userId: row.user_id, meters: row.meters }));
     },
   };
 }

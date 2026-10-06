@@ -9,6 +9,7 @@ import { createActivityRepository } from "./repositories/activity-repository";
 import { createAreaRepository } from "./repositories/area-repository";
 import { createCityCatalogRepository } from "./repositories/city-catalog-repository";
 import { createCityImportQueueRepository } from "./repositories/city-import-queue-repository";
+import { createConquestRepository } from "./repositories/conquest-repository";
 import { createCoverageRepository } from "./repositories/coverage-repository";
 import { createStravaAccountRepository } from "./repositories/strava-account-repository";
 import { createUserCityRepository } from "./repositories/user-city-repository";
@@ -17,6 +18,7 @@ import { createAccountDeletionService } from "./services/account-deletion-servic
 import { createAccountLinkingService } from "./services/account-linking-service";
 import { createCityDetectionService } from "./services/city-detection-service";
 import { createCityImportQueueService } from "./services/city-import-queue-service";
+import { createConquestService } from "./services/conquest-service";
 import { createRunSyncService } from "./services/run-sync-service";
 import { createRunUploadService } from "./services/run-upload-service";
 import { createStravaTokenService } from "./services/strava-token-service";
@@ -33,6 +35,7 @@ function buildServices(database: Database) {
   const areas = createAreaRepository(database);
   const catalog = createCityCatalogRepository(database);
   const coverage = createCoverageRepository(database);
+  const conquests = createConquestRepository(database);
   const userCities = createUserCityRepository(database);
   const importQueue = createCityImportQueueRepository(database);
   const nominatim = createNominatimClient();
@@ -54,6 +57,7 @@ function buildServices(database: Database) {
     catalog,
     coverage,
     userCities,
+    conquest: createConquestService({ users, userCities, coverage, conquests }),
     strava,
     cityDetection: createCityDetectionService({
       activities,

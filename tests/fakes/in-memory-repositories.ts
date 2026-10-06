@@ -14,9 +14,19 @@ export function createInMemoryRepositories() {
     async findById(userId) {
       return userRows.get(userId);
     },
+    async findByIds(userIds) {
+      return [...new Set(userIds)].flatMap((id) => {
+        const user = userRows.get(id);
+        return user ? [user] : [];
+      });
+    },
     async updateProfile(userId, profile) {
       const user = userRows.get(userId);
       if (user) userRows.set(userId, { ...user, ...profile });
+    },
+    async updateVisibility(userId, profileVisibility) {
+      const user = userRows.get(userId);
+      if (user) userRows.set(userId, { ...user, profileVisibility });
     },
     async delete(userId) {
       userRows.delete(userId);
@@ -34,7 +44,13 @@ export function createInMemoryRepositories() {
     },
     async createWithUser(profile, account) {
       const now = new Date();
-      const user: User = { id: `user-${nextUserNumber++}`, ...profile, createdAt: now, updatedAt: now };
+      const user: User = {
+        id: `user-${nextUserNumber++}`,
+        ...profile,
+        profileVisibility: "private",
+        createdAt: now,
+        updatedAt: now,
+      };
       userRows.set(user.id, user);
       accountRows.set(account.athleteId, {
         ...account,

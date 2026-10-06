@@ -29,6 +29,13 @@
       "when": 1789800000000,
       "tag": "0003_city_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789900000000,
+      "tag": "0004_city_rivalry",
+      "breakpoints": true
     }
   ]
 }

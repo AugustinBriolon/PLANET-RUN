@@ -32,6 +32,8 @@ export const users = pgTable("users", {
   id: uuid().primaryKey().defaultRandom(),
   displayName: text().notNull(),
   avatarUrl: text(),
+  /** Public profiles appear on a city's hall of fame; private ones only to invited rivals. */
+  profileVisibility: text().notNull().default("private"),
   ...timestamps,
 });
 
@@ -173,8 +175,59 @@ export const cityImportQueue = pgTable("city_import_queue", {
   ...timestamps,
 });
 
+/**
+ * First time a runner reached 100% of a city's streets. Never updated: later runs
+ * compete for Keeper / Conqueror without moving Founder.
+ */
+export const cityConquests = pgTable(
+  "city_conquests",
+  {
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    areaId: bigint({ mode: "number" }).notNull(),
+    completedAt: timestamp({ withTimezone: true }).notNull(),
+    completionDistanceMeters: doublePrecision().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.areaId] }), index().on(table.areaId, table.completedAt)],
+);
+
+/** One-time link to become rivals on a city. */
+export const cityInvites = pgTable(
+  "city_invites",
+  {
+    token: text().primaryKey(),
+    inviterId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    areaId: bigint({ mode: "number" }).notNull(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    acceptedBy: uuid().references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index().on(table.inviterId, table.areaId)],
+);
+
+/** Two runners who compare coverage on one city. userLow < userHigh. */
+export const cityRivalries = pgTable(
+  "city_rivalries",
+  {
+    areaId: bigint({ mode: "number" }).notNull(),
+    userLow: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    userHigh: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.areaId, table.userLow, table.userHigh] })],
+);
+
 export type User = typeof users.$inferSelect;
 export type StravaAccount = typeof stravaAccounts.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
 export type UserCity = typeof userCities.$inferSelect;
+export type CityConquest = typeof cityConquests.$inferSelect;
+export type CityInvite = typeof cityInvites.$inferSelect;

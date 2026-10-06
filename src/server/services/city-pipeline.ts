@@ -13,6 +13,7 @@ export function scheduleCityPipeline(userId: string) {
     try {
       const { cityDetection, cityImportQueue } = getServices();
       const discovery = await cityDetection.discoverCitiesForUser(userId);
+      await getServices().conquest.refreshForUser(userId);
       if (discovery.continues) {
         scheduleCityPipeline(userId);
         return;

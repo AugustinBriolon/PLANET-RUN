@@ -44,6 +44,12 @@ export function createInMemoryCoverageRepository(
     async getRunPlanStreets() {
       return { streets: { type: "FeatureCollection", features: [] }, targetMeters: 0, pathMeters: 0 };
     },
+    async sumActivityDistanceInArea() {
+      return 0;
+    },
+    async listSeasonCoveredMeters() {
+      return [];
+    },
   };
 
   return { coverage, matchCalls };

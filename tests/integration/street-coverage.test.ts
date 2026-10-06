@@ -207,6 +207,7 @@ describe("street coverage in PostGIS", () => {
       // Plans snap onto the street graph near the athlete (no long GPS→street diagonal).
       expect(coordinates[0]).toBeDefined();
       expect(Math.hypot(coordinates[0]![0]! - athlete.lng, coordinates[0]![1]! - athlete.lat)).toBeLessThan(0.002);
+      expect(plan.pathMeters).toBeGreaterThan(200);
       expect(plan.targetMeters).toBeGreaterThan(200);
     });
 

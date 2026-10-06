@@ -357,6 +357,26 @@ describe("buildRunPlanRoute", () => {
     expect(a.start).not.toEqual(b.start);
   });
 
+  it("orients an anchored seed toward unfinished continuation, not the cul-de-sac", () => {
+    // Athlete sits near the east tip of a short western stub; the long unfinished run is further east.
+    const stub = seg(
+      1,
+      [
+        [2.0, 48.0],
+        [2.001, 48.0],
+      ],
+      false,
+      80,
+    );
+    const east = chain(2, 12, false, 2.001, 100);
+    const route = buildRunPlanRoute([stub, ...east], {
+      budgetMeters: 1_000,
+      start: [2.0009, 48.0],
+    });
+    expect(route.pathMeters).toBeGreaterThanOrEqual(softBandMeters(1_000).minMeters);
+    expect(route.uncoveredMeters).toBeGreaterThan(700);
+  });
+
   it("starts an anchored route on streets when the athlete is near the graph", () => {
     const approach = chain(100, 3, true, 2.0, 100);
     const unfinished = chain(1, 10, false, 2.0 + 3 * 0.00135, 100);

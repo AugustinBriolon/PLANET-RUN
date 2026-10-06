@@ -595,13 +595,19 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   const anchor = options.start;
   const seed = anchor ? pickAnchoredSeed(uncovered, anchor, salt) : pickSeed(uncovered, metersByCell, salt);
 
-  // Free plans enter the seed from the end farther from the pocket centre; anchored plans from the end nearer the athlete.
-  const seedEnds = endsOf(seed);
-  const startAtFirst = anchor
-    ? distanceMeters(seedEnds.start, anchor) <= distanceMeters(seedEnds.end, anchor)
-    : distanceMeters(seedEnds.start, focus) >= distanceMeters(seedEnds.end, focus);
-  const seedCoords = startAtFirst ? seed.coordinates : [...seed.coordinates].reverse();
+  // Orient the seed so the exit faces the longer unfinished continuation (avoids walking into a cul-de-sac).
   const seedNodes = graph.segmentNodes.get(seed.id);
+  const seedUsed = new Set<number>([seed.id]);
+  const forwardUnlock = seedNodes == null ? 0 : unusedUncoveredLengthAt(graph, seedNodes.end, seedUsed);
+  const reverseUnlock = seedNodes == null ? 0 : unusedUncoveredLengthAt(graph, seedNodes.start, seedUsed);
+  let startAtFirst = forwardUnlock >= reverseUnlock;
+  if (forwardUnlock === reverseUnlock) {
+    const seedEnds = endsOf(seed);
+    startAtFirst = anchor
+      ? distanceMeters(seedEnds.start, anchor) <= distanceMeters(seedEnds.end, anchor)
+      : distanceMeters(seedEnds.start, focus) >= distanceMeters(seedEnds.end, focus);
+  }
+  const seedCoords = startAtFirst ? seed.coordinates : [...seed.coordinates].reverse();
   const entryNode = seedNodes == null ? 0 : startAtFirst ? seedNodes.start : seedNodes.end;
   const exitNode = seedNodes == null ? 0 : startAtFirst ? seedNodes.end : seedNodes.start;
 

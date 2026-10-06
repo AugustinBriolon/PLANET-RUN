@@ -20,9 +20,8 @@ const querySchema = z
   });
 
 /**
- * Build a continuous run route for one city: unfinished streets chained into one path,
- * filled to the requested distance with already-covered streets when needed. With a start
- * position, the route begins there — only when the athlete is close enough to the city.
+ * Build a continuous run route for one city: unfinished streets chained into one path.
+ * Distance is a soft preference (±15–20%); walkability beats matching the km exactly.
  */
 export async function GET(request: Request) {
   const userOrError = await requireMobileUser(request);
@@ -94,10 +93,12 @@ export async function GET(request: Request) {
         targetKm: Math.round((plan.targetMeters / 1000) * 10) / 10,
         pathMeters: Math.round(plan.pathMeters),
         pathKm: Math.round((plan.pathMeters / 1000) * 10) / 10,
+        jumpCount: plan.jumpCount,
+        jumpMeters: Math.round(plan.jumpMeters),
         estimatedShareGain,
         startsFromPosition: start != null,
         streets: plan.streets,
-        note: "Follow the gold route — unfinished streets first, filled to your distance with already-run streets where needed.",
+        note: "Follow the gold route on unfinished streets. Gray links are walkable connectors that do not add coverage. Distance is approximate.",
       },
     },
     { headers: { "Cache-Control": "no-store" } },

@@ -1,4 +1,4 @@
-/** Parameters of the street coverage model; rationale in docs/adr/0008. */
+/** Parameters of the street coverage model; rationale in docs/adr/0008 and 0012. */
 export type CoverageRules = {
   /** Streets are split into equal pieces no longer than this. */
   maxSegmentMeters: number;
@@ -16,7 +16,7 @@ export const COVERAGE_RULES: CoverageRules = {
   minCoveredShare: 0.85,
 };
 
-/** OpenStreetMap `highway` values counted as runnable public streets. */
+/** OpenStreetMap `highway` values counted toward city coverage %. */
 export const RUNNABLE_HIGHWAY_TYPES = [
   "primary",
   "secondary",
@@ -26,3 +26,18 @@ export const RUNNABLE_HIGHWAY_TYPES = [
   "living_street",
   "pedestrian",
 ] as const;
+
+/**
+ * Pedestrian links imported for navigation only — they bridge run plans without
+ * entering the coverage denominator or matching.
+ */
+export const NAVIGATION_CONNECTOR_HIGHWAY_TYPES = ["footway", "path", "steps"] as const;
+
+/** Highways fetched from Overpass for planning + coverage. */
+export const PLAN_HIGHWAY_TYPES = [...RUNNABLE_HIGHWAY_TYPES, ...NAVIGATION_CONNECTOR_HIGHWAY_TYPES] as const;
+
+const RUNNABLE_SET = new Set<string>(RUNNABLE_HIGHWAY_TYPES);
+
+export function countsForCoverage(highway: string): boolean {
+  return RUNNABLE_SET.has(highway);
+}

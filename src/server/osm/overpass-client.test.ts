@@ -55,7 +55,7 @@ describe("buildCityQuery", () => {
 
     expect(query).toContain("rel(id:91775)");
     expect(query).toContain(
-      '["highway"~"^(primary|secondary|tertiary|unclassified|residential|living_street|pedestrian)$"]',
+      '["highway"~"^(primary|secondary|tertiary|unclassified|residential|living_street|pedestrian|footway|path|steps)$"]',
     );
     expect(query).toContain('["access"!~"^(private|no)$"]');
   });
@@ -99,6 +99,7 @@ describe("createOverpassClient", () => {
           osmWayId: 12,
           name: "Rue Voltaire",
           highway: "residential",
+          countsForCoverage: true,
           coordinates: [
             [2.24, 48.905],
             [2.25, 48.906],
@@ -107,7 +108,7 @@ describe("createOverpassClient", () => {
       ],
     });
     const [, init] = fetchMock.mock.calls[0]!;
-    expect(init?.headers).toEqual({ "User-Agent": "Cityfil/0.1 (+https://planet-run.vercel.app)" });
+    expect(init?.headers).toEqual({ "User-Agent": "Cityfil/0.1 (+https://cityfil.run)" });
   });
 
   it("retries when the public instance is overloaded", async () => {

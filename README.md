@@ -25,7 +25,7 @@ coverage, and badges.
   view — true edge-to-edge under the notch/Dynamic Island only happens in that installed mode, not a browser tab.
 - Exposes a **mobile API** under `/api/mobile/*` (Strava OAuth callback → JWT, `GET /api/mobile/me` for cities /
   coverage) consumed by `cityfil-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
-  from a position, and `GET /api/mobile/cities/plan` builds a run route that prefers unfinished streets (dense remaining pockets, then hops to the next pocket) so the chosen distance maximises exploration %. Optionally starts from the runner's
+  from a position, and `GET /api/mobile/cities/plan` builds a walkable run route on OSM streets (plus pedestrian connectors that do not count toward %). Distance is a soft preference (~±15–20%); the planner grows forward only and does not draw aerial shortcuts through blocks. Optionally starts from the runner's
   position (`startLat`/`startLng`), only within 1 km of the city boundary.
 - City rivalries: `POST /api/mobile/cities/invite` mints a 14-day link, `POST /api/mobile/cities/invite/accept`
   pairs two runners on one city, `GET /api/mobile/cities/:areaId/board` returns rivals plus Founder / Conqueror /
@@ -47,8 +47,7 @@ coverage, and badges.
 **What it does not do (yet):**
 
 - Import full GPS streams or export GPX files — only Strava's simplified `summary_polyline` is stored.
-- Compute coverage above city level (department, region, country), sell re-link tokens, or connect
-  Garmin (shown as "coming soon").
+- Compute coverage above city level (department, region, country), or sell re-link tokens.
 - Generate in-app Story bitmaps; invite links unfurl a per-token Open Graph card instead.
 
 **Main dependencies:**
@@ -119,15 +118,15 @@ pnpm dev                     # http://localhost:3000
 
 Defined in [`.env.example`](.env.example), loaded from `.env.local`.
 
-| Variable                      | Description                                                     | Example / how to get it                                      |
-| ----------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------ |
-| `DATABASE_URL`                | Postgres connection string                                      | `postgres://planet_run:planet_run@localhost:5433/planet_run` |
-| `AUTH_SECRET`                 | Signs and encrypts the Auth.js session cookie                   | `openssl rand -base64 33`                                    |
-| `AUTH_URL`                    | Public origin of the app, production only                       | `https://planet-run.example`                                 |
-| `STRAVA_CLIENT_ID`            | Strava API application client ID                                | From the Strava API settings page                            |
-| `STRAVA_CLIENT_SECRET`        | Strava API application client secret                            | From the Strava API settings page                            |
-| `TOKEN_ENCRYPTION_KEY`        | 32-byte base64 key encrypting Strava tokens at rest             | `openssl rand -base64 32`                                    |
-| `STRAVA_WEBHOOK_VERIFY_TOKEN` | Shared secret echoed by Strava when validating the subscription | `openssl rand -hex 24`                                       |
+| Variable                      | Description                                                     | Example / how to get it                             |
+| ----------------------------- | --------------------------------------------------------------- | --------------------------------------------------- |
+| `DATABASE_URL`                | Postgres connection string                                      | `postgres://cityfil:cityfil@localhost:5433/cityfil` |
+| `AUTH_SECRET`                 | Signs and encrypts the Auth.js session cookie                   | `openssl rand -base64 33`                           |
+| `AUTH_URL`                    | Public origin of the app, production only                       | `https://cityfil.run`                               |
+| `STRAVA_CLIENT_ID`            | Strava API application client ID                                | From the Strava API settings page                   |
+| `STRAVA_CLIENT_SECRET`        | Strava API application client secret                            | From the Strava API settings page                   |
+| `TOKEN_ENCRYPTION_KEY`        | 32-byte base64 key encrypting Strava tokens at rest             | `openssl rand -base64 32`                           |
+| `STRAVA_WEBHOOK_VERIFY_TOKEN` | Shared secret echoed by Strava when validating the subscription | `openssl rand -hex 24`                              |
 
 ### Strava webhooks (optional locally)
 
@@ -180,7 +179,7 @@ See [ADR 0008](docs/adr/0008-street-coverage-from-osm-with-postgis.md) for match
 | Type        | Command                 | Notes                                                                                                  |
 | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
 | Unit        | `pnpm test`             | Vitest + Testing Library (jsdom); services run against in-memory fakes                                 |
-| Integration | `pnpm test:integration` | Repositories against the `planet_run_test` database (PostGIS); requires `pnpm db:up`                   |
+| Integration | `pnpm test:integration` | Repositories against the `cityfil_test` database (PostGIS); requires `pnpm db:up`                      |
 | E2E         | `pnpm test:e2e`         | Playwright on a production build served on port 3100; run `pnpm exec playwright install chromium` once |
 
 Run a single unit test file with `pnpm test src/lib/format.test.ts` (add `-t "<name>"` to filter).
@@ -207,7 +206,7 @@ Conventions:
 
 ## Deployment
 
-Production runs on Vercel: <https://cityfil.app>, with a Neon Postgres database. Pushes to `main` deploy to
+Production runs on Vercel: <https://cityfil.run>, with a Neon Postgres database. Pushes to `main` deploy to
 production; other branches get preview deployments.
 
 [GitHub Actions](.github/workflows/ci.yml) runs lint, type-check, format, unit, integration (PostGIS service
@@ -230,8 +229,8 @@ First-time setup of an environment:
    DATABASE_URL="<direct, non-pooled connection string>" pnpm exec tsx scripts/migrate.ts
    ```
 
-4. Set the Strava application's **Authorization Callback Domain** to the production host (`planet-run.vercel.app`).
-5. Register the webhook once: `pnpm strava:webhook:subscribe https://cityfil.app/api/webhooks/strava`
+4. Set the Strava application's **Authorization Callback Domain** to the production host (`cityfil.run`).
+5. Register the webhook once: `pnpm strava:webhook:subscribe https://cityfil.run/api/webhooks/strava`
    (run with the production `STRAVA_WEBHOOK_VERIFY_TOKEN`).
 6. Seed city boundaries / priority streets against production (polite Overpass; can take a while):
 

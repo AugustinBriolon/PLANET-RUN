@@ -36,15 +36,17 @@ export type CoverageRepository = {
     areaId: number,
     budgetMeters: number,
     options?: RunPlanRequestOptions,
-  ) => Promise<{ streets: CoveredStreets; targetMeters: number; pathMeters: number }>;
+  ) => Promise<{
+    streets: CoveredStreets;
+    targetMeters: number;
+    pathMeters: number;
+    jumpCount: number;
+    jumpMeters: number;
+  }>;
   /** GPS distance of every run that touched at least one street in the city. */
   sumActivityDistanceInArea: (userId: string, areaId: number) => Promise<number>;
   /** Unique street metres matched by each runner in the city during [from, to). */
-  listSeasonCoveredMeters: (
-    areaId: number,
-    from: Date,
-    to: Date,
-  ) => Promise<{ userId: string; meters: number }[]>;
+  listSeasonCoveredMeters: (areaId: number, from: Date, to: Date) => Promise<{ userId: string; meters: number }[]>;
 };
 
 export type RunPlanRequestOptions = { salt?: number; start?: LngLat };
@@ -89,7 +91,8 @@ export function createCoverageRepository(
           SELECT corridor.activity_id, segment.id
           FROM corridor
           JOIN street_segments AS segment ON segment.path && corridor.area AND ST_Intersects(segment.path, corridor.area)
-          WHERE ST_Length(ST_Intersection(segment.path, corridor.area)::geography)
+          WHERE segment.counts_for_coverage
+            AND ST_Length(ST_Intersection(segment.path, corridor.area)::geography)
                 >= ${rules.minCoveredShare} * segment.length_meters
         `);
         await transaction.execute(
@@ -118,7 +121,8 @@ export function createCoverageRepository(
         WITH covered AS (
           SELECT segment.area_id, sum(segment.length_meters)::float8 AS covered_meters
           FROM street_segments AS segment
-          WHERE segment.id IN (${segmentsCoveredBy(userId)})
+          WHERE segment.counts_for_coverage
+            AND segment.id IN (${segmentsCoveredBy(userId)})
           GROUP BY segment.area_id
         )
         SELECT user_cities.osm_relation_id AS area_id,
@@ -161,7 +165,8 @@ export function createCoverageRepository(
       const rows = await database.execute<{ area_id: string; geometry: string }>(sql`
         SELECT segment.area_id, ST_AsGeoJSON(ST_LineMerge(ST_Collect(segment.path)), 6) AS geometry
         FROM street_segments AS segment
-        WHERE segment.id IN (${segmentsCoveredBy(userId)})
+        WHERE segment.counts_for_coverage
+          AND segment.id IN (${segmentsCoveredBy(userId)})
         GROUP BY segment.area_id
       `);
       return {
@@ -181,6 +186,7 @@ export function createCoverageRepository(
           SELECT ST_Centroid(ST_Collect(segment.path)) AS pt
           FROM street_segments AS segment
           WHERE segment.area_id = ${areaId}
+            AND segment.counts_for_coverage
             AND segment.id NOT IN (${segmentsCoveredBy(userId)})
         ) AS focus
         WHERE focus.pt IS NOT NULL
@@ -214,6 +220,7 @@ export function createCoverageRepository(
         SELECT ST_AsGeoJSON(ST_LineMerge(ST_Collect(segment.path)), 6) AS geometry
         FROM street_segments AS segment
         WHERE segment.area_id = ${areaId}
+          AND segment.counts_for_coverage
           AND segment.id NOT IN (${segmentsCoveredBy(userId)})
       `);
       const geometry = rows[0]?.geometry;
@@ -259,11 +266,13 @@ export function createCoverageRepository(
         geometry: string;
         length_meters: number;
         covered: boolean;
+        counts_for_coverage: boolean;
       }>(sql`
         WITH uncovered AS (
           SELECT segment.id, segment.path
           FROM street_segments AS segment
           WHERE segment.area_id = ${areaId}
+            AND segment.counts_for_coverage
             AND segment.id NOT IN (${segmentsCoveredBy(userId)})
         ),
         pocket AS (
@@ -277,7 +286,8 @@ export function createCoverageRepository(
           segment.id::int AS id,
           ST_AsGeoJSON(segment.path, 6) AS geometry,
           segment.length_meters::float8 AS length_meters,
-          (NOT EXISTS (SELECT 1 FROM uncovered WHERE uncovered.id = segment.id)) AS covered
+          (NOT EXISTS (SELECT 1 FROM uncovered WHERE uncovered.id = segment.id)) AS covered,
+          segment.counts_for_coverage AS counts_for_coverage
         FROM street_segments AS segment
         CROSS JOIN pocket
         WHERE segment.area_id = ${areaId}
@@ -294,6 +304,7 @@ export function createCoverageRepository(
             coordinates: geometry.coordinates,
             lengthMeters: row.length_meters,
             covered: Boolean(row.covered),
+            countsForCoverage: Boolean(row.counts_for_coverage),
           },
         ];
       });
@@ -307,6 +318,8 @@ export function createCoverageRepository(
         streets: runPlanRouteToGeoJson(route, areaId) as CoveredStreets,
         targetMeters: route.uncoveredMeters,
         pathMeters: route.pathMeters,
+        jumpCount: route.jumpCount,
+        jumpMeters: route.jumpMeters,
       };
     },
 
@@ -334,6 +347,7 @@ export function createCoverageRepository(
         JOIN activity_street_segments AS covered ON covered.activity_id = activities.strava_activity_id
         JOIN street_segments AS segment ON segment.id = covered.segment_id
         WHERE segment.area_id = ${areaId}
+          AND segment.counts_for_coverage
           AND activities.start_date >= ${from}
           AND activities.start_date < ${to}
         GROUP BY activities.user_id

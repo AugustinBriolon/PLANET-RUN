@@ -8,6 +8,8 @@ export type AreaStreet = {
   osmWayId: number;
   name: string | null;
   highway: string;
+  /** False for pedestrian connectors that navigate but do not score. Defaults to true. */
+  countsForCoverage?: boolean;
   /** [longitude, latitude] positions. */
   coordinates: Position[];
 };
@@ -128,11 +130,12 @@ export function createAreaRepository(
           ),
           street AS (
             SELECT (item->>'osmWayId')::bigint AS osm_way_id, item->>'name' AS name, item->>'highway' AS highway,
+                   coalesce((item->>'countsForCoverage')::boolean, true) AS counts_for_coverage,
                    ST_SetSRID(ST_GeomFromGeoJSON(item->'path'), 4326) AS path
             FROM jsonb_array_elements(${streets}::jsonb) AS item
           ),
           clipped AS (
-            SELECT street.osm_way_id, street.name, street.highway,
+            SELECT street.osm_way_id, street.name, street.highway, street.counts_for_coverage,
                    (ST_Dump(ST_CollectionExtract(ST_Intersection(street.path, boundary.boundary), 2))).geom AS path
             FROM street, boundary
             WHERE ST_Intersects(street.path, boundary.boundary)
@@ -142,13 +145,13 @@ export function createAreaRepository(
             FROM clipped
           ),
           pieces AS (
-            SELECT measured.osm_way_id, measured.name, measured.highway,
+            SELECT measured.osm_way_id, measured.name, measured.highway, measured.counts_for_coverage,
                    ST_LineSubstring(path, piece::float8 / piece_count, (piece + 1)::float8 / piece_count) AS path
             FROM measured, generate_series(0, measured.piece_count - 1) AS piece
             WHERE measured.piece_count > 0
           )
-          INSERT INTO street_segments (area_id, osm_way_id, name, highway, path, length_meters)
-          SELECT ${area.osmRelationId}, osm_way_id, name, highway, path, ST_Length(path::geography)
+          INSERT INTO street_segments (area_id, osm_way_id, name, highway, path, length_meters, counts_for_coverage)
+          SELECT ${area.osmRelationId}, osm_way_id, name, highway, path, ST_Length(path::geography), counts_for_coverage
           FROM pieces
         `);
 
@@ -156,7 +159,8 @@ export function createAreaRepository(
           UPDATE areas
           SET street_length_meters = totals.street_length_meters
           FROM (
-            SELECT count(*)::int AS segment_count, coalesce(sum(length_meters), 0)::float8 AS street_length_meters
+            SELECT count(*)::int AS segment_count,
+                   coalesce(sum(length_meters) FILTER (WHERE counts_for_coverage), 0)::float8 AS street_length_meters
             FROM street_segments WHERE area_id = ${area.osmRelationId}
           ) AS totals
           WHERE osm_relation_id = ${area.osmRelationId}

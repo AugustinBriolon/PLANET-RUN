@@ -42,7 +42,13 @@ export function createInMemoryCoverageRepository(
       return new Map<number, number>();
     },
     async getRunPlanStreets() {
-      return { streets: { type: "FeatureCollection", features: [] }, targetMeters: 0, pathMeters: 0 };
+      return {
+        streets: { type: "FeatureCollection", features: [] },
+        targetMeters: 0,
+        pathMeters: 0,
+        jumpCount: 0,
+        jumpMeters: 0,
+      };
     },
     async sumActivityDistanceInArea() {
       return 0;

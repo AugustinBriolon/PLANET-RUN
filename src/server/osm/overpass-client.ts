@@ -1,12 +1,13 @@
 import { z } from "zod";
 
-import { RUNNABLE_HIGHWAY_TYPES } from "@/server/coverage/coverage-rules";
+import { countsForCoverage, PLAN_HIGHWAY_TYPES } from "@/server/coverage/coverage-rules";
 import type { AreaImport } from "@/server/repositories/area-repository";
 import type { CatalogCityBoundary } from "@/server/repositories/city-catalog-repository";
 
-const DEFAULT_ENDPOINT = "https://overpass-api.de/api/interpreter";
+const DEFAULT_ENDPOINT =
+  process.env.OVERPASS_URL?.trim() || "https://overpass-api.de/api/interpreter";
 // Overpass usage policy asks clients to identify themselves.
-const USER_AGENT = "Cityfil/0.1 (+https://planet-run.vercel.app)";
+const USER_AGENT = "Cityfil/0.1 (+https://cityfil.run)";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 20_000;
@@ -79,7 +80,7 @@ type OverpassClientConfig = {
 };
 
 export function buildCityQuery(osmRelationId: number): string {
-  const highways = RUNNABLE_HIGHWAY_TYPES.join("|");
+  const highways = PLAN_HIGHWAY_TYPES.join("|");
   return `[out:json][timeout:120];
 rel(id:${osmRelationId})->.city;
 .city out geom;
@@ -149,6 +150,7 @@ function toAreaImport(osmRelationId: number, response: z.infer<typeof cityFetchR
               osmWayId: element.id,
               name: element.tags.name ?? null,
               highway: element.tags.highway ?? "unknown",
+              countsForCoverage: countsForCoverage(element.tags.highway ?? "unknown"),
               coordinates: toPositions(element.geometry),
             },
           ]

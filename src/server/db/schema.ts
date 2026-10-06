@@ -112,7 +112,7 @@ export const cityCatalog = pgTable(
   (table) => [index().using("gist", table.boundary)],
 );
 
-/** Runnable street pieces of equal length, clipped to the area they belong to. */
+/** Street pieces of equal length, clipped to the area they belong to. */
 export const streetSegments = pgTable(
   "street_segments",
   {
@@ -125,6 +125,8 @@ export const streetSegments = pgTable(
     highway: text().notNull(),
     path: geometry({ type: "LineString" }).notNull(),
     lengthMeters: doublePrecision().notNull(),
+    /** False for pedestrian connectors used only to navigate run plans. */
+    countsForCoverage: boolean("counts_for_coverage").notNull().default(true),
   },
   (table) => [index().using("gist", table.path), index().on(table.areaId)],
 );

@@ -2,11 +2,11 @@
 
 **Date:** 2026-09-16  
 **Status:** Approved — implementing  
-**Goal:** Clicking a city name in `CityCoverageList` flies the globe from the current camera to that city's full boundary, with motion that matches Planet Run's existing map language.
+**Goal:** Clicking a city name in `CityCoverageList` flies the globe from the current camera to that city's full boundary, with motion that matches Cityfil's existing map language.
 
 ## Context
 
-Planet Run already:
+Cityfil already:
 
 - Lists per-city street coverage in `CityCoverageList` (name + ember progress bar + mono %).
 - Stores each city's `areas.boundary` (PostGIS `MultiPolygon`) keyed by `osm_relation_id`.

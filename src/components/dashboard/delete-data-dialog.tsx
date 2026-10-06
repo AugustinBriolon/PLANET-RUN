@@ -35,9 +35,9 @@ export function DeleteDataDialog({ open, onOpenChange, deleteAction }: DeleteDat
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete all your Planet Run data?</AlertDialogTitle>
+          <AlertDialogTitle>Delete all your Cityfil data?</AlertDialogTitle>
           <AlertDialogDescription>
-            Your imported runs and profile are permanently erased and Planet Run loses access to your Strava account.
+            Your imported runs and profile are permanently erased and Cityfil loses access to your Strava account.
             Your activities on Strava are not affected. This cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>

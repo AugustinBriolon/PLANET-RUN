@@ -33,9 +33,9 @@ export default function OpengraphImage() {
           />
           <circle cx="27.7" cy="10.9" r="2.3" fill="#ff8a4c" />
         </svg>
-        <div style={{ fontSize: 96, fontWeight: 600, color: "#f5f3ee", letterSpacing: -2 }}>Planet Run</div>
+        <div style={{ fontSize: 96, fontWeight: 600, color: "#f5f3ee", letterSpacing: -2 }}>Cityfil</div>
       </div>
-      <div style={{ fontSize: 34, color: "#a9a6ad", letterSpacing: 2 }}>Every run, one planet</div>
+      <div style={{ fontSize: 34, color: "#a9a6ad", letterSpacing: 2 }}>Every street, filled in</div>
     </div>,
     { ...size },
   );

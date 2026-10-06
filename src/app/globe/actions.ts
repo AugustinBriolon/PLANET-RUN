@@ -45,7 +45,7 @@ export async function reconnectStrava() {
   await signIn("strava", { redirectTo: "/globe" }, { approval_prompt: "force" });
 }
 
-export async function signOutFromPlanetRun() {
+export async function signOutFromCityfil() {
   await signOut({ redirectTo: "/login" });
 }
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PlanetRunLogo } from "@/components/brand/planet-run-logo";
+import { CityfilLogo } from "@/components/brand/cityfil-logo";
 import { formatPercent } from "@/lib/format";
 import {
   inviteShareDescription,
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const preview = await loadInvitePreview(token);
   if (!preview) {
     return {
-      title: "Invite expired — Planet Run",
+      title: "Invite expired — Cityfil",
       description: "Ask your rival for a new 14-day link.",
       robots: { index: false, follow: false },
     };
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     robots: { index: false, follow: false },
-    openGraph: { title, description, siteName: "Planet Run", type: "website" },
+    openGraph: { title, description, siteName: "Cityfil", type: "website" },
     twitter: { card: "summary_large_image", title, description },
   };
 }
@@ -37,11 +37,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function InviteLandingPage({ params }: PageProps) {
   const { token } = await params;
   const preview = await loadInvitePreview(token);
-  const appUrl = `planetrun://invite/${token}`;
+  const appUrl = `cityfil://invite/${token}`;
 
   return (
     <main className="starfield relative flex min-h-dvh flex-col items-center justify-center px-6">
-      <PlanetRunLogo className="absolute top-6 left-6 text-base" />
+      <CityfilLogo className="absolute top-6 left-6 text-base" />
       <section className="glass-panel flex w-full max-w-md flex-col gap-5 rounded-xl p-8">
         <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">City rivalry</p>
         {preview ? (
@@ -66,14 +66,14 @@ export default async function InviteLandingPage({ params }: PageProps) {
               ))}
             </ul>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Open Planet Run to compare your streets on this city. New here? Install the app, sign in with Strava,
+              Open Cityfil to compare your streets on this city. New here? Install the app, sign in with Strava,
               then tap the invite again.
             </p>
             <a
               href={appUrl}
               className="flex min-h-12 items-center justify-center rounded-lg bg-ember text-sm font-semibold text-ember-foreground"
             >
-              Open in Planet Run
+              Open in Cityfil
             </a>
           </>
         ) : (

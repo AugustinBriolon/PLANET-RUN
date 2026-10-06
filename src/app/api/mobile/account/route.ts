@@ -4,7 +4,7 @@ import { isNextResponse, requireMobileUser } from "@/server/mobile/request-auth"
 import { getServices } from "@/server/services";
 
 /**
- * Permanently delete the signed-in athlete: revoke Strava, then wipe Planet Run data.
+ * Permanently delete the signed-in athlete: revoke Strava, then wipe Cityfil data.
  * Mirrors the web `deleteMyData` server action for the Expo client.
  */
 export async function DELETE(request: Request) {

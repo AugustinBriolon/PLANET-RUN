@@ -14,7 +14,7 @@ export function toSyncFailure(error: unknown): RunSyncFailure {
     if (error.isApplicationInactive) {
       return {
         reason: "strava-unavailable",
-        message: "Strava has paused Planet Run's access to activity data. Please try again later.",
+        message: "Strava has paused Cityfil's access to activity data. Please try again later.",
       };
     }
     if (error.isMissingPermission) {

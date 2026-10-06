@@ -89,7 +89,7 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Planet Run is a night-side view of the Earth: one dark theme, ember accents. */
+/* Cityfil is a night-side view of the Earth: one dark theme, ember accents. */
 .dark {
   --background: oklch(0.14 0.015 265);
   --foreground: oklch(0.97 0.005 80);

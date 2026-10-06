@@ -8,10 +8,10 @@ import { toRunSummary } from "@/server/runs/to-run-summary";
 import { getServices } from "@/server/services";
 import { requireCurrentUser } from "@/server/session";
 
-import { deleteMyData, reconnectStrava, signOutFromPlanetRun, syncRuns } from "./actions";
+import { deleteMyData, reconnectStrava, signOutFromCityfil, syncRuns } from "./actions";
 
 export const metadata: Metadata = {
-  title: "Your planet · Planet Run",
+  title: "Your cities · Cityfil",
 };
 
 export default async function GlobePage() {
@@ -39,7 +39,7 @@ export default async function GlobePage() {
       hasNeverSynced={!stravaAccount?.lastSyncedAt}
       syncAction={syncRuns}
       reconnectAction={reconnectStrava}
-      signOutAction={signOutFromPlanetRun}
+      signOutAction={signOutFromCityfil}
       deleteDataAction={deleteMyData}
     />
   );

@@ -1,10 +1,10 @@
 import { SignJWT, jwtVerify } from "jose";
 
-const MOBILE_TOKEN_TYP = "planet-run-mobile";
+const MOBILE_TOKEN_TYP = "cityfil-mobile";
 const MOBILE_TOKEN_TTL = "30d";
 
 export type MobileSessionClaims = {
-  /** Internal Planet Run user id. */
+  /** Internal Cityfil user id. */
   sub: string;
 };
 
@@ -38,7 +38,7 @@ export async function verifyMobileSessionToken(
 
 /** Short-lived CSRF state for the Strava → mobile OAuth round-trip. */
 export async function signMobileOAuthState(authSecret: string, nonce: string): Promise<string> {
-  return new SignJWT({ typ: "planet-run-mobile-oauth", nonce })
+  return new SignJWT({ typ: "cityfil-mobile-oauth", nonce })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("10m")
@@ -48,7 +48,7 @@ export async function signMobileOAuthState(authSecret: string, nonce: string): P
 export async function verifyMobileOAuthState(state: string, authSecret: string): Promise<boolean> {
   try {
     const { payload } = await jwtVerify(state, secretKey(authSecret), { algorithms: ["HS256"] });
-    return payload.typ === "planet-run-mobile-oauth" && typeof payload.nonce === "string";
+    return payload.typ === "cityfil-mobile-oauth" && typeof payload.nonce === "string";
   } catch {
     return false;
   }

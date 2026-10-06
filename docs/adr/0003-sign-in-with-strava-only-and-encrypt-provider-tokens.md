@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Planet Run has no use for its own credentials: all value comes from the runner's Strava history. The product
+Cityfil has no use for its own credentials: all value comes from the runner's Strava history. The product
 vision states that users should not create an account, and that one Strava account is bound to exactly one
 internal identity (later, re-linking another Strava account will require purchasing a token).
 

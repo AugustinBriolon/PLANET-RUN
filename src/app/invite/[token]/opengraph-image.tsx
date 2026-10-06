@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Planet Run city rivalry invite";
+export const alt = "Cityfil city rivalry invite";
 
 type ImageProps = { params: Promise<{ token: string }> };
 
@@ -130,7 +130,7 @@ function Brand() {
         />
         <circle cx="27.7" cy="10.9" r="2.3" fill="#ff8a4c" />
       </svg>
-      <div style={{ fontSize: 36, fontWeight: 600, color: "#f5f3ee" }}>Planet Run</div>
+      <div style={{ fontSize: 36, fontWeight: 600, color: "#f5f3ee" }}>Cityfil</div>
     </div>
   );
 }

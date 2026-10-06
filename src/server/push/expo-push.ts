@@ -10,7 +10,7 @@ export function analysisCompletePayload(token: string): AnalysisCompletePush {
   return {
     to: token,
     title: "Your streets are ready",
-    body: "All your runs are mapped. Open Planet Run to see your coverage.",
+    body: "All your runs are mapped. Open Cityfil to see your coverage.",
   };
 }
 

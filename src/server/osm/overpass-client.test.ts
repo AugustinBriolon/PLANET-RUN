@@ -107,7 +107,7 @@ describe("createOverpassClient", () => {
       ],
     });
     const [, init] = fetchMock.mock.calls[0]!;
-    expect(init?.headers).toEqual({ "User-Agent": "PlanetRun/0.1 (+https://planet-run.vercel.app)" });
+    expect(init?.headers).toEqual({ "User-Agent": "Cityfil/0.1 (+https://planet-run.vercel.app)" });
   });
 
   it("retries when the public instance is overloaded", async () => {

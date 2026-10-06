@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const DEFAULT_ENDPOINT = "https://nominatim.openstreetmap.org";
-const USER_AGENT = "PlanetRun/0.1 (+https://planet-run.vercel.app)";
+const USER_AGENT = "Cityfil/0.1 (+https://planet-run.vercel.app)";
 // Nominatim usage policy: max 1 request/second.
 const RATE_LIMIT_DELAY_MS = 1100;
 

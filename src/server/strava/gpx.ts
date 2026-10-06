@@ -33,7 +33,7 @@ export function buildRunGpx({ name, segments }: RecordedRun): string {
 
   return (
     `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<gpx version="1.1" creator="Planet Run" xmlns="http://www.topografix.com/GPX/1/1">` +
+    `<gpx version="1.1" creator="Cityfil" xmlns="http://www.topografix.com/GPX/1/1">` +
     metadata +
     `<trk><name>${escapeXml(name)}</name><type>running</type>${tracks}</trk>` +
     `</gpx>`

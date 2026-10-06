@@ -30,7 +30,7 @@ describe("SettingsMenu", () => {
     await userEvent.click(screen.getByRole("button", { name: "Settings" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Delete my data" }));
 
-    expect(await screen.findByRole("alertdialog", { name: "Delete all your Planet Run data?" })).toBeInTheDocument();
+    expect(await screen.findByRole("alertdialog", { name: "Delete all your Cityfil data?" })).toBeInTheDocument();
     expect(deleteDataAction).not.toHaveBeenCalled();
   });
 });

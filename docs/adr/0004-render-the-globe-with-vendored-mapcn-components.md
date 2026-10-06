@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-The core screen of Planet Run is a 3D globe showing every run trace. The UI is built with shadcn/ui and Tailwind,
+The core screen of Cityfil is a 3D globe showing every run trace. The UI is built with shadcn/ui and Tailwind,
 and the product owner wants a modern, polished look with micro-animations. The initial plan was raw MapLibre GL
 with MapTiler vector tiles, which requires an API key and hand-written React bindings. The product owner then
 asked to use mapcn, a shadcn registry of map components built on MapLibre GL.
@@ -18,7 +18,7 @@ asked to use mapcn, a shadcn registry of map components built on MapLibre GL.
 We will use mapcn's `map` component, installed with `shadcn add @mapcn/map` into `src/components/ui/map.tsx`,
 with MapLibre GL 6 in `globe` projection and CARTO Dark Matter basemap tiles.
 
-- Planet Run-specific layers (`RunTracesLayer`, `GlobeAutoRotate`, `FlyToBounds`, `FitGlobeToContainer`) are
+- Cityfil-specific layers (`RunTracesLayer`, `GlobeAutoRotate`, `FlyToBounds`, `FitGlobeToContainer`) are
   separate components composed as children of `<Map>` through mapcn's `useMap` hook, so the vendored file stays
   untouched and can be refreshed from the registry.
 - Map colors are hex constants in `globe-palette.ts` because WebGL paint properties cannot read CSS variables.

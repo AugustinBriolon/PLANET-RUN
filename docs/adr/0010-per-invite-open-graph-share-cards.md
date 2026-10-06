@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-City rivalry invites were a 14-day HTTPS URL. Messaging apps showed the generic Planet Run home card, so a
+City rivalry invites were a 14-day HTTPS URL. Messaging apps showed the generic Cityfil home card, so a
 colleague on Slack or iMessage could not see which city, how far the inviter had got, or which titles were still
 open. Generating a PNG inside the mobile app would add native modules and a second source of truth.
 
@@ -40,7 +40,7 @@ message) so iMessage, WhatsApp and Slack unfurl the card. Invite pages stay `noi
 - Apps that ignore Open Graph still see only the text URL.
 
 ### Neutral
-- The root `/opengraph-image` stays the generic Planet Run mark for other pages.
+- The root `/opengraph-image` stays the generic Cityfil mark for other pages.
 
 ## References
 - `src/app/invite/[token]/opengraph-image.tsx`, `src/lib/conquest/invite-share-card.ts`

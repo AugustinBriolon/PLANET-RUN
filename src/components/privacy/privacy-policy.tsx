@@ -27,7 +27,7 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
         <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">Last updated {PRIVACY_LAST_UPDATED}</p>
         {!compact && <h1 className="text-4xl font-semibold tracking-tight">Privacy</h1>}
         <p className={`text-muted-foreground ${compact ? "text-sm leading-relaxed" : "text-base leading-relaxed"}`}>
-          Your runs reveal where you live and train. Planet Run keeps only what it needs to draw them on your globe,
+          Your runs reveal where you live and train. Cityfil keeps only what it needs to draw them on your globe,
           shows them to nobody but you, and lets you erase everything in one click.
         </p>
       </div>
@@ -39,7 +39,7 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
             For your outdoor runs and trail runs only: name, start date, distance, moving time, elevation gain and the
             simplified route Strava provides.
           </li>
-          <li>The access tokens Strava issues to Planet Run, encrypted with AES-256-GCM.</li>
+          <li>The access tokens Strava issues to Cityfil, encrypted with AES-256-GCM.</li>
         </ul>
         <p>
           We do not collect your email, password, heart rate, photos, private notes or any other activity type. Planet
@@ -56,7 +56,7 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
 
       <PolicySection title="Who processes it" compact={compact}>
         <p>
-          Planet Run is hosted on Vercel and stores data in a managed PostgreSQL database run by Neon. Countries are
+          Cityfil is hosted on Vercel and stores data in a managed PostgreSQL database run by Neon. Countries are
           computed on our servers without calling any external service. To detect which cities you have run in, we
           reverse-geocode a small number of run start points through OpenStreetMap Nominatim; those requests contain
           approximate coordinates, not your full routes. Street geometry for coverage comes from the OpenStreetMap
@@ -67,7 +67,7 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
 
       <PolicySection title="How long we keep it" compact={compact}>
         <p>
-          Until you delete it. If you revoke Planet Run from your Strava settings, Strava notifies us and your data is
+          Until you delete it. If you revoke Cityfil from your Strava settings, Strava notifies us and your data is
           deleted automatically.
         </p>
       </PolicySection>
@@ -75,7 +75,7 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
       <PolicySection title="Deleting your data" compact={compact}>
         <p>
           Open the settings icon on your globe and choose <span className="text-foreground">Delete my data</span>. Your
-          profile, runs and tokens are permanently erased and Planet Run&apos;s access to Strava is revoked. You can
+          profile, runs and tokens are permanently erased and Cityfil&apos;s access to Strava is revoked. You can
           also revoke access at any time from{" "}
           <a href="https://www.strava.com/settings/apps" className={INLINE_LINK_CLASS}>
             strava.com/settings/apps

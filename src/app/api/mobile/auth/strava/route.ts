@@ -6,7 +6,7 @@ import { publicApiOrigin } from "@/server/mobile/request-auth";
 import { signMobileOAuthState } from "@/server/mobile/session-token";
 import { completeMobileStravaSignIn } from "@/server/mobile/strava-sign-in";
 
-// `activity:write` lets the app send runs recorded in Planet Run to Strava.
+// `activity:write` lets the app send runs recorded in Cityfil to Strava.
 const MOBILE_STRAVA_SCOPE = "read,activity:read_all,activity:write";
 
 /**

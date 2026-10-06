@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Planet Run imports a runner's Strava history, renders it on a 3D globe, and will later compute street coverage
+Cityfil imports a runner's Strava history, renders it on a 3D globe, and will later compute street coverage
 percentages per city, department, region and country. The first milestone (sign in with Strava, import runs,
 show them on the globe) is built by a single developer, so operational simplicity matters more than independent
 scaling. The coverage roadmap, however, requires geospatial queries (OpenStreetMap road networks, administrative
@@ -19,7 +19,7 @@ variant.
 
 ## Decision
 
-We will build Planet Run as a single Next.js 16 (App Router, TypeScript) application that serves both the UI and
+We will build Cityfil as a single Next.js 16 (App Router, TypeScript) application that serves both the UI and
 the server-side logic, backed by PostgreSQL 17 with PostGIS 3.5 accessed through Drizzle ORM.
 
 Server code is layered and wired in one place:

@@ -10,7 +10,7 @@ import { GlobeAutoRotate } from "@/components/globe/globe-auto-rotate";
 import { RunGlobe } from "@/components/globe/run-globe";
 import { RunHeatmapLayer } from "@/components/globe/run-heatmap-layer";
 import { RunTracesLayer } from "@/components/globe/run-traces-layer";
-import { PlanetRunLogo } from "@/components/brand/planet-run-logo";
+import { CityfilLogo } from "@/components/brand/cityfil-logo";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRunSync } from "@/hooks/use-run-sync";
 import { getCoveredStreetsBounds, type CityCoverage, type CoveredStreets } from "@/lib/coverage/street-coverage";
@@ -149,7 +149,7 @@ export function GlobeDashboard({
       </RunGlobe>
 
       <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top,0px))] sm:pb-6">
-        <PlanetRunLogo className="pointer-events-auto text-base" />
+        <CityfilLogo className="pointer-events-auto text-base" />
         <div className="pointer-events-auto flex items-center gap-2">
           {hasRuns && <HeatmapToggle active={showHeatmap} onToggle={toggleHeatmap} />}
           <SyncButton isSyncing={status === "syncing"} onSync={sync} />

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Planet Run",
-    short_name: "Planet Run",
+    name: "Cityfil",
+    short_name: "Cityfil",
     description: "Every place you've ever run, on one interactive globe.",
     start_url: "/",
     display: "standalone",

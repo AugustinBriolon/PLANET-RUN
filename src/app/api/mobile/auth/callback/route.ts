@@ -7,7 +7,7 @@ import { completeMobileStravaSignIn } from "@/server/mobile/strava-sign-in";
 
 /**
  * Strava redirects here after consent. We exchange the code, mint a mobile JWT,
- * then bounce into the app via `planetrun://oauth?token=…` for AuthSession to capture.
+ * then bounce into the app via `cityfil://oauth?token=…` for AuthSession to capture.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);

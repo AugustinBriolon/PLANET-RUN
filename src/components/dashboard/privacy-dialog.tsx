@@ -31,7 +31,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
             Privacy
           </DialogTitle>
           <DialogDescription className="sr-only">
-            What Planet Run stores about you, why, and how to delete it.
+            What Cityfil stores about you, why, and how to delete it.
           </DialogDescription>
         </DialogHeader>
         <div ref={scrollRef} className="overflow-y-auto px-4 py-4">

@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 
-export type PlanetRunLogoProps = {
+export type CityfilLogoProps = {
   className?: string;
 };
 
-export function PlanetRunLogo({ className }: PlanetRunLogoProps) {
+export function CityfilLogo({ className }: CityfilLogoProps) {
   return (
     <span className={cn("inline-flex items-center gap-2.5 font-semibold tracking-tight", className)}>
       <svg viewBox="0 0 32 32" aria-hidden="true" className="size-7">
@@ -20,7 +20,7 @@ export function PlanetRunLogo({ className }: PlanetRunLogoProps) {
         />
         <circle cx="28.4" cy="10.6" r="2.2" className="fill-ember" />
       </svg>
-      <span>Planet Run</span>
+      <span>Cityfil</span>
     </span>
   );
 }

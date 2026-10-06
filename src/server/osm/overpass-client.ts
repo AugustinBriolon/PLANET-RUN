@@ -6,7 +6,7 @@ import type { CatalogCityBoundary } from "@/server/repositories/city-catalog-rep
 
 const DEFAULT_ENDPOINT = "https://overpass-api.de/api/interpreter";
 // Overpass usage policy asks clients to identify themselves.
-const USER_AGENT = "PlanetRun/0.1 (+https://planet-run.vercel.app)";
+const USER_AGENT = "Cityfil/0.1 (+https://planet-run.vercel.app)";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 20_000;

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Planet Run imports a runner's Strava activities and draws every run on a 3D globe, and computes the percentage of
+Cityfil imports a runner's Strava activities and draws every run on a 3D globe, and computes the percentage of
 a city's streets covered from OpenStreetMap data (pilot: Colombes / La Garenne-Colombes, ADR 0008). Roadmap: full
 GPS streams, coverage above city level (department/region/country), badges, Garmin, and a paid token to re-link
 another Strava account. The Next.js version in use (16) has breaking changes: read the
@@ -97,7 +97,7 @@ worker at unpkg, which never fires `load` on iOS Safari over a LAN `http://` ori
 overrides it to a same-origin `/maplibre/maplibre-gl-worker.mjs` on import instead — kept there, not in map.tsx,
 so a refresh can't silently drop it. That file is copied from `node_modules/maplibre-gl/dist` by the
 `maplibre:workers` postinstall script and gitignored; run `pnpm maplibre:workers` if `public/maplibre/` is
-missing (e.g. after `.gitignore` was pulled without a fresh `pnpm install`). Planet Run behaviors are
+missing (e.g. after `.gitignore` was pulled without a fresh `pnpm install`). Cityfil behaviors are
 separate children of `<Map>` using `useMap()` (`RunTracesLayer`, `CoveredStreetsLayer`, `GlobeAutoRotate`,
 `FlyToBounds`, `FitGlobeToContainer` in `src/components/globe/`). `CoveredStreetsLayer` only draws above zoom
 12 to stay legible; the interactive globe carries OpenStreetMap attribution alongside CARTO's. WebGL colors live in `globe-palette.ts` as hex, kept in sync

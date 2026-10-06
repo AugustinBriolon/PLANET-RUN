@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Planet Run's core roadmap feature is the percentage of a city's streets a runner has covered. This requires a
+Cityfil's core roadmap feature is the percentage of a city's streets a runner has covered. This requires a
 source of street geometry and a rule for deciding when a run "covers" a street. The product owner picked
 Colombes and La Garenne-Colombes as a pilot, and validated it with real data before committing:
 

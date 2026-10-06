@@ -10,7 +10,7 @@ export type RunUploadState =
   | { status: "ready"; uploadId: number; activityId: number }
   | { status: "failed"; uploadId: number; reason: string };
 
-/** The athlete signed in before Planet Run asked for `activity:write`: they must reconnect Strava. */
+/** The athlete signed in before Cityfil asked for `activity:write`: they must reconnect Strava. */
 export class StravaWritePermissionError extends Error {
   constructor() {
     super("Strava write permission missing");

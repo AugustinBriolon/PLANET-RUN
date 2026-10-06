@@ -4,7 +4,7 @@ test.describe("sign-in", () => {
   test("presents the globe and Strava as the way in", async ({ page }) => {
     await page.goto("/login");
 
-    await expect(page).toHaveTitle("Sign in · Planet Run");
+    await expect(page).toHaveTitle("Sign in · Cityfil");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("See every place you've ever run.");
     await expect(page.getByRole("region", { name: "Planet preview" }).locator("canvas")).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect with Strava" })).toBeEnabled();

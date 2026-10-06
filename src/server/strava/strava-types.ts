@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Subset of Strava's SummaryActivity used by Planet Run. */
+/** Subset of Strava's SummaryActivity used by Cityfil. */
 export const stravaActivitySchema = z.object({
   id: z.number(),
   athlete: z.object({ id: z.number() }),

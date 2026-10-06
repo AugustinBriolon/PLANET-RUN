@@ -1,12 +1,12 @@
-# Planet Run
+# Cityfil
 
-Planet Run connects to a runner's Strava account, imports every outdoor run and draws them on an interactive 3D
+Cityfil connects to a runner's Strava account, imports every outdoor run and draws them on an interactive 3D
 globe, so you can see every place in the world you have ever run. It also tracks the percentage of a city's
 streets covered, starting with a Colombes / La Garenne-Colombes pilot. Next up: department, region and country
 coverage, and badges.
 
-> **Repo layout:** this package is `planet-run-web` (Next.js + Neon). The Expo client lives in the sibling
-> folder `../planet-run-app` and is a **separate** git repository — do not nest mobile code here.
+> **Repo layout:** this package is `cityfil-web` (Next.js + Neon). The Expo client lives in the sibling
+> folder `../cityfil-app` and is a **separate** git repository — do not nest mobile code here.
 
 ## Scope and responsibilities
 
@@ -24,7 +24,7 @@ coverage, and badges.
 - Installs from Safari/Chrome as a home-screen app (`src/app/manifest.ts`) for a full-bleed, browser-chrome-free
   view — true edge-to-edge under the notch/Dynamic Island only happens in that installed mode, not a browser tab.
 - Exposes a **mobile API** under `/api/mobile/*` (Strava OAuth callback → JWT, `GET /api/mobile/me` for cities /
-  coverage) consumed by `planet-run-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
+  coverage) consumed by `cityfil-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
   from a position, and `GET /api/mobile/cities/plan` builds a run route that prefers unfinished streets (dense remaining pockets, then hops to the next pocket) so the chosen distance maximises exploration %. Optionally starts from the runner's
   position (`startLat`/`startLng`), only within 1 km of the city boundary.
 - City rivalries: `POST /api/mobile/cities/invite` mints a 14-day link, `POST /api/mobile/cities/invite/accept`
@@ -207,7 +207,7 @@ Conventions:
 
 ## Deployment
 
-Production runs on Vercel: <https://planet-run.vercel.app>, with a Neon Postgres database. Pushes to `main` deploy to
+Production runs on Vercel: <https://cityfil.app>, with a Neon Postgres database. Pushes to `main` deploy to
 production; other branches get preview deployments.
 
 [GitHub Actions](.github/workflows/ci.yml) runs lint, type-check, format, unit, integration (PostGIS service
@@ -231,7 +231,7 @@ First-time setup of an environment:
    ```
 
 4. Set the Strava application's **Authorization Callback Domain** to the production host (`planet-run.vercel.app`).
-5. Register the webhook once: `pnpm strava:webhook:subscribe https://planet-run.vercel.app/api/webhooks/strava`
+5. Register the webhook once: `pnpm strava:webhook:subscribe https://cityfil.app/api/webhooks/strava`
    (run with the production `STRAVA_WEBHOOK_VERIFY_TOKEN`).
 6. Seed city boundaries / priority streets against production (polite Overpass; can take a while):
 

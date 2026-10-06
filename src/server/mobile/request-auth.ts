@@ -39,4 +39,4 @@ export function isNextResponse(value: User | NextResponse): value is NextRespons
   return value instanceof NextResponse;
 }
 
-export const MOBILE_APP_OAUTH_REDIRECT = "planetrun://oauth";
+export const MOBILE_APP_OAUTH_REDIRECT = "cityfil://oauth";

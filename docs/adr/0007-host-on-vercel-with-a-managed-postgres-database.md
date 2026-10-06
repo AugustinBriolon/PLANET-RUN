@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Planet Run must be reachable by a small group of testers (the Strava Standard tier caps the app at 10 connected
+Cityfil must be reachable by a small group of testers (the Strava Standard tier caps the app at 10 connected
 athletes) and, later, pass Strava's application review to grow further. The product owner already deployed the
 Next.js app on Vercel. The first production deployment returned HTTP 500 on every authenticated route because the
 environment variables were created with empty values and no hosted database was attached.

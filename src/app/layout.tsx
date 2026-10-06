@@ -33,22 +33,22 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://planet-run.vercel.app"),
-  title: "Planet Run",
+  title: "Cityfil",
   description: DESCRIPTION,
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Planet Run",
+    title: "Cityfil",
   },
   openGraph: {
-    title: "Planet Run",
+    title: "Cityfil",
     description: DESCRIPTION,
-    siteName: "Planet Run",
+    siteName: "Cityfil",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Planet Run",
+    title: "Cityfil",
     description: DESCRIPTION,
   },
 };

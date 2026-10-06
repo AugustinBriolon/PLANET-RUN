@@ -30,7 +30,10 @@ coverage, and badges.
 - City rivalries: `POST /api/mobile/cities/invite` mints a 14-day link, `POST /api/mobile/cities/invite/accept`
   pairs two runners on one city, `GET /api/mobile/cities/:areaId/board` returns rivals plus Founder / Conqueror /
   Keeper titles. `PATCH /api/mobile/me` sets `profileVisibility` (`private` by default). Public names appear on the
-  hall of fame; private ones only to invited rivals. See [ADR 0009](docs/adr/0009-city-rivalries-public-profiles-and-titles-after-100.md).
+  hall of fame; private ones only to invited rivals. The invite landing (`/invite/:token`) and its Open Graph image
+  show coverage and vacant titles, not the names of private title holders. See
+  [ADR 0009](docs/adr/0009-city-rivalries-public-profiles-and-titles-after-100.md) and
+  [ADR 0010](docs/adr/0010-per-invite-open-graph-share-cards.md).
 - Sends runs **recorded in the app** to Strava: `POST /api/mobile/runs/upload` turns the GPS segments into a GPX
   file and uploads it (idempotent per `clientRunId`), `GET /api/mobile/runs/upload/:uploadId` polls processing and
   imports the activity as soon as Strava created it, so coverage updates without waiting for the webhook. The mobile
@@ -42,7 +45,7 @@ coverage, and badges.
 - Import full GPS streams or export GPX files — only Strava's simplified `summary_polyline` is stored.
 - Compute coverage above city level (department, region, country), sell re-link tokens, or connect
   Garmin (shown as "coming soon").
-- Generate share images for Stories; invite links are text URLs for now.
+- Generate in-app Story bitmaps; invite links unfurl a per-token Open Graph card instead.
 
 **Main dependencies:**
 

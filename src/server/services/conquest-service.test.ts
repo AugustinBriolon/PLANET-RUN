@@ -11,7 +11,6 @@ import { createInMemoryRepositories } from "@tests/fakes/in-memory-repositories"
 import {
   CityNotOnProfileError,
   createConquestService,
-  InviteOwnError,
 } from "./conquest-service";
 
 const NOW = new Date("2026-10-06T10:00:00Z");
@@ -114,13 +113,13 @@ describe("createConquestService", () => {
     });
   });
 
-  it("reuses a live invite and rejects accepting your own", async () => {
+  it("reuses a live invite and opens the city when the inviter taps their own link", async () => {
     const ada = await addUser("Ada");
     const first = await harness.service.createInvite(ada.id, RENNES);
     const second = await harness.service.createInvite(ada.id, RENNES);
     expect(first.token).toBe("invite-token");
     expect(second.token).toBe(first.token);
-    await expect(harness.service.acceptInvite(ada.id, first.token)).rejects.toBeInstanceOf(InviteOwnError);
+    await expect(harness.service.acceptInvite(ada.id, first.token)).resolves.toEqual({ areaId: RENNES });
   });
 
   it("refuses to invite a city the runner does not have", async () => {
@@ -149,5 +148,30 @@ describe("createConquestService", () => {
     const strangerBoard = await harness.service.getCityBoard(stranger.id, RENNES);
     expect(strangerBoard?.hall.founder?.displayName).toBe("Hidden runner");
     expect(strangerBoard?.hall.conquerors).toEqual([]);
+  });
+
+  it("previews coverage and vacant titles without naming holders", async () => {
+    const ada = await addUser("Ada", 3_000);
+    const { token } = await harness.service.createInvite(ada.id, RENNES);
+    await expect(harness.service.previewInvite(token)).resolves.toEqual({
+      areaId: RENNES,
+      cityName: "Rennes",
+      inviterName: "Ada",
+      inviterShare: 0.3,
+      founderOpen: true,
+      conquerorOpen: true,
+      keeperOpen: true,
+    });
+
+    const grace = await addUser("Grace", 10_000);
+    harness.season.set(grace.id, 400);
+    await harness.service.refreshForUser(grace.id);
+
+    await expect(harness.service.previewInvite(token)).resolves.toMatchObject({
+      inviterShare: 0.3,
+      founderOpen: false,
+      conquerorOpen: false,
+      keeperOpen: false,
+    });
   });
 });

@@ -67,12 +67,22 @@ export type CityBoard = {
   };
 };
 
+export type InvitePreview = {
+  areaId: number;
+  cityName: string;
+  inviterName: string;
+  inviterShare: number | null;
+  founderOpen: boolean;
+  conquerorOpen: boolean;
+  keeperOpen: boolean;
+};
+
 export type ConquestService = {
   refreshForUser: (userId: string) => Promise<void>;
   setVisibility: (userId: string, visibility: ProfileVisibility) => Promise<void>;
   createInvite: (userId: string, areaId: number) => Promise<{ token: string; expiresAt: Date }>;
   acceptInvite: (userId: string, token: string) => Promise<{ areaId: number }>;
-  previewInvite: (token: string) => Promise<{ areaId: number; cityName: string; inviterName: string } | null>;
+  previewInvite: (token: string) => Promise<InvitePreview | null>;
   getCityBoard: (viewerId: string, areaId: number) => Promise<CityBoard | null>;
 };
 
@@ -128,7 +138,7 @@ export function createConquestService({
       const decision = decideInvite(await conquests.findInvite(token), userId, now());
       if (decision.status === "not-found") throw new InviteNotFoundError();
       if (decision.status === "expired") throw new InviteExpiredError();
-      if (decision.status === "own-invite") throw new InviteOwnError();
+      if (decision.status === "own-invite") return { areaId: decision.areaId };
       await conquests.insertRivalry(decision.areaId, decision.inviterId, userId);
       if (!decision.alreadyRivals) await conquests.markInviteAccepted(token, userId);
       const inviterCities = await userCities.listByUser(decision.inviterId);
@@ -141,12 +151,31 @@ export function createConquestService({
       const invite = await conquests.findInvite(token);
       if (!invite || invite.expiresAt.getTime() <= now().getTime()) return null;
       const inviter = await users.findById(invite.inviterId);
-      const cities = inviter ? await userCities.listByUser(inviter.id) : [];
+      const season = keeperSeason(now());
+      const [cities, coverageCities, conquestRows, seasonRows] = await Promise.all([
+        inviter ? userCities.listByUser(inviter.id) : Promise.resolve([]),
+        inviter ? coverage.listCityCoverage(inviter.id) : Promise.resolve([]),
+        conquests.listConquestsForArea(invite.areaId),
+        coverage.listSeasonCoveredMeters(invite.areaId, season.start, season.end),
+      ]);
       const city = cities.find((entry) => entry.osmRelationId === invite.areaId);
+      const coverageCity = coverageCities.find((entry) => entry.areaId === invite.areaId);
+      const titles = pickCityTitles(
+        conquestRows.map((row) => ({
+          userId: row.userId,
+          completedAt: row.completedAt,
+          completionDistanceMeters: row.completionDistanceMeters,
+        })),
+        new Map(seasonRows.map((row) => [row.userId, row.meters])),
+      );
       return {
         areaId: invite.areaId,
         cityName: city?.name ?? "this city",
         inviterName: inviter?.displayName ?? "A runner",
+        inviterShare: coverageCity ? toCoverageShare(coverageCity) : null,
+        founderOpen: titles.founderUserId == null,
+        conquerorOpen: titles.conquerorUserIds.length === 0,
+        keeperOpen: titles.keeperUserId == null,
       };
     },
 

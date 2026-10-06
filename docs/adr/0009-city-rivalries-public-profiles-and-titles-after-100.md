@@ -49,9 +49,10 @@ historical Founder from old runs; the stamp is the first time the pipeline obser
 
 ### Negative
 - Invite accept needs the app (or the landing page to open it). A web-only visitor cannot become a rival yet.
+  The inviter opening their own link is not an error: they are sent to that city.
 
 ### Neutral
-- Share images for Stories are out of this version; the invite URL is the share artefact.
+- Invite share previews are Open Graph images on the invite URL (see [ADR 0010](0010-per-invite-open-graph-share-cards.md)).
 
 ## References
 - `src/lib/conquest/`, `src/server/services/conquest-service.ts`, `drizzle/0004_city_rivalry.sql`

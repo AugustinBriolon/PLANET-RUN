@@ -24,17 +24,22 @@ export function scheduleHistoryThenCities(userId: string) {
 }
 
 /**
- * Discovers cities for a user, always tries one shared street import, and notifies when this
- * runner's discovery and their queued cities are done.
+ * Discovers cities for a user, rematches a batch of runs, tries one shared street import, and
+ * notifies when discovery, matching, and this runner's queued cities are done.
  */
 export function scheduleCityPipeline(userId: string) {
   after(async () => {
     try {
-      const { cityDetection, cityImportQueue, analysisNotify, accounts } = getServices();
+      const { cityDetection, cityImportQueue, analysisNotify, accounts, coverage } = getServices();
       const discovery = await cityDetection.discoverCitiesForUser(userId);
+      // Discovery already rematches one batch; call again so a hop still advances when discovery
+      // finds nothing new but coverage_matched_at rows remain (e.g. after migration 0007).
+      await coverage.matchPendingActivities({ userId }).catch((error: unknown) => console.error(error));
       await getServices().conquest.refreshForUser(userId);
       await cityImportQueue.processNext();
-      const stillWorking = discovery.continues || (await cityImportQueue.hasWorkForUser(userId));
+      const stillMatching = await coverage.hasPendingMatch({ userId });
+      const stillWorking =
+        discovery.continues || stillMatching || (await cityImportQueue.hasWorkForUser(userId));
       if (stillWorking) {
         scheduleCityPipeline(userId);
         return;

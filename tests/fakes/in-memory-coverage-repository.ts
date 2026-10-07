@@ -1,5 +1,8 @@
 import type { Activity } from "@/server/db/schema";
-import type { CoverageRepository } from "@/server/repositories/coverage-repository";
+import {
+  MATCH_ACTIVITY_BATCH_SIZE,
+  type CoverageRepository,
+} from "@/server/repositories/coverage-repository";
 
 /** Records which activities were matched, without simulating actual street geometry. */
 export function createInMemoryCoverageRepository(
@@ -9,10 +12,19 @@ export function createInMemoryCoverageRepository(
   const matchCalls: Array<{ userId: string } | undefined> = [];
 
   const coverage: CoverageRepository = {
+    async hasPendingMatch(scope) {
+      for (const activity of activityRows.values()) {
+        if (activity.coverageMatchedAt) continue;
+        if (scope && activity.userId !== scope.userId) continue;
+        return true;
+      }
+      return false;
+    },
     async matchPendingActivities(scope) {
       matchCalls.push(scope);
       let matched = 0;
       for (const [id, activity] of activityRows) {
+        if (matched >= MATCH_ACTIVITY_BATCH_SIZE) break;
         if (activity.coverageMatchedAt) continue;
         if (scope && activity.userId !== scope.userId) continue;
         activityRows.set(id, { ...activity, coverageMatchedAt: now() });

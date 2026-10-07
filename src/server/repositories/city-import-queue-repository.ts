@@ -22,6 +22,8 @@ export type CityImportQueueRepository = {
 };
 
 const MAX_ATTEMPTS = 3;
+/** Reclaim jobs left in `importing` after a serverless timeout (fail never ran). */
+const STALE_IMPORTING_INTERVAL = sql`interval '10 minutes'`;
 
 export function createCityImportQueueRepository(database: Database): CityImportQueueRepository {
   return {
@@ -55,6 +57,17 @@ export function createCityImportQueueRepository(database: Database): CityImportQ
     },
 
     async claimNext() {
+      // Timed-out serverless hops leave status=importing forever; surface them as failed so
+      // claimNext can retry (or skip once attempts are exhausted).
+      await database.execute(sql`
+        UPDATE city_import_queue
+        SET status = 'failed',
+            last_error = coalesce(last_error, 'stale importing claim'),
+            updated_at = now()
+        WHERE status = 'importing'
+          AND updated_at < now() - ${STALE_IMPORTING_INTERVAL}
+      `);
+
       const rows = await database.execute<{
         osm_relation_id: string;
         name: string;

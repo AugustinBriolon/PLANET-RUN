@@ -269,10 +269,33 @@ describe("street coverage in PostGIS", () => {
 
       expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(1);
       expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(0);
+      expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(false);
+      expect(await coverage.hasPendingMatch({ userId: other.id })).toBe(true);
       expect((await coverage.listCityCoverage(other.id))[0]?.coveredMeters ?? 0).toBe(0);
+      expect((await coverage.listCityCoverage(other.id))[0]?.status).toBe("matching");
 
       expect(await coverage.matchPendingActivities()).toBe(1);
       expect((await coverage.listCityCoverage(other.id))[0]?.coveredMeters).toBeGreaterThan(0);
+      expect((await coverage.listCityCoverage(other.id))[0]?.status).toBe("ready");
+    });
+
+    it("matches pending runs in batches so a rematch can finish across hops", async () => {
+      const { MATCH_ACTIVITY_BATCH_SIZE } = await import("@/server/repositories/coverage-repository");
+      const runner = await linkRunner(55);
+      await linkCity(runner.id, 1001, "Squareville");
+      const runCount = MATCH_ACTIVITY_BATCH_SIZE + 3;
+      for (let id = 1; id <= runCount; id++) {
+        await recordRun(runner.id, id, encodeRoute(MAIN_STREET_LATITUDE, 2.001, 2.009));
+      }
+
+      expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(true);
+      expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(MATCH_ACTIVITY_BATCH_SIZE);
+      expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(true);
+      expect((await coverage.listCityCoverage(runner.id))[0]?.status).toBe("matching");
+
+      expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(3);
+      expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(false);
+      expect((await coverage.listCityCoverage(runner.id))[0]?.status).toBe("ready");
     });
 
     it("re-matches a run whose trace changed, and keeps matches for unchanged ones", async () => {

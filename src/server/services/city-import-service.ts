@@ -8,6 +8,9 @@ export type CityImportService = {
   importCity: (osmRelationId: number) => Promise<CityImportResult>;
 };
 
+/** Batches per import hop — leftover pending runs continue via the city pipeline. */
+const MATCH_BATCHES_PER_IMPORT = 4;
+
 type Dependencies = {
   overpass: OverpassClient;
   areas: AreaRepository;
@@ -21,7 +24,12 @@ export function createCityImportService({ overpass, areas, coverage }: Dependenc
       const imported = await areas.replaceArea(city);
       // Re-importing replaces segment ids, so every existing run is matched again.
       await coverage.markAllActivitiesPending();
-      const matchedRuns = await coverage.matchPendingActivities();
+      let matchedRuns = 0;
+      for (let hop = 0; hop < MATCH_BATCHES_PER_IMPORT; hop++) {
+        const matched = await coverage.matchPendingActivities();
+        matchedRuns += matched;
+        if (matched === 0) break;
+      }
       return { name: city.name, ...imported, matchedRuns };
     },
   };

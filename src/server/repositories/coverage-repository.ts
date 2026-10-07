@@ -11,9 +11,17 @@ import {
 import { COVERAGE_RULES, type CoverageRules } from "@/server/coverage/coverage-rules";
 import type { Database } from "@/server/db/client";
 
+/** Max runs rematched in one DB transaction — keeps serverless hops under the time budget. */
+export const MATCH_ACTIVITY_BATCH_SIZE = 8;
+
 export type CoverageRepository = {
-  /** Matches runs not yet matched (optionally for one user) against street segments; returns how many were matched. */
+  /**
+   * Matches up to {@link MATCH_ACTIVITY_BATCH_SIZE} unmatched runs (optionally for one user)
+   * against street segments; returns how many were matched in this batch.
+   */
   matchPendingActivities: (scope?: { userId: string }) => Promise<number>;
+  /** True when at least one run still needs coverage matching (optionally for one user). */
+  hasPendingMatch: (scope?: { userId: string }) => Promise<boolean>;
   /** Forces every run to be matched again, e.g. after streets were re-imported. */
   markAllActivitiesPending: () => Promise<void>;
   listCityCoverage: (userId: string) => Promise<CityCoverage[]>;
@@ -84,12 +92,24 @@ export function createCoverageRepository(
   `;
 
   return {
+    async hasPendingMatch(scope) {
+      const [row] = await database.execute<{ pending: boolean }>(sql`
+        SELECT EXISTS (
+          SELECT 1 FROM activities
+          WHERE coverage_matched_at IS NULL ${scope ? sql`AND user_id = ${scope.userId}` : sql``}
+        ) AS pending
+      `);
+      return Boolean(row?.pending);
+    },
+
     async matchPendingActivities(scope) {
       return database.transaction(async (transaction) => {
         const pending = await transaction.execute<{ id: string }>(sql`
           SELECT strava_activity_id AS id FROM activities
           WHERE coverage_matched_at IS NULL ${scope ? sql`AND user_id = ${scope.userId}` : sql``}
+          ORDER BY strava_activity_id
           FOR UPDATE SKIP LOCKED
+          LIMIT ${MATCH_ACTIVITY_BATCH_SIZE}
         `);
         if (pending.length === 0) return 0;
         const activityIds = sql.join(

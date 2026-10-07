@@ -35,10 +35,13 @@ describe("createCityImportService", () => {
       markAllActivitiesPending: vi.fn(async () => {
         calls.push("markAllActivitiesPending");
       }),
-      matchPendingActivities: vi.fn(async () => {
-        calls.push("matchPendingActivities");
-        return 116;
-      }),
+      matchPendingActivities: vi
+        .fn()
+        .mockImplementationOnce(async () => {
+          calls.push("matchPendingActivities");
+          return 116;
+        })
+        .mockResolvedValue(0),
     };
 
     const result = await createCityImportService({ overpass, areas, coverage }).importCity(91738);

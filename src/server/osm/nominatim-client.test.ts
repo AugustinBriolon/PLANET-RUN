@@ -19,16 +19,19 @@ describe("createNominatimClient", () => {
     });
 
     await expect(client.reverseGeocode(48.92, 2.25)).resolves.toEqual({
-      name: "Colombes",
-      osmRelationId: 7444,
-      adminLevel: 8,
+      kind: "hit",
+      result: {
+        name: "Colombes",
+        osmRelationId: 7444,
+        adminLevel: 8,
+      },
     });
 
     const requestUrl = fetchImpl.mock.calls.at(0)?.at(0);
     expect(String(requestUrl)).toContain("extratags=1");
   });
 
-  it("returns null for départements and other non-commune admin levels", async () => {
+  it("returns miss for départements and other non-commune admin levels", async () => {
     const client = createNominatimClient({
       fetch: vi.fn(async () =>
         Response.json({
@@ -41,6 +44,26 @@ describe("createNominatimClient", () => {
       wait: async () => {},
     });
 
-    await expect(client.reverseGeocode(48.92, 2.25)).resolves.toBeNull();
+    await expect(client.reverseGeocode(48.92, 2.25)).resolves.toEqual({ kind: "miss" });
+  });
+
+  it("returns retryable on 5xx so cells are not permanently blacklisted", async () => {
+    const client = createNominatimClient({
+      fetch: vi.fn(async () => new Response("upstream", { status: 503 })),
+      wait: async () => {},
+    });
+
+    await expect(client.reverseGeocode(48.92, 2.25)).resolves.toEqual({ kind: "retryable" });
+  });
+
+  it("returns retryable on network failure", async () => {
+    const client = createNominatimClient({
+      fetch: vi.fn(async () => {
+        throw new Error("network down");
+      }),
+      wait: async () => {},
+    });
+
+    await expect(client.reverseGeocode(48.92, 2.25)).resolves.toEqual({ kind: "retryable" });
   });
 });

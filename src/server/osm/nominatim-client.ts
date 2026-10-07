@@ -26,9 +26,18 @@ export type NominatimResult = {
   adminLevel: number;
 };
 
+/**
+ * Discriminated reverse-geocode outcome so callers can retry transient failures
+ * without permanently blacklisting the grid cell.
+ */
+export type ReverseGeocodeOutcome =
+  | { kind: "hit"; result: NominatimResult }
+  | { kind: "miss" }
+  | { kind: "retryable" };
+
 export type NominatimClient = {
-  /** Reverse-geocode a lat/lon to find the city and its OSM relation ID. Returns null if not found or outside a supported admin level. */
-  reverseGeocode: (lat: number, lon: number) => Promise<NominatimResult | null>;
+  /** Reverse-geocode a lat/lon to a commune (admin_level 8), or miss/retryable. */
+  reverseGeocode: (lat: number, lon: number) => Promise<ReverseGeocodeOutcome>;
 };
 
 type NominatimClientConfig = {
@@ -56,15 +65,24 @@ export function createNominatimClient({
     async reverseGeocode(lat, lon) {
       await enforceRateLimit();
 
-      const response = await fetchImpl(
-        `${endpoint}/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&extratags=1`,
-        {
-          headers: { "User-Agent": USER_AGENT },
-        },
-      );
+      let response: Response;
+      try {
+        response = await fetchImpl(
+          `${endpoint}/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&extratags=1`,
+          {
+            headers: { "User-Agent": USER_AGENT },
+          },
+        );
+      } catch {
+        return { kind: "retryable" };
+      }
 
+      // 5xx / rate-limit / upstream blips — do not blacklist the cell.
+      if (response.status >= 500 || response.status === 429) {
+        return { kind: "retryable" };
+      }
       if (!response.ok) {
-        return null;
+        return { kind: "miss" };
       }
 
       try {
@@ -72,27 +90,30 @@ export function createNominatimClient({
 
         // Only process administrative relations (cities, towns)
         if (data.osm_type !== "relation") {
-          return null;
+          return { kind: "miss" };
         }
 
         const adminLevel = data.extratags?.admin_level ? Number(data.extratags.admin_level) : null;
         // Communes only (admin_level 8). Accepting 6–7 pulled whole départements into the street queue.
         if (adminLevel !== 8) {
-          return null;
+          return { kind: "miss" };
         }
 
         const name = data.address.city || data.address.town || data.address.county;
         if (!name) {
-          return null;
+          return { kind: "miss" };
         }
 
         return {
-          name,
-          osmRelationId: data.osm_id,
-          adminLevel,
+          kind: "hit",
+          result: {
+            name,
+            osmRelationId: data.osm_id,
+            adminLevel,
+          },
         };
       } catch {
-        return null;
+        return { kind: "miss" };
       }
     },
   };

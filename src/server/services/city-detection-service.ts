@@ -39,31 +39,46 @@ type Dependencies = {
   nominatim: NominatimClient;
 };
 
-function mergeCities(
-  ...groups: Array<Array<{ osmRelationId: number; name: string }>>
-): Array<{ osmRelationId: number; name: string }> {
-  const byId = new Map<number, { osmRelationId: number; name: string }>();
+type NamedCity = { osmRelationId: number; name: string };
+
+function mergeCities(...groups: Array<NamedCity[]>): NamedCity[] {
+  const byId = new Map<number, NamedCity>();
   for (const group of groups) {
     for (const city of group) byId.set(city.osmRelationId, city);
   }
   return [...byId.values()];
 }
 
-function extractStartPoints(runs: Array<{ summaryPolyline: string | null }>) {
-  const startPoints: Array<{ lat: number; lon: number }> = [];
+/**
+ * Sample start, mid, and end of each run polyline so cities traversed mid-route
+ * are discovered, not only the start neighbourhood.
+ */
+export function extractDiscoveryPoints(runs: Array<{ summaryPolyline: string | null }>) {
+  const points: Array<{ lat: number; lon: number }> = [];
   for (const run of runs) {
     if (!run.summaryPolyline) continue;
     try {
       const coords = polyline.decode(run.summaryPolyline);
-      if (coords.length > 0) {
-        const [lat, lon] = coords[0];
-        startPoints.push({ lat, lon });
+      if (coords.length === 0) continue;
+      const indices = new Set<number>([0]);
+      if (coords.length > 1) {
+        indices.add(Math.floor((coords.length - 1) / 2));
+        indices.add(coords.length - 1);
+      }
+      for (const index of indices) {
+        const [lat, lon] = coords[index]!;
+        points.push({ lat, lon });
       }
     } catch {
       // Skip runs with invalid polylines
     }
   }
-  return startPoints;
+  return points;
+}
+
+function addPriority(target: Map<number, number>, osmRelationId: number, amount: number) {
+  // Max (not sum): the same sample can hit both `areas` and `city_catalog`.
+  target.set(osmRelationId, Math.max(target.get(osmRelationId) ?? 0, amount));
 }
 
 export function createCityDetectionService({
@@ -80,20 +95,30 @@ export function createCityDetectionService({
       const runs = await activities.listByUser(userId);
       if (runs.length === 0) return { linkedCities: 0, queuedImports: 0, continues: false };
 
-      const startPoints = extractStartPoints(runs);
-      const clustered = clusterPointsByGrid(startPoints);
+      const discoveryPoints = extractDiscoveryPoints(runs);
+      const clustered = clusterPointsByGrid(discoveryPoints);
       if (clustered.length === 0) return { linkedCities: 0, queuedImports: 0, continues: false };
 
-      const cellCounts = countPointsByGrid(startPoints);
+      const cellCounts = countPointsByGrid(discoveryPoints);
+      const priorityByCity = new Map<number, number>();
 
       // Shared caches: streets already imported, or cheap catalog boundaries (no Nominatim).
+      // Count density from all discovery samples so import priority reflects per-city activity.
+      const [areaHits, catalogHits] = await Promise.all([
+        areas.findAreasContainingPoints(discoveryPoints),
+        catalog.findContainingPoints(discoveryPoints),
+      ]);
+      for (const city of areaHits) addPriority(priorityByCity, city.osmRelationId, city.pointCount);
+      for (const city of catalogHits) addPriority(priorityByCity, city.osmRelationId, city.pointCount);
+
       const knownCities = mergeCities(
-        await areas.findAreasContainingPoints(clustered),
-        await catalog.findContainingPoints(clustered),
+        areaHits.map(({ osmRelationId, name }) => ({ osmRelationId, name })),
+        catalogHits.map(({ osmRelationId, name }) => ({ osmRelationId, name })),
       );
       await userCities.upsertMany(userId, knownCities);
 
       const attemptedCells = await userCities.listGeocodeCells(userId);
+      // Geocode representatives only — denser cells first — outside known boundaries.
       const outsideStreets = await areas.filterPointsOutsideAreas(clustered);
       const unknownPoints = (await catalog.filterPointsOutside(outsideStreets))
         .filter((point) => !attemptedCells.has(gridCellKey(point)))
@@ -103,21 +128,30 @@ export function createCityDetectionService({
       const chunk = unknownPoints.slice(0, MAX_NOMINATIM_LOOKUPS_PER_CHUNK);
       const continues = unknownPoints.length > chunk.length;
 
-      const geocoded: Array<{ osmRelationId: number; name: string }> = [];
-      const triedCells: string[] = [];
+      const geocoded: NamedCity[] = [];
+      const resolvedCells: string[] = [];
       for (const point of chunk) {
-        triedCells.push(gridCellKey(point));
-        const result = await nominatim.reverseGeocode(point.lat, point.lon);
-        if (!result || alreadyLinked.has(result.osmRelationId)) continue;
-        geocoded.push({ osmRelationId: result.osmRelationId, name: result.name });
-        alreadyLinked.add(result.osmRelationId);
+        const cellKey = gridCellKey(point);
+        const outcome = await nominatim.reverseGeocode(point.lat, point.lon);
+        if (outcome.kind === "retryable") {
+          // Leave the cell unmarked so a later chunk retries after Nominatim recovers.
+          continue;
+        }
+        resolvedCells.push(cellKey);
+        if (outcome.kind === "miss") continue;
+
+        const density = cellCounts.get(cellKey) ?? 1;
+        addPriority(priorityByCity, outcome.result.osmRelationId, density);
+        if (alreadyLinked.has(outcome.result.osmRelationId)) continue;
+        geocoded.push({ osmRelationId: outcome.result.osmRelationId, name: outcome.result.name });
+        alreadyLinked.add(outcome.result.osmRelationId);
       }
-      await userCities.markGeocodeCells(userId, triedCells);
+      await userCities.markGeocodeCells(userId, resolvedCells);
       await userCities.upsertMany(userId, geocoded);
 
       const candidates = mergeCities(knownCities, geocoded).map((city) => ({
         ...city,
-        priority: startPoints.length,
+        priority: priorityByCity.get(city.osmRelationId) ?? 1,
       }));
       const queuedImports = await importQueue.enqueueMissing(candidates);
 

@@ -2,6 +2,9 @@ import { sql } from "drizzle-orm";
 
 import type { Database } from "@/server/db/client";
 
+/** Geocode cells older than this are eligible for Nominatim retry (transient past failures). */
+export const GEOCODE_CELL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 export type DetectedCity = {
   osmRelationId: number;
   name: string;
@@ -10,6 +13,7 @@ export type DetectedCity = {
 export type UserCityRepository = {
   upsertMany: (userId: string, cities: DetectedCity[]) => Promise<void>;
   listByUser: (userId: string) => Promise<DetectedCity[]>;
+  /** Cell keys still within the TTL — expired cells are omitted so discovery can retry. */
   listGeocodeCells: (userId: string) => Promise<Set<string>>;
   markGeocodeCells: (userId: string, cellKeys: string[]) => Promise<void>;
 };
@@ -47,7 +51,9 @@ export function createUserCityRepository(database: Database): UserCityRepository
 
     async listGeocodeCells(userId) {
       const rows = await database.execute<{ cell_key: string }>(sql`
-        SELECT cell_key FROM user_geocode_cells WHERE user_id = ${userId}
+        SELECT cell_key FROM user_geocode_cells
+        WHERE user_id = ${userId}
+          AND created_at > now() - (${GEOCODE_CELL_TTL_MS}::bigint * interval '1 millisecond')
       `);
       return new Set(rows.map((row) => row.cell_key));
     },
@@ -56,10 +62,10 @@ export function createUserCityRepository(database: Database): UserCityRepository
       if (cellKeys.length === 0) return;
       const values = JSON.stringify(cellKeys);
       await database.execute(sql`
-        INSERT INTO user_geocode_cells (user_id, cell_key)
-        SELECT ${userId}::uuid, item
+        INSERT INTO user_geocode_cells (user_id, cell_key, created_at)
+        SELECT ${userId}::uuid, item, now()
         FROM jsonb_array_elements_text(${values}::jsonb) AS item
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (user_id, cell_key) DO UPDATE SET created_at = excluded.created_at
       `);
     },
   };

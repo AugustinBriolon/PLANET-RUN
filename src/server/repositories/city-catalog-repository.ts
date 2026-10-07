@@ -16,7 +16,9 @@ export type CityCatalogRepository = {
   /** Upserts boundary-only cities (no street segments). */
   upsertBoundaries: (cities: CatalogCityBoundary[]) => Promise<number>;
   listAll: () => Promise<Array<{ osmRelationId: number; name: string; adminLevel: number }>>;
-  findContainingPoints: (points: LatLon[]) => Promise<Array<{ osmRelationId: number; name: string }>>;
+  findContainingPoints: (
+    points: LatLon[],
+  ) => Promise<Array<{ osmRelationId: number; name: string; pointCount: number }>>;
   filterPointsOutside: (points: LatLon[]) => Promise<LatLon[]>;
 };
 
@@ -59,21 +61,23 @@ export function createCityCatalogRepository(database: Database): CityCatalogRepo
     async findContainingPoints(points) {
       if (points.length === 0) return [];
 
-      const rows = await database.execute<{ osm_relation_id: string; name: string }>(sql`
+      const rows = await database.execute<{ osm_relation_id: string; name: string; point_count: number }>(sql`
         WITH input AS (
           SELECT (item->>'lat')::float8 AS lat, (item->>'lon')::float8 AS lon
           FROM jsonb_array_elements(${JSON.stringify(points)}::jsonb) AS item
         )
-        SELECT DISTINCT city_catalog.osm_relation_id, city_catalog.name
+        SELECT city_catalog.osm_relation_id, city_catalog.name, count(*)::int AS point_count
         FROM input
         JOIN city_catalog
           ON ST_Contains(city_catalog.boundary, ST_SetSRID(ST_MakePoint(input.lon, input.lat), 4326))
+        GROUP BY city_catalog.osm_relation_id, city_catalog.name
         ORDER BY city_catalog.name
       `);
 
       return rows.map((row) => ({
         osmRelationId: Number(row.osm_relation_id),
         name: row.name,
+        pointCount: row.point_count,
       }));
     },
 

@@ -34,8 +34,10 @@ export type AreaRepository = {
   listAll: () => Promise<Array<{ osmRelationId: number; name: string; adminLevel: number }>>;
   /** Returns whether street segments for this OSM relation are already imported (ready for %). */
   hasStreetsImported: (osmRelationId: number) => Promise<boolean>;
-  /** Unique imported cities whose boundary contains at least one of the points. */
-  findAreasContainingPoints: (points: LatLon[]) => Promise<Array<{ osmRelationId: number; name: string }>>;
+  /** Unique imported cities whose boundary contains at least one of the points, with hit counts. */
+  findAreasContainingPoints: (
+    points: LatLon[],
+  ) => Promise<Array<{ osmRelationId: number; name: string; pointCount: number }>>;
   /** Returns points that do not fall inside any imported area boundary. */
   filterPointsOutsideAreas: (points: LatLon[]) => Promise<LatLon[]>;
 };
@@ -69,20 +71,22 @@ export function createAreaRepository(
     async findAreasContainingPoints(points) {
       if (points.length === 0) return [];
 
-      const rows = await database.execute<{ osm_relation_id: string; name: string }>(sql`
+      const rows = await database.execute<{ osm_relation_id: string; name: string; point_count: number }>(sql`
         WITH input AS (
           SELECT (item->>'lat')::float8 AS lat, (item->>'lon')::float8 AS lon
           FROM jsonb_array_elements(${JSON.stringify(points)}::jsonb) AS item
         )
-        SELECT DISTINCT areas.osm_relation_id, areas.name
+        SELECT areas.osm_relation_id, areas.name, count(*)::int AS point_count
         FROM input
         JOIN areas ON ST_Contains(areas.boundary, ST_SetSRID(ST_MakePoint(input.lon, input.lat), 4326))
+        GROUP BY areas.osm_relation_id, areas.name
         ORDER BY areas.name
       `);
 
       return rows.map((row) => ({
         osmRelationId: Number(row.osm_relation_id),
         name: row.name,
+        pointCount: row.point_count,
       }));
     },
     async filterPointsOutsideAreas(points) {

@@ -2,12 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { LngLat } from "@/lib/coverage/plan-start";
 import type { CityCoverage, CoveredStreets } from "@/lib/coverage/street-coverage";
-import {
-  buildRunPlanRoute,
-  planPocketExpandDegrees,
-  runPlanRouteToGeoJson,
-  type PlanSegment,
-} from "@/lib/coverage/run-plan-route";
+import { buildRunPlanRoute, runPlanRouteToGeoJson, type PlanSegment } from "@/lib/coverage/run-plan-route";
 import { COVERAGE_RULES, type CoverageRules } from "@/server/coverage/coverage-rules";
 import type { Database } from "@/server/db/client";
 
@@ -50,6 +45,8 @@ export type CoverageRepository = {
     pathMeters: number;
     jumpCount: number;
     jumpMeters: number;
+    /** True only when the athlete start was requested and successfully used on-network. */
+    startsFromPosition: boolean;
   }>;
   /** GPS distance of every run that touched at least one street in the city. */
   sumActivityDistanceInArea: (userId: string, areaId: number) => Promise<number>;
@@ -334,10 +331,7 @@ export function createCoverageRepository(
 
     async getRunPlanStreets(userId, areaId, budgetMeters, { salt = 0, start } = {}) {
       const budget = Math.max(500, Math.min(budgetMeters, 40_000));
-      const expandDegrees = planPocketExpandDegrees(budget);
-      // ST_Extent drops the SRID, so the start point must match it (SRID 0) to share one envelope.
-      const startPoint = start ? sql`ST_MakePoint(${start.lng}, ${start.lat})` : sql`NULL::geometry`;
-      // Uncovered streets in the city, plus nearby covered pieces that can bridge gaps.
+      // Full city graph — pocket clipping left distance fill short (~2–3 km) on half-conquered towns.
       const rows = await database.execute<{
         id: number;
         geometry: string;
@@ -346,18 +340,11 @@ export function createCoverageRepository(
         counts_for_coverage: boolean;
       }>(sql`
         WITH uncovered AS (
-          SELECT segment.id, segment.path
+          SELECT segment.id
           FROM street_segments AS segment
           WHERE segment.area_id = ${areaId}
             AND segment.counts_for_coverage
             AND segment.id NOT IN (${segmentsHardCoveredBy(userId)})
-        ),
-        pocket AS (
-          SELECT ST_Expand(
-            ST_Envelope(ST_Collect(ST_Extent(path)::geometry, ${startPoint})),
-            ${expandDegrees}
-          ) AS bbox
-          FROM uncovered
         )
         SELECT
           segment.id::int AS id,
@@ -366,10 +353,7 @@ export function createCoverageRepository(
           (NOT EXISTS (SELECT 1 FROM uncovered WHERE uncovered.id = segment.id)) AS covered,
           segment.counts_for_coverage AS counts_for_coverage
         FROM street_segments AS segment
-        CROSS JOIN pocket
         WHERE segment.area_id = ${areaId}
-          AND pocket.bbox IS NOT NULL
-          AND segment.path && pocket.bbox
       `);
 
       const segments: PlanSegment[] = rows.flatMap((row) => {
@@ -386,17 +370,24 @@ export function createCoverageRepository(
         ];
       });
 
-      const route = buildRunPlanRoute(segments, {
+      let route = buildRunPlanRoute(segments, {
         budgetMeters: budget,
         salt,
         start: start ? [start.lng, start.lat] : undefined,
       });
+      let startsFromPosition = start != null && route.coordinates.length >= 2;
+      // GPS snap / disconnected seed → still offer a city-centered on-network plan.
+      if (start && route.coordinates.length < 2) {
+        route = buildRunPlanRoute(segments, { budgetMeters: budget, salt });
+        startsFromPosition = false;
+      }
       return {
         streets: runPlanRouteToGeoJson(route, areaId) as CoveredStreets,
         targetMeters: route.uncoveredMeters,
         pathMeters: route.pathMeters,
         jumpCount: route.jumpCount,
         jumpMeters: route.jumpMeters,
+        startsFromPosition,
       };
     },
 

@@ -66,8 +66,9 @@ const ANCHORED_SEED_CHOICES = 4;
 /**
  * Max GPS→graph snap when anchoring. Beyond this, the athlete is off-network and the plan
  * refuses the start rather than drawing a straight chord to the seed.
+ * ~180 m covers courtyard / park GPS drift to the nearest mapped street.
  */
-export const MAX_ANCHOR_SNAP_METERS = 100;
+export const MAX_ANCHOR_SNAP_METERS = 180;
 
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
@@ -91,7 +92,8 @@ export function distanceMeters(from: Position, to: Position): number {
  */
 export function bridgeBudgetMeters(budgetMeters: number, override?: number): number {
   if (override != null) return override;
-  return Math.min(2_200, Math.max(320, budgetMeters * 0.2));
+  // Wider bridges so 8 / 12 km preferences can leave a local pocket via covered streets.
+  return Math.min(4_500, Math.max(480, budgetMeters * 0.4));
 }
 
 /**
@@ -99,7 +101,7 @@ export function bridgeBudgetMeters(budgetMeters: number, override?: number): num
  * Longer outings need a wider street pocket so the walk can keep growing.
  */
 export function planPocketExpandDegrees(budgetMeters: number): number {
-  const radiusMeters = Math.min(8_000, Math.max(300, budgetMeters * 0.5));
+  const radiusMeters = Math.min(14_000, Math.max(800, budgetMeters * 0.9));
   return radiusMeters / 111_320;
 }
 
@@ -449,13 +451,30 @@ function anchoredSeedScore(segment: PlanSegment, start: Position, graph: StreetG
   return unusedUncoveredLengthAt(graph, farNode, used) * 10 + segment.lengthMeters - nearDist;
 }
 
+function isSeedReachableFrom(
+  graph: StreetGraph,
+  fromNode: NodeId,
+  segment: PlanSegment,
+): boolean {
+  const nodes = graph.segmentNodes.get(segment.id);
+  if (!nodes) return false;
+  const blocked = new Set<number>([segment.id]);
+  return (
+    shortestPath(graph, fromNode, nodes.start, blocked, MAX_START_CONNECTOR_METERS) != null ||
+    shortestPath(graph, fromNode, nodes.end, blocked, MAX_START_CONNECTOR_METERS) != null
+  );
+}
+
 function pickAnchoredSeed(
   uncovered: PlanSegment[],
   start: Position,
   salt: number,
   graph: StreetGraph,
-): PlanSegment {
-  const ranked = [...uncovered].sort((a, b) => {
+  snapNode: NodeId,
+): PlanSegment | null {
+  const reachable = uncovered.filter((segment) => isSeedReachableFrom(graph, snapNode, segment));
+  if (reachable.length === 0) return null;
+  const ranked = [...reachable].sort((a, b) => {
     const scoreDelta = anchoredSeedScore(b, start, graph) - anchoredSeedScore(a, start, graph);
     if (scoreDelta !== 0) return scoreDelta;
     return a.id - b.id;
@@ -549,9 +568,19 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   const metersByCell = indexUncoveredDensity(uncovered);
   const graph = buildStreetGraph(segments, joinToleranceMeters);
   const anchor = options.start;
-  const seed = anchor
-    ? pickAnchoredSeed(uncovered, anchor, salt, graph)
-    : pickSeed(uncovered, metersByCell, salt);
+
+  let seed: PlanSegment;
+  let snapNode: NodeId | null = null;
+  if (anchor) {
+    const snap = nearestNode(graph, anchor, MAX_ANCHOR_SNAP_METERS);
+    if (snap == null) return emptyRoute();
+    snapNode = snap.node;
+    const anchored = pickAnchoredSeed(uncovered, anchor, salt, graph, snap.node);
+    if (anchored == null) return emptyRoute();
+    seed = anchored;
+  } else {
+    seed = pickSeed(uncovered, metersByCell, salt);
+  }
 
   // Prefer the exit that unlocks more unfinished street (avoids walking into a cul-de-sac).
   // Anchored starts instead enter at the end nearer the athlete so the approach stays on-network.
@@ -569,6 +598,8 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   }
 
   const used = new Set<number>();
+  /** Uncovered meters credited once — fill may rewalk streets without inflating conquest %. */
+  const creditedUncovered = new Set<number>();
   const coords: Position[] = [];
   const legs: RunPlanLeg[] = [];
   let uncoveredMeters = 0;
@@ -587,12 +618,18 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
     legs.push({ coordinates: clean, kind });
   }
 
+  function creditUncovered(segmentId: number, lengthMeters: number) {
+    if (creditedUncovered.has(segmentId)) return;
+    creditedUncovered.add(segmentId);
+    uncoveredMeters += lengthMeters;
+  }
+
   function appendConnectorEdges(connector: DirectedEdge[]) {
     for (let index = 0; index < connector.length; index++) {
       const edge = connector[index]!;
       used.add(edge.segmentId);
       pathMeters += edge.lengthMeters;
-      if (isConquestEdge(edge)) uncoveredMeters += edge.lengthMeters;
+      if (isConquestEdge(edge)) creditUncovered(edge.segmentId, edge.lengthMeters);
       if (index === 0 && coords.length === 0) {
         coords.push(...edge.coordinates);
         pushLeg(edge.coordinates, legKindForEdge(edge));
@@ -609,7 +646,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
     const entryNode = seedNodes == null ? 0 : startAtFirstOrientation ? seedNodes.start : seedNodes.end;
     const exitNode = seedNodes == null ? 0 : startAtFirstOrientation ? seedNodes.end : seedNodes.start;
     used.add(seed.id);
-    uncoveredMeters += seed.lengthMeters;
+    creditUncovered(seed.id, seed.lengthMeters);
     pathMeters += seed.lengthMeters;
     head = exitNode;
     tail = entryNode;
@@ -630,10 +667,8 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   }
 
   if (anchor) {
-    // Snap to the nearest graph node and require an on-network walk to the seed.
-    // Never draw GPS→seed (or tip→entry) aerial chords through courtyards / buildings.
-    const snap = nearestNode(graph, anchor, MAX_ANCHOR_SNAP_METERS);
-    if (snap == null || seedNodes == null) return emptyRoute();
+    // Snap + on-network walk to a reachable seed — never GPS→seed aerial chords.
+    if (snapNode == null || seedNodes == null) return emptyRoute();
 
     // Prefer unlock orientation when reachable; otherwise flip so the entry faces the athlete.
     // Seed is blocked during the approach so the connector cannot "walk the seed" then add it again.
@@ -644,7 +679,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
       const entryNode = orientation ? seedNodes.start : seedNodes.end;
       const connector = shortestPath(
         graph,
-        snap.node,
+        snapNode,
         entryNode,
         approachBlocked,
         MAX_START_CONNECTOR_METERS,
@@ -665,7 +700,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   function appendEdge(edge: DirectedEdge, end: "head" | "tail") {
     used.add(edge.segmentId);
     pathMeters += edge.lengthMeters;
-    if (isConquestEdge(edge)) uncoveredMeters += edge.lengthMeters;
+    if (isConquestEdge(edge)) creditUncovered(edge.segmentId, edge.lengthMeters);
     const kind = legKindForEdge(edge);
     if (end === "head") {
       const tip = coords[coords.length - 1]!;
@@ -752,13 +787,29 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
     grew = grewHead || grewTail;
   }
 
-  // Phase 2 — fill: burn remaining budget on covered streets so distance preference matters.
-  grew = true;
-  while (grew && pathMeters < budgetMeters * 0.92 && guard < 60_000) {
-    guard += 1;
-    const grewHead = extendFill("head");
-    const grewTail = growTail && pathMeters < budgetMeters * 0.92 ? extendFill("tail") : false;
-    grew = grewHead || grewTail;
+  // Phase 2 — fill remaining budget.
+  // Conquest often ends at cul-de-sac tips of a small unfinished pocket; the exit onto the
+  // wider (covered) network sits mid-path. Clearing `used` lets fill walk back through the
+  // pocket and into the city graph so 5 / 8 / 12 km preferences can be met. Uncovered meters
+  // stay credited once via `creditedUncovered`.
+  used.clear();
+  const fillTarget = budgetMeters * 0.97;
+  let fillRounds = 0;
+  const maxFillRounds = 12;
+  while (pathMeters < fillTarget && fillRounds < maxFillRounds && guard < 160_000) {
+    grew = true;
+    let progressed = false;
+    while (grew && pathMeters < fillTarget && guard < 160_000) {
+      guard += 1;
+      const grewHead = extendFill("head");
+      const grewTail = growTail && pathMeters < fillTarget ? extendFill("tail") : false;
+      grew = grewHead || grewTail;
+      if (grew) progressed = true;
+    }
+    if (pathMeters >= fillTarget) break;
+    if (!progressed) break;
+    used.clear();
+    fillRounds += 1;
   }
 
   const coordinates = dedupe(coords);

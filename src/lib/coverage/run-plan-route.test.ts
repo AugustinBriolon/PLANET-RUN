@@ -78,9 +78,9 @@ function pathFollowsSegments(path: [number, number][], segments: PlanSegment[], 
 
 describe("bridgeBudgetMeters", () => {
   it("scales with the outing and stays within bounds", () => {
-    expect(bridgeBudgetMeters(5_000)).toBe(1_000);
-    expect(bridgeBudgetMeters(12_000)).toBe(2_200);
-    expect(bridgeBudgetMeters(500)).toBe(320);
+    expect(bridgeBudgetMeters(5_000)).toBe(2_000);
+    expect(bridgeBudgetMeters(12_000)).toBe(4_500);
+    expect(bridgeBudgetMeters(500)).toBe(480);
     expect(bridgeBudgetMeters(5_000, 90)).toBe(90);
   });
 });
@@ -89,7 +89,7 @@ describe("planPocketExpandDegrees", () => {
   it("widens the fetch envelope for longer outings", () => {
     expect(planPocketExpandDegrees(5_000)).toBeGreaterThan(planPocketExpandDegrees(800));
     expect(planPocketExpandDegrees(12_000)).toBeGreaterThan(planPocketExpandDegrees(5_000));
-    expect(planPocketExpandDegrees(40_000)).toBeCloseTo(8_000 / 111_320, 6);
+    expect(planPocketExpandDegrees(40_000)).toBeCloseTo(14_000 / 111_320, 6);
   });
 });
 
@@ -409,6 +409,17 @@ describe("buildRunPlanRoute", () => {
     const route = buildRunPlanRoute(pieces, { budgetMeters: 350, salt: 0 });
     expect(route.pathMeters).toBeGreaterThanOrEqual(300);
     expect(route.pathMeters).toBeLessThanOrEqual(420);
+  });
+
+  it("loops covered streets so a small unfinished pocket can still approach a longer budget", () => {
+    const unfinished = chain(1, 3, false, 2.0, 100);
+    const covered = chain(100, 50, true, 2.0 + 3 * 0.00135, 100);
+    const short = buildRunPlanRoute([...unfinished, ...covered], { budgetMeters: 2_000, salt: 0 });
+    const longer = buildRunPlanRoute([...unfinished, ...covered], { budgetMeters: 5_000, salt: 0 });
+
+    expect(short.pathMeters).toBeGreaterThanOrEqual(1_700);
+    expect(longer.pathMeters).toBeGreaterThan(short.pathMeters + 1_500);
+    expect(longer.pathMeters).toBeGreaterThanOrEqual(4_200);
   });
 });
 

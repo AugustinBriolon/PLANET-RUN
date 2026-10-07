@@ -58,6 +58,7 @@ export function createInMemoryCoverageRepository(
         streets: { type: "FeatureCollection", features: [] },
         targetMeters: 0,
         pathMeters: 0,
+        startsFromPosition: false,
         jumpCount: 0,
         jumpMeters: 0,
       };

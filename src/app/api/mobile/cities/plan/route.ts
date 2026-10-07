@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         jumpCount: plan.jumpCount,
         jumpMeters: Math.round(plan.jumpMeters),
         estimatedShareGain,
-        startsFromPosition: start != null,
+        startsFromPosition: plan.startsFromPosition,
         streets: plan.streets,
         note: "Follow the gold route on unfinished streets. Gray links are walkable connectors that do not add coverage. The path stays on the street network (no shortcuts through blocks). Distance is approximate.",
       },

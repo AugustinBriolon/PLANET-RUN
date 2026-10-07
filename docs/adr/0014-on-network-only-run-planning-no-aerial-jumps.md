@@ -19,7 +19,8 @@ Long continuous OSM LineStrings (hundreds of metres on one aligned road) are not
 1. **Zero aerial shortcuts.** `buildRunPlanRoute` never inserts tip→entry or GPS→seed straight lines. Proximity hops and jump budgets are removed. `jumpCount` / `jumpMeters` stay in the API but are always `0`.
 2. **On-network only.** Growth uses graph edges only (coverage streets, covered bridges, and `counts_for_coverage = false` connectors). Disconnected unfinished pockets are not linked off-network; the plan stays in the reachable component.
 3. **Long on-road edges are fine.** Any length is allowed when walking an OSM / connector LineString or a chain of graph edges.
-4. **Athlete start.** Snap GPS to the nearest graph node within `MAX_ANCHOR_SNAP_METERS` (100 m). Require a street walk to the seed entry (`shortestPath`, capped by `MAX_START_CONNECTOR_METERS`). If snap or path fails, return an empty route — never invent a chord. The path starts on real street geometry (not a freehand line from GPS).
+4. **Athlete start.** Snap GPS to the nearest graph node within `MAX_ANCHOR_SNAP_METERS` (~180 m). Require a street walk to a **reachable** unfinished seed (`shortestPath`, capped by `MAX_START_CONNECTOR_METERS`). Never invent a chord. If snap/path fails, the API layer retries a **city-centered** on-network plan and sets `startsFromPosition: false` — never an empty route solely because GPS was on.
+5. **Distance preference.** Load the **full city** street graph. After conquest, **clear segment usage** and fill by rewalking the graph (including back through the unfinished pocket) so tips that ended in cul-de-sacs can rejoin the wider covered network. Uncovered metres are credited once. Verified on Joigny (~60 km open): 5 / 8 / 12 km budgets land near target. The mobile UI shows `~X km of Y km` if still under.
 
 ## Options considered
 

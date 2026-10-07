@@ -210,7 +210,8 @@ describe("street coverage in PostGIS", () => {
         (startLng - athlete.lng) * 111_320 * Math.cos((athlete.lat * Math.PI) / 180),
         (startLat - athlete.lat) * 111_320,
       );
-      expect(startDistanceMeters).toBeLessThan(100);
+      expect(startDistanceMeters).toBeLessThan(180);
+      expect(plan.startsFromPosition).toBe(true);
       expect(plan.jumpCount).toBe(0);
       expect(plan.pathMeters).toBeGreaterThan(200);
       expect(plan.targetMeters).toBeGreaterThan(200);

@@ -421,6 +421,31 @@ describe("buildRunPlanRoute", () => {
     expect(longer.pathMeters).toBeGreaterThan(short.pathMeters + 1_500);
     expect(longer.pathMeters).toBeGreaterThanOrEqual(4_200);
   });
+
+  it("stays fast when many sub-tolerance stubs touch one large unfinished pocket", () => {
+    // Paris shape: stubs shorter than the join tolerance collapse to a single node, so they have no
+    // graph edge. Each one used to re-flood the whole pocket, blowing seed ranking up quadratically.
+    const pocket = chain(1, 3_000, false);
+    const stubs = pocket.map((piece, index) => {
+      const [lng, lat] = piece.coordinates[0]!;
+      return seg(
+        100_000 + index,
+        [
+          [lng, lat],
+          [lng, lat + 0.00003],
+        ],
+        false,
+      );
+    });
+
+    const startedAt = performance.now();
+    const route = buildRunPlanRoute([...pocket, ...stubs], { budgetMeters: 18_000, salt: 0 });
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(route.pathMeters).toBeGreaterThan(15_000);
+    // ~30 ms now; the quadratic version took ~1.2 s on this fixture.
+    expect(elapsedMs).toBeLessThan(400);
+  });
 });
 
 describe("runPlanRouteToGeoJson", () => {

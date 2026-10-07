@@ -431,19 +431,21 @@ function neighborhoodUncoveredMeters(point: Position, metersByCell: Map<string, 
  * One flood-fill pass so seed ranking stays cheap on large cities.
  */
 function indexUncoveredComponentMeters(graph: StreetGraph, uncovered: readonly PlanSegment[]): Map<number, number> {
-  const pending = new Set(uncovered.map((segment) => segment.id));
   const metersBySegment = new Map<number, number>();
-  while (pending.size > 0) {
-    const startId = pending.values().next().value!;
+  // Nodes are shared across floods: a node already flooded belongs to a pocket whose segments are
+  // all ranked, so re-flooding it (from a segment missing from the graph) only repeated work —
+  // on Paris that re-walked the largest pocket ~1,300 times.
+  const seenNode = new Set<NodeId>();
+  for (const { id: startId } of uncovered) {
+    if (metersBySegment.has(startId)) continue;
     const nodes = graph.segmentNodes.get(startId);
     if (!nodes) {
       metersBySegment.set(startId, 0);
-      pending.delete(startId);
       continue;
     }
     const seenSeg = new Set<number>();
-    const queue: NodeId[] = [nodes.start, nodes.end];
-    const seenNode = new Set<NodeId>(queue);
+    const queue: NodeId[] = [nodes.start, nodes.end].filter((node) => !seenNode.has(node));
+    for (const node of queue) seenNode.add(node);
     let meters = 0;
     while (queue.length > 0) {
       const node = queue.pop()!;
@@ -457,14 +459,8 @@ function indexUncoveredComponentMeters(graph: StreetGraph, uncovered: readonly P
         }
       }
     }
-    for (const segmentId of seenSeg) {
-      metersBySegment.set(segmentId, meters);
-      pending.delete(segmentId);
-    }
-    if (!seenSeg.has(startId)) {
-      metersBySegment.set(startId, 0);
-      pending.delete(startId);
-    }
+    for (const segmentId of seenSeg) metersBySegment.set(segmentId, meters);
+    if (!seenSeg.has(startId)) metersBySegment.set(startId, 0);
   }
   return metersBySegment;
 }
@@ -476,16 +472,20 @@ function pickSeed(
   graph: StreetGraph,
 ): PlanSegment {
   const componentMeters = indexUncoveredComponentMeters(graph, uncovered);
-  const ranked = [...uncovered].sort((a, b) => {
-    // Prefer the largest unfinished pocket so 12 km plans do not start in a 1 km cul-de-sac.
-    const componentDelta = (componentMeters.get(b.id) ?? 0) - (componentMeters.get(a.id) ?? 0);
-    if (componentDelta !== 0) return componentDelta;
-    const densityDelta =
-      neighborhoodUncoveredMeters(midpoint(b.coordinates), metersByCell) -
-      neighborhoodUncoveredMeters(midpoint(a.coordinates), metersByCell);
-    if (densityDelta !== 0) return densityDelta;
-    return a.id - b.id;
-  });
+  // Rank keys computed once per segment — the comparator used to recompute density per comparison.
+  const ranked = uncovered
+    .map((segment) => ({
+      segment,
+      component: componentMeters.get(segment.id) ?? 0,
+      density: neighborhoodUncoveredMeters(midpoint(segment.coordinates), metersByCell),
+    }))
+    .sort((a, b) => {
+      // Prefer the largest unfinished pocket so 12 km plans do not start in a 1 km cul-de-sac.
+      if (a.component !== b.component) return b.component - a.component;
+      if (a.density !== b.density) return b.density - a.density;
+      return a.segment.id - b.segment.id;
+    })
+    .map((entry) => entry.segment);
   return pickFromWindow(ranked, 8, salt);
 }
 

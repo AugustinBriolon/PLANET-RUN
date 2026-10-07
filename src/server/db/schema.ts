@@ -140,6 +140,8 @@ export const activityStreetSegments = pgTable(
     segmentId: bigint({ mode: "number" })
       .notNull()
       .references(() => streetSegments.id, { onDelete: "cascade" }),
+    /** Raw share of the segment length within the run corridor (ADR 0013). */
+    coveredShare: doublePrecision().notNull().default(1),
   },
   (table) => [primaryKey({ columns: [table.activityId, table.segmentId] }), index().on(table.segmentId)],
 );
@@ -161,7 +163,7 @@ export const userCities = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.osmRelationId] }), index().on(table.osmRelationId)],
 );
 
-/** Grid cells whose start points were already reverse-geocoded for this user (success or miss). */
+/** Grid cells reverse-geocoded for this user (hit or permanent miss). Expired via TTL for retry. */
 export const userGeocodeCells = pgTable(
   "user_geocode_cells",
   {

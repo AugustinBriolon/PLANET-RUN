@@ -192,7 +192,7 @@ describe("street coverage in PostGIS", () => {
       expect(far.get(1001)).toBeGreaterThan(2_900);
     });
 
-    it("anchors a run plan at the athlete's position", async () => {
+    it("anchors a run plan near the athlete on the street network", async () => {
       const runner = await linkRunner(78);
       await linkCity(runner.id, 1001, "Squareville");
       const athlete = { lng: 2.0005, lat: MAIN_STREET_LATITUDE };
@@ -203,7 +203,15 @@ describe("street coverage in PostGIS", () => {
       const geometry = plan.streets.features[0]?.geometry;
       expect(geometry?.type).toBe("LineString");
       const coordinates = geometry?.type === "LineString" ? geometry.coordinates : [];
-      expect(coordinates[0]).toEqual([athlete.lng, athlete.lat]);
+      // Plan starts on snapped OSM geometry, not a GPS→street aerial chord.
+      expect(coordinates[0]).toBeDefined();
+      const [startLng, startLat] = coordinates[0] as [number, number];
+      const startDistanceMeters = Math.hypot(
+        (startLng - athlete.lng) * 111_320 * Math.cos((athlete.lat * Math.PI) / 180),
+        (startLat - athlete.lat) * 111_320,
+      );
+      expect(startDistanceMeters).toBeLessThan(100);
+      expect(plan.jumpCount).toBe(0);
       expect(plan.pathMeters).toBeGreaterThan(200);
       expect(plan.targetMeters).toBeGreaterThan(200);
     });
@@ -224,11 +232,15 @@ describe("street coverage in PostGIS", () => {
       // ~595 m of running plus the 20 m corridor at each end covers 13 of the 15 Main Street pieces.
       expect(city!.coveredMeters).toBeGreaterThan(600);
       expect(city!.coveredMeters).toBeLessThan(MAIN_STREET_METERS - 50);
-      const coveredWays = await testDatabase.database.execute<{ osm_way_id: number; pieces: number }>(
+      // Hard set (≥85%) stays Main Street only — soft rows may also record a crossed segment.
+      const hardCoveredWays = await testDatabase.database.execute<{ osm_way_id: number; pieces: number }>(
         `SELECT osm_way_id::int, count(*)::int AS pieces FROM street_segments
-         JOIN activity_street_segments ON segment_id = id GROUP BY osm_way_id`,
+         JOIN activity_street_segments ON segment_id = id
+         WHERE covered_share >= 0.85
+         GROUP BY osm_way_id`,
       );
-      expect([...coveredWays]).toEqual([{ osm_way_id: 1, pieces: 13 }]);
+      expect([...hardCoveredWays]).toEqual([{ osm_way_id: 1, pieces: 13 }]);
+      expect(city!.strictCoveredMeters).toBeGreaterThan(600);
 
       const streets = await coverage.getCoveredStreets(runner.id);
       expect(streets.features).toHaveLength(1);
@@ -238,7 +250,8 @@ describe("street coverage in PostGIS", () => {
     it("ignores a parallel street 60 m away", async () => {
       const runner = await linkRunner(42);
       await linkCity(runner.id, 1001, "Squareville");
-      await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE + 0.00054, 2.001, 2.009));
+      // Stay west of Cross Street (lon 2.005) so soft credit cannot come from a perpendicular crossing.
+      await recordRun(runner.id, 1, encodeRoute(MAIN_STREET_LATITUDE + 0.00054, 2.001, 2.003));
 
       await coverage.matchPendingActivities({ userId: runner.id });
 
@@ -300,6 +313,7 @@ describe("street coverage in PostGIS", () => {
           name: "Pendingville",
           status: "pending",
           coveredMeters: 0,
+          strictCoveredMeters: 0,
           totalMeters: 0,
           bounds: null,
         },

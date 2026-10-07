@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { getCoveredStreetsBounds, toCoverageShare, type CoveredStreets } from "./street-coverage";
+import {
+  getCoveredStreetsBounds,
+  toCoverageShare,
+  toStrictCoverageShare,
+  type CoveredStreets,
+} from "./street-coverage";
 
-const city = { areaId: 1, name: "Colombes", status: "ready" as const };
+const city = {
+  areaId: 1,
+  name: "Colombes",
+  status: "ready" as const,
+  strictCoveredMeters: 0,
+};
 
 describe("toCoverageShare", () => {
   it("divides covered street length by the city's total", () => {
@@ -14,8 +24,21 @@ describe("toCoverageShare", () => {
     expect(toCoverageShare({ ...city, coveredMeters: 10, totalMeters: 0 })).toBe(null);
   });
 
-  it("returns null while street analysis is still pending", () => {
+  it("returns null while street import or matching is still pending", () => {
     expect(toCoverageShare({ ...city, status: "pending", coveredMeters: 0, totalMeters: 0 })).toBe(null);
+    expect(toCoverageShare({ ...city, status: "matching", coveredMeters: 0, totalMeters: 1000 })).toBe(null);
+  });
+});
+
+describe("toStrictCoverageShare", () => {
+  it("uses hard covered meters for conquest completion", () => {
+    expect(
+      toStrictCoverageShare({
+        ...city,
+        strictCoveredMeters: 850,
+        totalMeters: 1000,
+      }),
+    ).toBe(0.85);
   });
 });
 

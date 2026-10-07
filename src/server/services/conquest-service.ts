@@ -8,7 +8,7 @@ import {
   parseProfileVisibility,
   type ProfileVisibility,
 } from "@/lib/conquest/visibility";
-import { toCoverageShare, type CityCoverage } from "@/lib/coverage/street-coverage";
+import { toCoverageShare, toStrictCoverageShare, type CityCoverage } from "@/lib/coverage/street-coverage";
 import type { ConquestRepository } from "@/server/repositories/conquest-repository";
 import type { CoverageRepository } from "@/server/repositories/coverage-repository";
 import type { UserCityRepository } from "@/server/repositories/user-city-repository";
@@ -108,7 +108,7 @@ export function createConquestService({
       const cities = await coverage.listCityCoverage(userId);
       const at = now();
       for (const city of cities) {
-        if (!isCityComplete(toCoverageShare(city))) continue;
+        if (!isCityComplete(toStrictCoverageShare(city))) continue;
         const distance = await coverage.sumActivityDistanceInArea(userId, city.areaId);
         await conquests.insertConquestIfAbsent({
           userId,

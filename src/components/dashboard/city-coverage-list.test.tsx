@@ -12,6 +12,7 @@ const cities: CityCoverage[] = [
     name: "La Garenne-Colombes",
     status: "ready",
     coveredMeters: 19_760,
+    strictCoveredMeters: 19_760,
     totalMeters: 32_400,
     bounds: [
       [2.23, 48.89],
@@ -30,7 +31,7 @@ describe("CityCoverageList", () => {
     expect(onSelectCity).toHaveBeenCalledExactlyOnceWith(91775);
   });
 
-  it("shows pending cities without a coverage percentage", () => {
+  it("shows pending import cities without a coverage percentage", () => {
     render(
       <CityCoverageList
         cities={[
@@ -39,6 +40,7 @@ describe("CityCoverageList", () => {
             name: "Nanterre",
             status: "pending",
             coveredMeters: 0,
+            strictCoveredMeters: 0,
             totalMeters: 0,
             bounds: null,
           },
@@ -47,9 +49,34 @@ describe("CityCoverageList", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Nanterre (analyzing streets)" })).toBeDisabled();
-    expect(screen.getByLabelText("Street analysis pending")).toHaveTextContent("…");
+    expect(screen.getByRole("button", { name: "Nanterre (importing streets)" })).toBeDisabled();
+    expect(screen.getByLabelText("Importing streets")).toHaveTextContent("Importing…");
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+
+  it("shows matching lag distinctly from pending import", () => {
+    render(
+      <CityCoverageList
+        cities={[
+          {
+            areaId: 2,
+            name: "Colombes",
+            status: "matching",
+            coveredMeters: 0,
+            strictCoveredMeters: 0,
+            totalMeters: 100_000,
+            bounds: [
+              [2.2, 48.9],
+              [2.3, 48.95],
+            ],
+          },
+        ]}
+        onSelectCity={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Colombes (matching runs)" })).toBeDisabled();
+    expect(screen.getByLabelText("Matching runs")).toHaveTextContent("Matching…");
   });
 
   it("truncates a long city name instead of pushing the percentage off the row", () => {
@@ -62,6 +89,7 @@ describe("CityCoverageList", () => {
             name: longName,
             status: "ready",
             coveredMeters: 500,
+            strictCoveredMeters: 500,
             totalMeters: 1_000,
             bounds: [
               [2.2, 48.8],

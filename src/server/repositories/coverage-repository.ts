@@ -55,11 +55,32 @@ export function createCoverageRepository(
   database: Database,
   rules: CoverageRules = COVERAGE_RULES,
 ): CoverageRepository {
-  const segmentsCoveredBy = (userId: string) => sql`
+  /** Hard-covered segment ids (touched share ≥ minCoveredShare) — map layers and strict %. */
+  const segmentsHardCoveredBy = (userId: string) => sql`
     SELECT covered.segment_id
     FROM activity_street_segments AS covered
     JOIN activities ON activities.strava_activity_id = covered.activity_id
     WHERE activities.user_id = ${userId}
+      AND covered.covered_share >= ${rules.minCoveredShare}
+  `;
+
+  /** Best touched share per segment for this runner (soft % / partial credit). */
+  const segmentSharesForUser = (userId: string) => sql`
+    SELECT covered.segment_id, max(covered.covered_share)::float8 AS covered_share
+    FROM activity_street_segments AS covered
+    JOIN activities ON activities.strava_activity_id = covered.activity_id
+    WHERE activities.user_id = ${userId}
+    GROUP BY covered.segment_id
+  `;
+
+  // Bound params are typed unknown; ::float8 avoids Postgres 42725 on unknown - unknown.
+  const softCreditSql = (shareExpr: ReturnType<typeof sql>) => sql`
+    CASE
+      WHEN ${shareExpr} >= ${rules.minCoveredShare}::float8 THEN 1.0
+      WHEN ${shareExpr} < ${rules.softCreditFloor}::float8 THEN 0.0
+      ELSE (${shareExpr} - ${rules.softCreditFloor}::float8)
+           / (${rules.minCoveredShare}::float8 - ${rules.softCreditFloor}::float8)
+    END
   `;
 
   return {
@@ -78,6 +99,7 @@ export function createCoverageRepository(
 
         await transaction.execute(sql`DELETE FROM activity_street_segments WHERE activity_id IN (${activityIds})`);
         // MATERIALIZED forces each run's buffer to be computed once instead of once per segment row scanned.
+        // Soft floor stores near-miss contact; hard map filter still uses minCoveredShare (ADR 0013).
         await transaction.execute(sql`
           WITH route AS MATERIALIZED (
             SELECT strava_activity_id AS activity_id, ST_LineFromEncodedPolyline(summary_polyline) AS path
@@ -87,13 +109,18 @@ export function createCoverageRepository(
             SELECT activity_id, ST_Buffer(path::geography, ${rules.matchDistanceMeters})::geometry AS area
             FROM route WHERE ST_NPoints(path) >= 2
           )
-          INSERT INTO activity_street_segments (activity_id, segment_id)
-          SELECT corridor.activity_id, segment.id
+          INSERT INTO activity_street_segments (activity_id, segment_id, covered_share)
+          SELECT corridor.activity_id, segment.id,
+                 least(
+                   1.0,
+                   ST_Length(ST_Intersection(segment.path, corridor.area)::geography)
+                     / nullif(segment.length_meters, 0)
+                 )
           FROM corridor
           JOIN street_segments AS segment ON segment.path && corridor.area AND ST_Intersects(segment.path, corridor.area)
           WHERE segment.counts_for_coverage
             AND ST_Length(ST_Intersection(segment.path, corridor.area)::geography)
-                >= ${rules.minCoveredShare} * segment.length_meters
+                >= ${rules.softCreditFloor} * segment.length_meters
         `);
         await transaction.execute(
           sql`UPDATE activities SET coverage_matched_at = now() WHERE strava_activity_id IN (${activityIds})`,
@@ -110,38 +137,67 @@ export function createCoverageRepository(
       const rows = await database.execute<{
         area_id: string;
         name: string;
-        status: "pending" | "ready";
+        status: "pending" | "matching" | "ready";
         covered_meters: number;
+        strict_covered_meters: number;
         total_meters: number;
         west: number | null;
         south: number | null;
         east: number | null;
         north: number | null;
       }>(sql`
-        WITH covered AS (
+        WITH shares AS (
+          ${segmentSharesForUser(userId)}
+        ),
+        soft_covered AS (
+          SELECT segment.area_id,
+                 sum(segment.length_meters * (${softCreditSql(sql`shares.covered_share`)}))::float8 AS covered_meters
+          FROM street_segments AS segment
+          JOIN shares ON shares.segment_id = segment.id
+          WHERE segment.counts_for_coverage
+          GROUP BY segment.area_id
+        ),
+        hard_covered AS (
           SELECT segment.area_id, sum(segment.length_meters)::float8 AS covered_meters
           FROM street_segments AS segment
           WHERE segment.counts_for_coverage
-            AND segment.id IN (${segmentsCoveredBy(userId)})
+            AND segment.id IN (${segmentsHardCoveredBy(userId)})
           GROUP BY segment.area_id
+        ),
+        match_lag AS (
+          SELECT EXISTS (
+            SELECT 1 FROM activities
+            WHERE activities.user_id = ${userId} AND activities.coverage_matched_at IS NULL
+          ) AS pending_match
         )
         SELECT user_cities.osm_relation_id AS area_id,
                user_cities.name,
-               CASE WHEN coalesce(area.street_length_meters, 0) > 0 THEN 'ready' ELSE 'pending' END AS status,
-               coalesce(covered.covered_meters, 0)::float8 AS covered_meters,
+               CASE
+                 WHEN coalesce(area.street_length_meters, 0) <= 0 THEN 'pending'
+                 WHEN match_lag.pending_match THEN 'matching'
+                 ELSE 'ready'
+               END AS status,
+               coalesce(soft_covered.covered_meters, 0)::float8 AS covered_meters,
+               coalesce(hard_covered.covered_meters, 0)::float8 AS strict_covered_meters,
                coalesce(area.street_length_meters, 0)::float8 AS total_meters,
                ST_XMin(coalesce(area.boundary, catalog.boundary))::float8 AS west,
                ST_YMin(coalesce(area.boundary, catalog.boundary))::float8 AS south,
                ST_XMax(coalesce(area.boundary, catalog.boundary))::float8 AS east,
                ST_YMax(coalesce(area.boundary, catalog.boundary))::float8 AS north
         FROM user_cities
+        CROSS JOIN match_lag
         LEFT JOIN areas AS area ON area.osm_relation_id = user_cities.osm_relation_id
         LEFT JOIN city_catalog AS catalog ON catalog.osm_relation_id = user_cities.osm_relation_id
-        LEFT JOIN covered ON covered.area_id = user_cities.osm_relation_id
+        LEFT JOIN soft_covered ON soft_covered.area_id = user_cities.osm_relation_id
+        LEFT JOIN hard_covered ON hard_covered.area_id = user_cities.osm_relation_id
         WHERE user_cities.user_id = ${userId}
         ORDER BY
-          CASE WHEN coalesce(area.street_length_meters, 0) > 0 THEN 0 ELSE 1 END,
-          covered.covered_meters / nullif(area.street_length_meters, 0) DESC NULLS LAST,
+          CASE
+            WHEN coalesce(area.street_length_meters, 0) <= 0 THEN 2
+            WHEN match_lag.pending_match THEN 1
+            ELSE 0
+          END,
+          soft_covered.covered_meters / nullif(area.street_length_meters, 0) DESC NULLS LAST,
           user_cities.name
       `);
       return rows.map((row) => ({
@@ -149,6 +205,7 @@ export function createCoverageRepository(
         name: row.name,
         status: row.status,
         coveredMeters: row.covered_meters,
+        strictCoveredMeters: row.strict_covered_meters,
         totalMeters: row.total_meters,
         bounds:
           row.west == null || row.south == null || row.east == null || row.north == null
@@ -161,12 +218,12 @@ export function createCoverageRepository(
     },
 
     async getCoveredStreets(userId) {
-      // Adjacent covered segments are merged per area to keep the payload small.
+      // Adjacent hard-covered segments are merged per area to keep the payload small.
       const rows = await database.execute<{ area_id: string; geometry: string }>(sql`
         SELECT segment.area_id, ST_AsGeoJSON(ST_LineMerge(ST_Collect(segment.path)), 6) AS geometry
         FROM street_segments AS segment
         WHERE segment.counts_for_coverage
-          AND segment.id IN (${segmentsCoveredBy(userId)})
+          AND segment.id IN (${segmentsHardCoveredBy(userId)})
         GROUP BY segment.area_id
       `);
       return {
@@ -187,7 +244,7 @@ export function createCoverageRepository(
           FROM street_segments AS segment
           WHERE segment.area_id = ${areaId}
             AND segment.counts_for_coverage
-            AND segment.id NOT IN (${segmentsCoveredBy(userId)})
+            AND segment.id NOT IN (${segmentsHardCoveredBy(userId)})
         ) AS focus
         WHERE focus.pt IS NOT NULL
       `);
@@ -221,7 +278,7 @@ export function createCoverageRepository(
         FROM street_segments AS segment
         WHERE segment.area_id = ${areaId}
           AND segment.counts_for_coverage
-          AND segment.id NOT IN (${segmentsCoveredBy(userId)})
+          AND segment.id NOT IN (${segmentsHardCoveredBy(userId)})
       `);
       const geometry = rows[0]?.geometry;
       if (!geometry) {
@@ -273,7 +330,7 @@ export function createCoverageRepository(
           FROM street_segments AS segment
           WHERE segment.area_id = ${areaId}
             AND segment.counts_for_coverage
-            AND segment.id NOT IN (${segmentsCoveredBy(userId)})
+            AND segment.id NOT IN (${segmentsHardCoveredBy(userId)})
         ),
         pocket AS (
           SELECT ST_Expand(

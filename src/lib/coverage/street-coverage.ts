@@ -2,14 +2,26 @@ import type { FeatureCollection, LineString, MultiLineString, Position } from "g
 
 import type { LngLatBounds } from "@/lib/runs/run-geojson";
 
-export type CityCoverageStatus = "pending" | "ready";
+/**
+ * - `pending` — city discovered, shared street geometry not imported yet
+ * - `matching` — streets ready, run↔street matching still in flight
+ * - `ready` — streets imported and matching caught up
+ */
+export type CityCoverageStatus = "pending" | "matching" | "ready";
 
 export type CityCoverage = {
   areaId: number;
   name: string;
-  /** `pending` = city discovered, shared street analysis not ready yet. */
   status: CityCoverageStatus;
+  /**
+   * Soft covered length (partial credit, ADR 0013). Used for the displayed %.
+   */
   coveredMeters: number;
+  /**
+   * Hard covered length (segments with touched share ≥ minCoveredShare).
+   * Used for 100% conquest titles so soft progress cannot unlock Founder early.
+   */
+  strictCoveredMeters: number;
   totalMeters: number;
   bounds: LngLatBounds | null;
 };
@@ -18,14 +30,24 @@ export type CoveredStreets = FeatureCollection<LineString | MultiLineString, { a
 
 export const NO_COVERED_STREETS: CoveredStreets = { type: "FeatureCollection", features: [] };
 
-/** Covered share of a city's streets, between 0 and 1. Pending cities have no share yet. */
+/** Soft covered share of a city's streets, between 0 and 1. Pending/matching have no share yet. */
 export function toCoverageShare({
   status,
   coveredMeters,
   totalMeters,
 }: Pick<CityCoverage, "status" | "coveredMeters" | "totalMeters">): number | null {
-  if (status === "pending" || totalMeters <= 0) return null;
+  if (status === "pending" || status === "matching" || totalMeters <= 0) return null;
   return Math.min(1, Math.max(0, coveredMeters / totalMeters));
+}
+
+/** Hard covered share — conquest completion uses this, not the soft display %. */
+export function toStrictCoverageShare({
+  status,
+  strictCoveredMeters,
+  totalMeters,
+}: Pick<CityCoverage, "status" | "strictCoveredMeters" | "totalMeters">): number | null {
+  if (status === "pending" || status === "matching" || totalMeters <= 0) return null;
+  return Math.min(1, Math.max(0, strictCoveredMeters / totalMeters));
 }
 
 function positionsFromGeometry(geometry: LineString | MultiLineString): Position[] {

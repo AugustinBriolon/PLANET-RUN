@@ -1,20 +1,45 @@
-/** Parameters of the street coverage model; rationale in docs/adr/0008 and 0012. */
+/** Parameters of the street coverage model; rationale in docs/adr/0008, 0012, and 0013. */
 export type CoverageRules = {
   /** Streets are split into equal pieces no longer than this. */
   maxSegmentMeters: number;
   /** A run "touches" the parts of a segment within this distance of its trace. */
   matchDistanceMeters: number;
-  /** Share of a segment's length that must be touched for it to count as covered. */
+  /**
+   * Share of a segment's length that must be touched for full credit and for the
+   * hard (map) covered set. Below this, soft credit ramps from `softCreditFloor`.
+   */
   minCoveredShare: number;
+  /**
+   * Minimum touched share to earn any partial credit. Below this the segment is ignored
+   * (keeps pure glancing contacts out). Between floor and `minCoveredShare`, credit is linear.
+   */
+  softCreditFloor: number;
 };
 
-// A perpendicular crossing touches 2 × 20 m of a ~50 m segment (≈ 0.8): the 0.85 share keeps crossings out
-// while a run along the street, even on the far sidewalk, touches the whole segment.
+// A perpendicular crossing touches 2 × 20 m of a ~50 m segment (≈ 0.8): the 0.85 share keeps
+// crossings out of the hard set while a run along the street, even on the far sidewalk, touches
+// the whole segment. Soft floor (0.5) lets near-miss along-street contact earn partial %.
 export const COVERAGE_RULES: CoverageRules = {
   maxSegmentMeters: 50,
   matchDistanceMeters: 20,
   minCoveredShare: 0.85,
+  softCreditFloor: 0.5,
 };
+
+/**
+ * Soft credit for a touched share of a segment, in [0, 1].
+ * Linear between `softCreditFloor` and `minCoveredShare`, then clamped at 1.
+ */
+export function softCoverageCredit(
+  touchedShare: number,
+  rules: Pick<CoverageRules, "minCoveredShare" | "softCreditFloor"> = COVERAGE_RULES,
+): number {
+  if (!(touchedShare >= rules.softCreditFloor)) return 0;
+  if (touchedShare >= rules.minCoveredShare) return 1;
+  const span = rules.minCoveredShare - rules.softCreditFloor;
+  if (span <= 0) return touchedShare >= rules.minCoveredShare ? 1 : 0;
+  return (touchedShare - rules.softCreditFloor) / span;
+}
 
 /** OpenStreetMap `highway` values counted toward city coverage %. */
 export const RUNNABLE_HIGHWAY_TYPES = [

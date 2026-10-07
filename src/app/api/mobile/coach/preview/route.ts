@@ -61,7 +61,9 @@ export async function GET(request: Request) {
 
   const tips: string[] = [];
   if (city.status === "pending") {
-    tips.push("Street analysis is still running for this city — sync again in a bit.");
+    tips.push("Street import is still running for this city — sync again in a bit.");
+  } else if (city.status === "matching") {
+    tips.push("Streets are in; run matching is still catching up — pull to refresh shortly.");
   } else if (remainingMeters <= 0) {
     tips.push("This city looks fully covered at the current matching rules. Pick another city or sync new runs.");
   } else {

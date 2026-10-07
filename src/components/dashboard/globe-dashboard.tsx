@@ -90,7 +90,7 @@ export function GlobeDashboard({
   const [showHeatmap, setShowHeatmap] = useState(false);
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const hasRuns = stats.runCount > 0;
-  const hasPendingCities = cityCoverage.some((city) => city.status === "pending");
+  const hasPendingCities = cityCoverage.some((city) => city.status === "pending" || city.status === "matching");
   const densityTraces = useMemo(() => (showHeatmap ? toDensityTraces(traces) : null), [showHeatmap, traces]);
   // On mobile the detail panel takes the stats panel's own slot, so it swaps out instead of stacking;
   // on desktop the two sit side by side and the stats panel never needs to hide.
@@ -115,7 +115,7 @@ export function GlobeDashboard({
 
   function selectCity(areaId: number) {
     const city = cityCoverage.find((entry) => entry.areaId === areaId);
-    if (!city || city.status === "pending" || !city.bounds) return;
+    if (!city || city.status !== "ready" || !city.bounds) return;
     setFocusBounds(getCoveredStreetsBounds(coveredStreets, areaId) ?? city.bounds);
     setFraming(cityFraming(shellRef.current, panelRef.current));
   }

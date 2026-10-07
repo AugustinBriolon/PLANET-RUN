@@ -19,6 +19,7 @@ function city(overrides: Partial<CityCoverage> = {}): CityCoverage {
     name: "Rennes",
     status: "ready",
     coveredMeters: 1_000,
+    strictCoveredMeters: 1_000,
     totalMeters: 10_000,
     bounds: null,
     ...overrides,
@@ -93,7 +94,9 @@ describe("createConquestService", () => {
         tokenExpiresAt: NOW,
       },
     );
-    harness.coverageRows.set(user.id, [city({ coveredMeters: shareMeters })]);
+    harness.coverageRows.set(user.id, [
+      city({ coveredMeters: shareMeters, strictCoveredMeters: shareMeters }),
+    ]);
     harness.distances.set(user.id, shareMeters);
     return user;
   }
@@ -139,7 +142,7 @@ describe("createConquestService", () => {
     expect(adaBoard?.you.isFounder).toBe(false);
 
     const stranger = await addUser("Stranger", 0);
-    harness.coverageRows.set(stranger.id, [city({ coveredMeters: 0 })]);
+    harness.coverageRows.set(stranger.id, [city({ coveredMeters: 0, strictCoveredMeters: 0 })]);
     const strangerBoard = await harness.service.getCityBoard(stranger.id, RENNES);
     expect(strangerBoard?.hall.founder?.displayName).toBe("Hidden runner");
     expect(strangerBoard?.hall.conquerors).toEqual([]);

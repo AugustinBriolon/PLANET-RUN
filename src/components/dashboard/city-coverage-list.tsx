@@ -13,6 +13,12 @@ export type CityCoverageListProps = {
   onSelectCity: (areaId: number) => void;
 };
 
+function analysisLabel(status: CityCoverage["status"]): string {
+  if (status === "pending") return "Importing streets";
+  if (status === "matching") return "Matching runs";
+  return "Street analysis pending";
+}
+
 /** Street coverage per city, scrollable (shorter on mobile to leave map room). */
 export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps) {
   if (cities.length === 0) return null;
@@ -24,7 +30,7 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
         <ul className="flex max-h-24 scroll-fade flex-col gap-2 overflow-y-auto pr-2 sm:max-h-36">
           {cities.map((city) => {
             const share = toCoverageShare(city);
-            const isPending = city.status === "pending";
+            const isAnalyzing = city.status === "pending" || city.status === "matching";
             return (
               <motion.li
                 key={city.areaId}
@@ -38,8 +44,8 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
               >
                 <button
                   type="button"
-                  aria-label={isPending ? `${city.name} (analyzing streets)` : `Fly to ${city.name}`}
-                  disabled={isPending || city.bounds == null}
+                  aria-label={isAnalyzing ? `${city.name} (${analysisLabel(city.status).toLowerCase()})` : `Fly to ${city.name}`}
+                  disabled={isAnalyzing || city.bounds == null}
                   onClick={() => onSelectCity(city.areaId)}
                   className="group flex min-w-0 flex-1 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                 >
@@ -57,9 +63,9 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
                   </span>
                 </button>
                 <span className="flex shrink-0 items-center gap-2">
-                  {isPending || share == null ? (
-                    <span className="font-mono text-xs text-muted-foreground" aria-label="Street analysis pending">
-                      …
+                  {isAnalyzing || share == null ? (
+                    <span className="font-mono text-xs text-muted-foreground" aria-label={analysisLabel(city.status)}>
+                      {city.status === "pending" ? "Importing…" : city.status === "matching" ? "Matching…" : "…"}
                     </span>
                   ) : (
                     <>

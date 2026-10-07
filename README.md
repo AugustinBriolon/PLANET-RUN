@@ -18,14 +18,16 @@ coverage, and badges.
 - Renders traces on a globe with totals (runs, distance, time, countries).
 - Computes the percentage of a city's streets covered from OpenStreetMap data. Street geometry is shared across
   athletes; Île-de-France boundaries can be pre-seeded cheaply, while full street imports target large cities
-  first so sync stays fast without bloating Neon.
+  first so sync stays fast without bloating Neon. Displayed city % uses soft partial credit for near-miss
+  contact (ADR 0013); map layers and Founder / Conqueror unlocks still require the hard 85% segment threshold.
+  Cities report `pending` (streets importing), `matching` (run↔street match catching up), or `ready`.
 - Lets runners permanently delete their data, which also revokes Strava access, and publishes a privacy policy at
   `/privacy`.
 - Installs from Safari/Chrome as a home-screen app (`src/app/manifest.ts`) for a full-bleed, browser-chrome-free
   view — true edge-to-edge under the notch/Dynamic Island only happens in that installed mode, not a browser tab.
 - Exposes a **mobile API** under `/api/mobile/*` (Strava OAuth callback → JWT, `GET /api/mobile/me` for cities /
   coverage) consumed by `cityfil-app`. `GET /api/mobile/cities/nearby` ranks the runner's cities by distance
-  from a position, and `GET /api/mobile/cities/plan` builds a walkable run route on OSM streets (plus pedestrian connectors that do not count toward %). Distance is a soft preference (~±15–20%); the planner grows forward only and does not draw aerial shortcuts through blocks. Optionally starts from the runner's
+  from a position, and `GET /api/mobile/cities/plan` builds a walkable run route on OSM streets (plus pedestrian connectors that do not count toward %). Distance is a soft preference (~±15–20%); the planner stays on the street / connector graph only (ADR 0014 — no aerial hops). Optionally starts from the runner's
   position (`startLat`/`startLng`), only within 1 km of the city boundary.
 - City rivalries: `POST /api/mobile/cities/invite` mints a 14-day link, `POST /api/mobile/cities/invite/accept`
   pairs two runners on one city, `GET /api/mobile/cities/:areaId/board` returns rivals plus Founder / Conqueror /

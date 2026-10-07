@@ -4,8 +4,7 @@ import {
   bridgeBudgetMeters,
   buildRunPlanRoute,
   distanceMeters,
-  jumpBudgetMeters,
-  MAX_AERIAL_JUMP_METERS,
+  MAX_ANCHOR_SNAP_METERS,
   planPocketExpandDegrees,
   runPlanRouteToGeoJson,
   type PlanSegment,
@@ -45,23 +44,44 @@ function chain(startId: number, count: number, covered: boolean, startLng = 2, p
   });
 }
 
+/**
+ * True when every consecutive path step stays on OSM/connector geometry.
+ * Exact edge matches, join-tolerance junction glue, and float-drift at shared
+ * endpoints (path tip near edge start, tip→edgeEnd ≈ edge) are allowed.
+ * Longer off-edge chords fail — those would be aerial shortcuts.
+ */
+function pathFollowsSegments(path: [number, number][], segments: PlanSegment[], joinToleranceMeters = 22): boolean {
+  const edges: { from: [number, number]; to: [number, number] }[] = [];
+  for (const segment of segments) {
+    for (let i = 1; i < segment.coordinates.length; i++) {
+      const a = segment.coordinates[i - 1] as [number, number];
+      const b = segment.coordinates[i] as [number, number];
+      edges.push({ from: a, to: b }, { from: b, to: a });
+    }
+  }
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1] as [number, number];
+    const b = path[i] as [number, number];
+    if (a[0] === b[0] && a[1] === b[1]) continue;
+    if (distanceMeters(a, b) <= joinToleranceMeters) continue;
+    const onEdge = edges.some(
+      (edge) =>
+        (a[0] === edge.from[0] && a[1] === edge.from[1] && b[0] === edge.to[0] && b[1] === edge.to[1]) ||
+        (distanceMeters(a, edge.from) <= joinToleranceMeters &&
+          distanceMeters(b, edge.to) <= joinToleranceMeters &&
+          Math.abs(distanceMeters(a, b) - distanceMeters(edge.from, edge.to)) <= joinToleranceMeters),
+    );
+    if (!onEdge) return false;
+  }
+  return true;
+}
+
 describe("bridgeBudgetMeters", () => {
   it("scales with the outing and stays within bounds", () => {
     expect(bridgeBudgetMeters(5_000)).toBe(1_000);
     expect(bridgeBudgetMeters(12_000)).toBe(2_200);
     expect(bridgeBudgetMeters(500)).toBe(320);
     expect(bridgeBudgetMeters(5_000, 90)).toBe(90);
-  });
-});
-
-describe("jumpBudgetMeters", () => {
-  it("allows short hops only — never multi-km diagonals through buildings", () => {
-    expect(MAX_AERIAL_JUMP_METERS).toBe(120);
-    const short = jumpBudgetMeters(5_000, bridgeBudgetMeters(5_000));
-    const long = jumpBudgetMeters(12_000, bridgeBudgetMeters(12_000));
-    expect(short).toBeGreaterThanOrEqual(80);
-    expect(long).toBeLessThanOrEqual(MAX_AERIAL_JUMP_METERS);
-    expect(long).toBe(MAX_AERIAL_JUMP_METERS);
   });
 });
 
@@ -99,6 +119,7 @@ describe("buildRunPlanRoute", () => {
     expect(route.pathMeters).toBeLessThanOrEqual(420);
     expect(route.uncoveredMeters).toBe(route.pathMeters);
     expect(route.coordinates.length).toBeGreaterThan(2);
+    expect(pathFollowsSegments(route.coordinates as [number, number][], pieces)).toBe(true);
   });
 
   it("uses a short covered bridge to keep the path continuous", () => {
@@ -135,6 +156,7 @@ describe("buildRunPlanRoute", () => {
     expect(route.uncoveredMeters).toBeGreaterThanOrEqual(150);
     expect(route.pathMeters).toBeGreaterThan(route.uncoveredMeters);
     expect(route.coordinates.length).toBeGreaterThanOrEqual(4);
+    expect(route.jumpCount).toBe(0);
   });
 
   it("walks a pedestrian connector instead of jumping across a block", () => {
@@ -171,6 +193,7 @@ describe("buildRunPlanRoute", () => {
 
     expect(route.uncoveredMeters).toBeGreaterThanOrEqual(150);
     expect(route.legs.some((leg) => leg.kind === "connector")).toBe(true);
+    expect(route.legs.some((leg) => leg.kind === "jump")).toBe(false);
   });
 
   it("can fill across a long covered gap once conquest is stuck", () => {
@@ -243,20 +266,24 @@ describe("buildRunPlanRoute", () => {
     expect(a.start).not.toEqual(b.start);
   });
 
-  it("starts an anchored route at the athlete and walks streets to the nearest unfinished one", () => {
+  it("starts an anchored route on the network and walks streets to the nearest unfinished one", () => {
     const approach = chain(100, 3, true, 2.0, 100);
     const unfinished = chain(1, 10, false, 2.0 + 3 * 0.00135, 100);
+    const segments = [...approach, ...unfinished];
     const athlete: [number, number] = [2.0, 48.0];
 
-    const route = buildRunPlanRoute([...approach, ...unfinished], {
+    const route = buildRunPlanRoute(segments, {
       budgetMeters: 1_000,
       start: athlete,
     });
 
-    expect(route.start).toEqual(athlete);
-    expect(route.coordinates[0]).toEqual(athlete);
+    expect(route.coordinates.length).toBeGreaterThan(2);
+    expect(distanceMeters(route.start!, athlete)).toBeLessThanOrEqual(MAX_ANCHOR_SNAP_METERS);
+    expect(route.coordinates[0]).toEqual(route.start);
     expect(route.uncoveredMeters).toBeGreaterThanOrEqual(600);
     expect(route.pathMeters).toBeGreaterThan(route.uncoveredMeters);
+    expect(route.jumpCount).toBe(0);
+    expect(pathFollowsSegments(route.coordinates as [number, number][], segments)).toBe(true);
   });
 
   it("orients an anchored seed toward unfinished continuation, not the cul-de-sac", () => {
@@ -278,37 +305,96 @@ describe("buildRunPlanRoute", () => {
     expect(route.uncoveredMeters).toBeGreaterThan(700);
   });
 
-  it("keeps the anchor as the start when growing toward the budget", () => {
+  it("keeps the anchor snap as the start when growing toward the budget", () => {
     const pieces = chain(1, 20, false);
     const athlete: [number, number] = [2.0, 48.0];
     const route = buildRunPlanRoute(pieces, { budgetMeters: 1_500, start: athlete });
 
-    expect(route.start).toEqual(athlete);
-    expect(route.coordinates[0]).toEqual(athlete);
+    expect(route.start).not.toBeNull();
+    expect(distanceMeters(route.start!, athlete)).toBeLessThanOrEqual(MAX_ANCHOR_SNAP_METERS);
+    expect(route.coordinates[0]).toEqual(route.start);
     expect(route.pathMeters).toBeGreaterThanOrEqual(1_300);
+    expect(pathFollowsSegments(route.coordinates as [number, number][], pieces)).toBe(true);
   });
 
-  it("collects a second unfinished pocket with a short hop instead of burning budget on covered streets", () => {
+  it("refuses aerial hops across a short off-network gap (~80 m)", () => {
     const west = chain(1, 3, false, 2.0, 100);
-    // ~80 m gap — within the short aerial hop cap.
+    // ~80 m gap — previously within the aerial hop cap; must stay disconnected.
     const east = chain(100, 3, false, 2.0 + 3 * 0.00135 + 0.001, 100);
     const route = buildRunPlanRoute([...west, ...east], { budgetMeters: 800, salt: 0 });
 
-    expect(route.uncoveredMeters).toBeGreaterThan(400);
-    expect(route.jumpCount).toBeGreaterThanOrEqual(1);
-    expect(route.jumpMeters).toBeLessThanOrEqual(MAX_AERIAL_JUMP_METERS);
+    expect(route.jumpCount).toBe(0);
+    expect(route.jumpMeters).toBe(0);
+    expect(route.legs.some((leg) => leg.kind === "jump")).toBe(false);
+    // Only one pocket is reachable on the graph — uncovered stays within that pocket.
+    expect(route.uncoveredMeters).toBeLessThanOrEqual(320);
+    expect(pathFollowsSegments(route.coordinates as [number, number][], [...west, ...east])).toBe(true);
   });
 
   it("does not aerial-hop across a multi-block gap", () => {
     const west = chain(1, 3, false, 2.0, 100);
-    // ~400 m gap — above MAX_AERIAL_JUMP_METERS.
+    // ~400 m gap.
     const east = chain(100, 3, false, 2.0 + 3 * 0.00135 + 0.005, 100);
     const route = buildRunPlanRoute([...west, ...east], { budgetMeters: 2_000, salt: 0 });
 
     expect(route.jumpCount).toBe(0);
-    for (let index = 1; index < route.coordinates.length; index++) {
-      expect(distanceMeters(route.coordinates[index - 1]!, route.coordinates[index]!)).toBeLessThan(130);
-    }
+    expect(route.legs.some((leg) => leg.kind === "jump")).toBe(false);
+    expect(pathFollowsSegments(route.coordinates as [number, number][], [...west, ...east])).toBe(true);
+  });
+
+  it("walks a long continuous OSM segment beyond 120 m when it is on-network", () => {
+    const longStreet = seg(
+      1,
+      [
+        [2.0, 48.0],
+        [2.004, 48.0],
+      ],
+      false,
+      300,
+    );
+    const continuation = seg(
+      2,
+      [
+        [2.004, 48.0],
+        [2.005, 48.0],
+      ],
+      false,
+      80,
+    );
+    const route = buildRunPlanRoute([longStreet, continuation], { budgetMeters: 500, salt: 0 });
+
+    expect(route.pathMeters).toBeGreaterThanOrEqual(300);
+    expect(route.jumpCount).toBe(0);
+    // Consecutive vertices on the long LineString are ~300 m apart — that is road geometry, not a hop.
+    expect(distanceMeters(route.coordinates[0]!, route.coordinates[1]!)).toBeGreaterThan(120);
+    expect(pathFollowsSegments(route.coordinates as [number, number][], [longStreet, continuation])).toBe(true);
+  });
+
+  it("refuses an anchored start when the athlete is off the street network", () => {
+    const pieces = chain(1, 10, false, 2.0, 100);
+    // ~200 m north of the chain — beyond MAX_ANCHOR_SNAP_METERS.
+    const athlete: [number, number] = [2.0, 48.0 + 0.002];
+    expect(distanceMeters(athlete, [2.0, 48.0])).toBeGreaterThan(MAX_ANCHOR_SNAP_METERS);
+
+    const route = buildRunPlanRoute(pieces, { budgetMeters: 1_000, start: athlete });
+    expect(route.coordinates).toEqual([]);
+    expect(route.pathMeters).toBe(0);
+  });
+
+  it("refuses anchored start when seed pocket is graph-disconnected from the snap node", () => {
+    const approach = chain(1, 2, true, 2.0, 100);
+    const unfinishedFar = chain(100, 3, false, 2.05, 100);
+    const athlete: [number, number] = [2.0, 48.0];
+
+    const route = buildRunPlanRoute([...approach, ...unfinishedFar], {
+      budgetMeters: 1_000,
+      start: athlete,
+      salt: 0,
+    });
+
+    // Athlete snaps onto the covered approach; seed is the only unfinished pocket, disconnected.
+    expect(route.coordinates).toEqual([]);
+    expect(route.pathMeters).toBe(0);
   });
 
   it("starts in the denser unfinished neighbourhood", () => {

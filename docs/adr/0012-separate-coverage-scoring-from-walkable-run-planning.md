@@ -4,7 +4,7 @@ Date: 2026-10-06
 
 ## Status
 
-Accepted
+Accepted — amended by [ADR 0014](0014-on-network-only-run-planning-no-aerial-jumps.md) (aerial hops removed; on-network only).
 
 ## Context
 
@@ -24,7 +24,7 @@ Replacing the coverage denominator with Apple Maps pedestrian routing was consid
 **Treat run planning as a separate navigation concern:**
 
 1. **Soft distance band.** Requested distance is a preference band of about 85–120% of the budget. The planner finishes streets and local pockets; it may undershoot or slightly overshoot. The covered-street fill phase is removed.
-2. **Walkability over hops.** Aerial jumps are capped at 100 m. Past the soft minimum, the plan stops rather than hopping to pad length.
+2. **Walkability over hops.** Originally aerial jumps were capped at ~100 m. **Superseded by ADR 0014:** aerial jumps are forbidden entirely; plans stay on the OSM / connector graph only.
 3. **Navigation connectors.** Overpass also imports `footway`, `path`, and `steps`. They are stored with `counts_for_coverage = false`: they join the plan graph but do not enter `street_length_meters`, matching, or the conquest map layers. Re-import a city to populate connectors.
 4. **Honest UI.** Plans report approximate path length (`~X km`), expose jump diagnostics, style connectors/jumps in gray vs gold conquest, and note that gray links do not add coverage.
 

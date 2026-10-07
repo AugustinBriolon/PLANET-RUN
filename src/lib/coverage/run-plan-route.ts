@@ -381,11 +381,14 @@ function pickAnyUnusedEdge(
   edges: DirectedEdge[],
   usedSegments: ReadonlySet<number>,
   preferUncovered: boolean,
+  avoidSegmentId?: number | null,
 ): DirectedEdge | null {
   const unused = edges.filter((edge) => !usedSegments.has(edge.segmentId));
   if (unused.length === 0) return null;
-  const pool = preferUncovered ? unused.filter((edge) => isConquestEdge(edge)) : unused;
-  const candidates = pool.length > 0 ? pool : unused;
+  const forward = avoidSegmentId == null ? unused : unused.filter((edge) => edge.segmentId !== avoidSegmentId);
+  const base = forward.length > 0 ? forward : unused;
+  const preferred = preferUncovered ? base.filter((edge) => isConquestEdge(edge)) : base.filter((edge) => !isConquestEdge(edge));
+  const candidates = preferred.length > 0 ? preferred : base;
   return candidates.reduce((best, edge) => (edge.lengthMeters > best.lengthMeters ? edge : best));
 }
 
@@ -423,8 +426,60 @@ function neighborhoodUncoveredMeters(point: Position, metersByCell: Map<string, 
   return meters;
 }
 
-function pickSeed(uncovered: PlanSegment[], metersByCell: Map<string, number>, salt: number): PlanSegment {
+/**
+ * Map each unfinished segment id → total uncovered metres in its on-network pocket.
+ * One flood-fill pass so seed ranking stays cheap on large cities.
+ */
+function indexUncoveredComponentMeters(graph: StreetGraph, uncovered: readonly PlanSegment[]): Map<number, number> {
+  const pending = new Set(uncovered.map((segment) => segment.id));
+  const metersBySegment = new Map<number, number>();
+  while (pending.size > 0) {
+    const startId = pending.values().next().value!;
+    const nodes = graph.segmentNodes.get(startId);
+    if (!nodes) {
+      metersBySegment.set(startId, 0);
+      pending.delete(startId);
+      continue;
+    }
+    const seenSeg = new Set<number>();
+    const queue: NodeId[] = [nodes.start, nodes.end];
+    const seenNode = new Set<NodeId>(queue);
+    let meters = 0;
+    while (queue.length > 0) {
+      const node = queue.pop()!;
+      for (const edge of graph.outgoing.get(node) ?? []) {
+        if (!isConquestEdge(edge) || seenSeg.has(edge.segmentId)) continue;
+        seenSeg.add(edge.segmentId);
+        meters += edge.lengthMeters;
+        if (!seenNode.has(edge.to)) {
+          seenNode.add(edge.to);
+          queue.push(edge.to);
+        }
+      }
+    }
+    for (const segmentId of seenSeg) {
+      metersBySegment.set(segmentId, meters);
+      pending.delete(segmentId);
+    }
+    if (!seenSeg.has(startId)) {
+      metersBySegment.set(startId, 0);
+      pending.delete(startId);
+    }
+  }
+  return metersBySegment;
+}
+
+function pickSeed(
+  uncovered: PlanSegment[],
+  metersByCell: Map<string, number>,
+  salt: number,
+  graph: StreetGraph,
+): PlanSegment {
+  const componentMeters = indexUncoveredComponentMeters(graph, uncovered);
   const ranked = [...uncovered].sort((a, b) => {
+    // Prefer the largest unfinished pocket so 12 km plans do not start in a 1 km cul-de-sac.
+    const componentDelta = (componentMeters.get(b.id) ?? 0) - (componentMeters.get(a.id) ?? 0);
+    if (componentDelta !== 0) return componentDelta;
     const densityDelta =
       neighborhoodUncoveredMeters(midpoint(b.coordinates), metersByCell) -
       neighborhoodUncoveredMeters(midpoint(a.coordinates), metersByCell);
@@ -474,7 +529,10 @@ function pickAnchoredSeed(
 ): PlanSegment | null {
   const reachable = uncovered.filter((segment) => isSeedReachableFrom(graph, snapNode, segment));
   if (reachable.length === 0) return null;
+  const componentMeters = indexUncoveredComponentMeters(graph, reachable);
   const ranked = [...reachable].sort((a, b) => {
+    const componentDelta = (componentMeters.get(b.id) ?? 0) - (componentMeters.get(a.id) ?? 0);
+    if (componentDelta !== 0) return componentDelta;
     const scoreDelta = anchoredSeedScore(b, start, graph) - anchoredSeedScore(a, start, graph);
     if (scoreDelta !== 0) return scoreDelta;
     return a.id - b.id;
@@ -579,7 +637,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
     if (anchored == null) return emptyRoute();
     seed = anchored;
   } else {
-    seed = pickSeed(uncovered, metersByCell, salt);
+    seed = pickSeed(uncovered, metersByCell, salt, graph);
   }
 
   // Prefer the exit that unlocks more unfinished street (avoids walking into a cul-de-sac).
@@ -606,6 +664,8 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
   let pathMeters = 0;
   let head = 0;
   let tail = 0;
+  let lastHeadSegmentId: number | null = null;
+  let lastTailSegmentId: number | null = null;
 
   function pushLeg(coordinates: Position[], kind: PlanLegKind) {
     const clean = dedupe(coordinates);
@@ -707,6 +767,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
       coords.push(...edge.coordinates.slice(1));
       pushLeg([tip, ...edge.coordinates.slice(1)], kind);
       head = edge.to;
+      lastHeadSegmentId = edge.segmentId;
     } else {
       const tip = coords[0]!;
       coords.unshift(...edge.coordinates.slice(1).reverse());
@@ -715,6 +776,7 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
       const prepended = legs.pop()!;
       legs.unshift(prepended);
       tail = edge.to;
+      lastTailSegmentId = edge.segmentId;
     }
   }
 
@@ -757,8 +819,10 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
     if (remaining <= 0) return false;
     const node = end === "head" ? head : tail;
     const edges = graph.outgoing.get(node) ?? [];
+    const avoid = end === "head" ? lastHeadSegmentId : lastTailSegmentId;
 
-    const local = pickAnyUnusedEdge(edges, used, false);
+    // Prefer covered streets and avoid immediate U-turns when another edge exists.
+    const local = pickAnyUnusedEdge(edges, used, false, avoid);
     if (local && local.lengthMeters <= remaining + 80) {
       appendEdge(local, end);
       return true;

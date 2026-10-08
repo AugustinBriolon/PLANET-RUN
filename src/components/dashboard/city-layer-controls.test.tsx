@@ -11,13 +11,21 @@ describe("CityLayerControls", () => {
     const onToggle = vi.fn();
     render(<CityLayerControls layers={DEFAULT_CITY_MAP_LAYERS} onToggle={onToggle} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Heatmap" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show heatmap" }));
     expect(onToggle).toHaveBeenCalledExactlyOnceWith("heatmap");
   });
 
   it("marks active layers as pressed", () => {
-    render(<CityLayerControls layers={DEFAULT_CITY_MAP_LAYERS} onToggle={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Remaining" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Heatmap" })).toHaveAttribute("aria-pressed", "false");
+    render(
+      <CityLayerControls
+        layers={{ heatmap: false, remaining: true, covered: true }}
+        onToggle={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Hide remaining streets" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Show heatmap" })).toHaveAttribute("aria-pressed", "false");
   });
 });

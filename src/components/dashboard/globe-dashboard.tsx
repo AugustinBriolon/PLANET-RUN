@@ -30,7 +30,9 @@ import {
 import { overlayRelativeToMap, paddingForOverlay, type BoxPadding } from "@/lib/map/fit-padding";
 import { panelMotion } from "@/lib/motion/panel-motion";
 import {
+  filterTracesByBounds,
   toDensityTraces,
+  toRunStartPoints,
   type LngLatBounds,
   type RunFeatureProperties,
   type RunStartPoints,
@@ -40,11 +42,10 @@ import type { RunStats } from "@/lib/runs/run-stats";
 import type { RunSyncActionResult } from "@/lib/runs/run-sync-result";
 
 import { CityDetailPanel } from "./city-detail-panel";
+import { CityLayerControls } from "./city-layer-controls";
 import { EmptyRunsState } from "./empty-runs-state";
-import { HeatmapToggle } from "./heatmap-toggle";
 import { RunDetailPanel } from "./run-detail-panel";
 import { RunStatsPanel } from "./run-stats-panel";
-import { SyncButton } from "./sync-button";
 
 type Framing = { padding: number | BoxPadding; maxZoom: number };
 
@@ -85,6 +86,13 @@ function filterCoveredByCity(streets: CoveredStreets, areaId: number): CoveredSt
   };
 }
 
+function mergeUncovered(byCity: Record<number, CoveredStreets>): CoveredStreets {
+  return {
+    type: "FeatureCollection",
+    features: Object.values(byCity).flatMap((streets) => streets.features),
+  };
+}
+
 export function GlobeDashboard({
   traces,
   startPoints,
@@ -103,30 +111,42 @@ export function GlobeDashboard({
   const [focusBounds, setFocusBounds] = useState(bounds);
   const [framing, setFraming] = useState<Framing>(ENTRANCE_FRAMING);
   const [selectedRun, setSelectedRun] = useState<RunFeatureProperties | null>(null);
-  const [showOverviewHeatmap, setShowOverviewHeatmap] = useState(false);
+  const [mapLayers, setMapLayers] = useState<CityMapLayerFlags>(DEFAULT_CITY_MAP_LAYERS);
   const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
-  const [cityLayers, setCityLayers] = useState<CityMapLayerFlags>(DEFAULT_CITY_MAP_LAYERS);
   const [uncoveredByCity, setUncoveredByCity] = useState<Record<number, CoveredStreets>>({});
-  const [uncoveredLoading, startUncoveredLoad] = useTransition();
+  const [, startUncoveredLoad] = useTransition();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const hasRuns = stats.runCount > 0;
   const hasPendingCities = cityCoverage.some((city) => city.status === "pending" || city.status === "matching");
   const selectedCity = cityCoverage.find((city) => city.areaId === selectedCityId) ?? null;
   const cityOpen = selectedCity != null;
 
-  const showHeatmap = cityOpen ? cityLayers.heatmap : showOverviewHeatmap;
-  const densityTraces = useMemo(() => (showHeatmap ? toDensityTraces(traces) : null), [showHeatmap, traces]);
+  const visibleTraces = useMemo(() => {
+    if (!selectedCity?.bounds) return traces;
+    return filterTracesByBounds(traces, selectedCity.bounds);
+  }, [traces, selectedCity]);
+
+  const visibleStartPoints = useMemo(() => {
+    if (!cityOpen) return startPoints;
+    return toRunStartPoints(visibleTraces);
+  }, [cityOpen, startPoints, visibleTraces]);
+
+  const densityTraces = useMemo(
+    () => (mapLayers.heatmap ? toDensityTraces(visibleTraces) : null),
+    [mapLayers.heatmap, visibleTraces],
+  );
 
   const visibleCovered = useMemo(() => {
-    if (!cityOpen) return coveredStreets;
-    if (!cityLayers.covered || selectedCityId == null) return NO_COVERED_STREETS;
+    if (!mapLayers.covered) return NO_COVERED_STREETS;
+    if (selectedCityId == null) return coveredStreets;
     return filterCoveredByCity(coveredStreets, selectedCityId);
-  }, [cityOpen, cityLayers.covered, coveredStreets, selectedCityId]);
+  }, [mapLayers.covered, coveredStreets, selectedCityId]);
 
   const visibleUncovered = useMemo(() => {
-    if (!cityOpen || !cityLayers.remaining || selectedCityId == null) return NO_COVERED_STREETS;
-    return uncoveredByCity[selectedCityId] ?? NO_COVERED_STREETS;
-  }, [cityOpen, cityLayers.remaining, selectedCityId, uncoveredByCity]);
+    if (!mapLayers.remaining) return NO_COVERED_STREETS;
+    if (selectedCityId != null) return uncoveredByCity[selectedCityId] ?? NO_COVERED_STREETS;
+    return mergeUncovered(uncoveredByCity);
+  }, [mapLayers.remaining, selectedCityId, uncoveredByCity]);
 
   const showStats = isDesktop || (!selectedRun && !cityOpen);
   const panelMode = isDesktop ? "sheet" : "swap";
@@ -160,21 +180,30 @@ export function GlobeDashboard({
       if (uncoveredByCity[areaId]) return;
       startUncoveredLoad(async () => {
         const streets = await getUncoveredStreetsAction(areaId);
-        setUncoveredByCity((prev) => ({ ...prev, [areaId]: streets }));
+        setUncoveredByCity((prev) => (prev[areaId] ? prev : { ...prev, [areaId]: streets }));
       });
     },
     [uncoveredByCity],
   );
+
+  useEffect(() => {
+    if (!mapLayers.remaining) return;
+    if (selectedCityId != null) {
+      loadUncovered(selectedCityId);
+      return;
+    }
+    for (const city of cityCoverage) {
+      if (city.status === "ready") loadUncovered(city.areaId);
+    }
+  }, [mapLayers.remaining, selectedCityId, cityCoverage, loadUncovered]);
 
   function selectCity(areaId: number) {
     const city = cityCoverage.find((entry) => entry.areaId === areaId);
     if (!city || city.status !== "ready" || !city.bounds) return;
     setSelectedRun(null);
     setSelectedCityId(areaId);
-    setCityLayers(DEFAULT_CITY_MAP_LAYERS);
     setFocusBounds(getCoveredStreetsBounds(coveredStreets, areaId) ?? city.bounds);
     setFraming(cityFraming(shellRef.current, panelRef.current));
-    loadUncovered(areaId);
   }
 
   function closeCity() {
@@ -184,35 +213,28 @@ export function GlobeDashboard({
   }
 
   function toggleLayer(key: CityMapLayerKey) {
-    setCityLayers((prev) => {
+    setMapLayers((prev) => {
       const next = toggleCityMapLayer(prev, key);
       if (key === "heatmap" && next.heatmap) setSelectedRun(null);
       return next;
     });
   }
 
-  function toggleOverviewHeatmap() {
-    setShowOverviewHeatmap((wasShowing) => {
-      if (!wasShowing) setSelectedRun(null);
-      return !wasShowing;
-    });
-  }
-
   return (
     <main ref={shellRef} className="starfield relative h-dvh overflow-hidden">
       <RunGlobe className="absolute inset-0">
-        {showHeatmap && densityTraces ? (
+        {mapLayers.heatmap && densityTraces ? (
           <RunHeatmapLayer traces={densityTraces} />
-        ) : !cityOpen || cityLayers.heatmap ? (
+        ) : (
           <RunTracesLayer
-            traces={traces}
-            startPoints={startPoints}
+            traces={visibleTraces}
+            startPoints={visibleStartPoints}
             onSelectRun={setSelectedRun}
             onDeselect={() => setSelectedRun(null)}
           />
-        ) : null}
-        {(!cityOpen || cityLayers.covered) && <CoveredStreetsLayer streets={visibleCovered} />}
-        {cityOpen && cityLayers.remaining ? <UncoveredStreetsLayer streets={visibleUncovered} /> : null}
+        )}
+        {mapLayers.covered ? <CoveredStreetsLayer streets={visibleCovered} /> : null}
+        {mapLayers.remaining ? <UncoveredStreetsLayer streets={visibleUncovered} /> : null}
         {hasRuns ? (
           <FlyToBounds bounds={focusBounds} padding={framing.padding} maxZoom={framing.maxZoom} />
         ) : (
@@ -222,12 +244,11 @@ export function GlobeDashboard({
 
       <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top,0px))] sm:pb-6">
         <CityfilLogo className="pointer-events-auto text-base" />
-        <div className="pointer-events-auto flex items-center gap-2">
-          {hasRuns && !cityOpen ? (
-            <HeatmapToggle active={showOverviewHeatmap} onToggle={toggleOverviewHeatmap} />
-          ) : null}
-          <SyncButton isSyncing={status === "syncing"} onSync={sync} />
-        </div>
+        {hasRuns ? (
+          <div className="pointer-events-auto">
+            <CityLayerControls layers={mapLayers} onToggle={toggleLayer} />
+          </div>
+        ) : null}
       </header>
 
       {hasRuns ? (
@@ -241,13 +262,7 @@ export function GlobeDashboard({
                   {...panelMotion(panelMode)}
                   className="pointer-events-auto transform-gpu"
                 >
-                  <CityDetailPanel
-                    city={selectedCity}
-                    layers={cityLayers}
-                    uncoveredLoading={uncoveredLoading}
-                    onToggleLayer={toggleLayer}
-                    onClose={closeCity}
-                  />
+                  <CityDetailPanel city={selectedCity} onClose={closeCity} />
                 </motion.div>
               ) : showStats ? (
                 <motion.div

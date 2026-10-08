@@ -2,21 +2,16 @@
 
 import { X } from "lucide-react";
 
-import type { CityMapLayerFlags, CityMapLayerKey } from "@/lib/coverage/city-map-layers";
 import { cityKmLeft } from "@/lib/coverage/city-map-layers";
 import type { CityCoverage } from "@/lib/coverage/street-coverage";
 import { toCoverageShare } from "@/lib/coverage/street-coverage";
 import { formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import { CityLayerControls } from "./city-layer-controls";
 import { PanelFooter } from "./panel-footer";
 
 export type CityDetailPanelProps = {
   city: CityCoverage;
-  layers: CityMapLayerFlags;
-  uncoveredLoading: boolean;
-  onToggleLayer: (key: CityMapLayerKey) => void;
   onClose: () => void;
   className?: string;
 };
@@ -27,15 +22,8 @@ function analysisLabel(status: CityCoverage["status"]): string {
   return "Street analysis pending…";
 }
 
-/** Selected-city sheet: coverage summary + independent map layer toggles. */
-export function CityDetailPanel({
-  city,
-  layers,
-  uncoveredLoading,
-  onToggleLayer,
-  onClose,
-  className,
-}: CityDetailPanelProps) {
+/** Selected-city sheet: coverage summary only (map layers live in the header). */
+export function CityDetailPanel({ city, onClose, className }: CityDetailPanelProps) {
   const share = toCoverageShare(city);
   const analyzing = city.status === "pending" || city.status === "matching";
 
@@ -64,14 +52,6 @@ export function CityDetailPanel({
           <X className="size-4" aria-hidden="true" />
         </button>
       </header>
-
-      <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:mt-4">
-        <p className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">Layers</p>
-        <CityLayerControls layers={layers} onToggle={onToggleLayer} />
-        {uncoveredLoading && layers.remaining ? (
-          <p className="text-xs text-muted-foreground">Loading remaining streets…</p>
-        ) : null}
-      </div>
 
       <PanelFooter />
     </section>

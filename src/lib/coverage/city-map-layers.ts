@@ -1,6 +1,6 @@
-/** Independent map layers for a selected city — several can be on at once. */
+/** Independent global map layers — several can be on at once. */
 export type CityMapLayerFlags = {
-  /** Past run traces (activity heatmap / density). */
+  /** Past run traces as a density heatmap. */
   heatmap: boolean;
   /** Streets not yet covered. */
   remaining: boolean;
@@ -10,10 +10,10 @@ export type CityMapLayerFlags = {
 
 export type CityMapLayerKey = keyof CityMapLayerFlags;
 
-/** Defaults when opening a city: streets on, heatmap off. */
+/** Global defaults: covered streets on, heatmap and remaining off. */
 export const DEFAULT_CITY_MAP_LAYERS: CityMapLayerFlags = {
   heatmap: false,
-  remaining: true,
+  remaining: false,
   covered: true,
 };
 

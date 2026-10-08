@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SAMPLE_POLYLINE } from "@tests/fixtures/strava";
 
 import {
+  filterTracesByBounds,
   getPrimaryCountryBounds,
   getTracesBounds,
   toDensityTraces,
@@ -112,6 +113,51 @@ describe("getTracesBounds", () => {
 
   it("returns null when there is nothing to frame", () => {
     expect(getTracesBounds(toRunTraces([]))).toBeNull();
+  });
+});
+
+describe("filterTracesByBounds", () => {
+  function traceAt(id: number, ...coordinates: [number, number][]): RunTraces["features"][number] {
+    return {
+      type: "Feature",
+      id,
+      geometry: { type: "LineString", coordinates },
+      properties: {
+        id,
+        name: `Run ${id}`,
+        startDate: "2026-09-01T06:30:00.000Z",
+        distanceMeters: 0,
+        movingTimeSeconds: 0,
+      },
+    };
+  }
+
+  it("keeps only traces that intersect the city bounds", () => {
+    const traces: RunTraces = {
+      type: "FeatureCollection",
+      features: [
+        traceAt(1, [2.25, 48.92], [2.26, 48.93]),
+        traceAt(2, [2.5, 48.7], [2.51, 48.71]),
+      ],
+    };
+    const filtered = filterTracesByBounds(traces, [
+      [2.2, 48.9],
+      [2.3, 48.95],
+    ]);
+    expect(filtered.features.map((feature) => feature.id)).toEqual([1]);
+  });
+
+  it("returns an empty collection when nothing intersects", () => {
+    const traces: RunTraces = {
+      type: "FeatureCollection",
+      features: [traceAt(1, [1, 1], [1.1, 1.1])],
+    };
+    expect(
+      filterTracesByBounds(traces, [
+        [2.2, 48.9],
+        [2.3, 48.95],
+      ]).features,
+    ).toEqual([]);
   });
 });
 

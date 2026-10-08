@@ -2,8 +2,6 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_CITY_MAP_LAYERS } from "@/lib/coverage/city-map-layers";
-
 import { CityDetailPanel } from "./city-detail-panel";
 
 vi.mock("next/link", () => ({
@@ -31,9 +29,6 @@ describe("CityDetailPanel", () => {
             [2.3, 48.95],
           ],
         }}
-        layers={DEFAULT_CITY_MAP_LAYERS}
-        uncoveredLoading={false}
-        onToggleLayer={vi.fn()}
         onClose={onClose}
       />,
     );
@@ -41,6 +36,7 @@ describe("CityDetailPanel", () => {
     expect(screen.getByRole("heading", { name: "Colombes" })).toBeInTheDocument();
     expect(screen.getByText(/50\.0%/)).toBeInTheDocument();
     expect(screen.getByText(/5 km left/)).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Map layers" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Close city" }));
     expect(onClose).toHaveBeenCalledOnce();
   });

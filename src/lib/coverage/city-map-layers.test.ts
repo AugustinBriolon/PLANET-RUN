@@ -7,10 +7,10 @@ import {
 } from "./city-map-layers";
 
 describe("DEFAULT_CITY_MAP_LAYERS", () => {
-  it("opens a city with streets on and heatmap off", () => {
+  it("starts with covered on and heatmap / remaining off", () => {
     expect(DEFAULT_CITY_MAP_LAYERS).toEqual({
       heatmap: false,
-      remaining: true,
+      remaining: false,
       covered: true,
     });
   });
@@ -21,7 +21,7 @@ describe("toggleCityMapLayer", () => {
     const next = toggleCityMapLayer(DEFAULT_CITY_MAP_LAYERS, "heatmap");
     expect(next.heatmap).toBe(true);
     expect(DEFAULT_CITY_MAP_LAYERS.heatmap).toBe(false);
-    expect(next.remaining).toBe(true);
+    expect(next.remaining).toBe(false);
   });
 });
 

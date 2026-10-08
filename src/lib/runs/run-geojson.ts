@@ -184,6 +184,26 @@ export function getTracesBounds(traces: RunTraces): LngLatBounds | null {
   return boundsOfPositions(traces.features.flatMap((trace) => trace.geometry.coordinates));
 }
 
+/** True when a [lng, lat] position sits inside inclusive WGS84 bounds. */
+export function positionInBounds(position: Position, bounds: LngLatBounds): boolean {
+  const [[west, south], [east, north]] = bounds;
+  const [lng, lat] = position;
+  return lng! >= west && lng! <= east && lat! >= south && lat! <= north;
+}
+
+/**
+ * Keeps runs that intersect the given bounds (any vertex inside).
+ * Used when the map is focused on a city so other cities' traces disappear.
+ */
+export function filterTracesByBounds(traces: RunTraces, bounds: LngLatBounds): RunTraces {
+  return {
+    type: "FeatureCollection",
+    features: traces.features.filter((trace) =>
+      trace.geometry.coordinates.some((coordinate) => positionInBounds(coordinate, bounds)),
+    ),
+  };
+}
+
 /**
  * Bounds of the traces starting in whichever country has the most runs — a default entrance view
  * that isn't dragged out to a global bbox by the odd trip abroad. Falls back to null when no

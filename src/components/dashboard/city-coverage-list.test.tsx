@@ -24,9 +24,9 @@ const cities: CityCoverage[] = [
 describe("CityCoverageList", () => {
   it("flies to a city when its name is clicked", async () => {
     const onSelectCity = vi.fn();
-    render(<CityCoverageList cities={cities} onSelectCity={onSelectCity} />);
+    render(<CityCoverageList cities={cities} selectedCityId={null} onSelectCity={onSelectCity} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Fly to La Garenne-Colombes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Open details for La Garenne-Colombes" }));
 
     expect(onSelectCity).toHaveBeenCalledExactlyOnceWith(91775);
   });
@@ -45,6 +45,7 @@ describe("CityCoverageList", () => {
             bounds: null,
           },
         ]}
+        selectedCityId={null}
         onSelectCity={vi.fn()}
       />,
     );
@@ -71,6 +72,7 @@ describe("CityCoverageList", () => {
             ],
           },
         ]}
+        selectedCityId={null}
         onSelectCity={vi.fn()}
       />,
     );
@@ -97,6 +99,7 @@ describe("CityCoverageList", () => {
             ],
           },
         ]}
+        selectedCityId={null}
         onSelectCity={vi.fn()}
       />,
     );

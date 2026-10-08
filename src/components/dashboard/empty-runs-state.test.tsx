@@ -1,3 +1,5 @@
+vi.mock("next/link", () => ({ default: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => <a href={href} {...props}>{children}</a> }));
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -10,8 +12,6 @@ function renderState(props: Partial<EmptyRunsStateProps>) {
   const handlers = {
     onRetry: vi.fn(),
     reconnectAction: vi.fn(),
-    signOutAction: vi.fn(),
-    deleteDataAction: vi.fn(),
   };
   render(<EmptyRunsState status="idle" failure={null} {...handlers} {...props} />);
   return handlers;
@@ -34,7 +34,7 @@ describe("EmptyRunsState", () => {
 
   it("keeps settings reachable before any run is imported", () => {
     renderState({ status: "idle" });
-    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   });
 
   it("stops loading and offers a retry when the import fails", async () => {

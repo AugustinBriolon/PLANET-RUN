@@ -5,10 +5,11 @@ test.describe("sign-in", () => {
     await page.goto("/login");
 
     await expect(page).toHaveTitle("Sign in · Cityfil");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("See every place you've ever run.");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Every street you've run, filled in.");
     await expect(page.getByRole("region", { name: "Planet preview" }).locator("canvas")).toBeVisible();
     await expect(page.getByRole("button", { name: "Connect with Strava" })).toBeEnabled();
-    await expect(page.getByRole("button", { name: /Connect with Garmin/ })).toBeDisabled();
+    await expect(page.getByRole("link", { name: "Get Cityfil on the App Store" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Garmin/i })).toHaveCount(0);
   });
 
   test("explains a declined Strava authorization", async ({ page }) => {

@@ -2,12 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Cityfil imports a runner's Strava activities and draws every run on a 3D globe, and computes the percentage of
-a city's streets covered from OpenStreetMap data (pilot: Colombes / La Garenne-Colombes, ADR 0008). Roadmap: full
-GPS streams, coverage above city level (department/region/country), badges, Garmin, and a paid token to re-link
-another Strava account. The Next.js version in use (16) has breaking changes: read the
-bundled docs referenced in the root `CLAUDE.md` / `AGENTS.md` before touching framework APIs (e.g. `proxy.ts`
-replaces middleware, request APIs are async, `refresh()` from `next/cache` in Server Actions).
+Cityfil imports a runner's Strava activities, draws them on a 3D globe, computes street coverage per city
+(pilot: Colombes / La Garenne-Colombes, ADR 0008), and powers city rivalries (invite clique, Founder /
+Conqueror / Keeper) plus the iOS mobile API. Sign-in is Strava only. The Next.js version in use (16) has
+breaking changes: read the bundled docs referenced in the root `CLAUDE.md` / `AGENTS.md` before touching
+framework APIs (e.g. `proxy.ts` replaces middleware, request APIs are async, `refresh()` from `next/cache`
+in Server Actions).
 
 ## Commands
 

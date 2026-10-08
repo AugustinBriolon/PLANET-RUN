@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 import { CityfilLogo } from "@/components/brand/cityfil-logo";
-import { formatPercent } from "@/lib/format";
 import { inviteShareDescription, inviteShareHeadline, titleChips } from "@/lib/conquest/invite-share-card";
+import { formatPercent } from "@/lib/format";
+import { IOS_APP_STORE_URL } from "@/lib/ios-app-store";
 import { loadInvitePreview } from "@/server/conquest/load-invite-preview";
 
 type PageProps = { params: Promise<{ token: string }> };
@@ -29,9 +30,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     twitter: { card: "summary_large_image", title, description },
   };
 }
-
-/** App Store Connect app id for Cityfil (EAS submit `ascAppId`). */
-const IOS_APP_STORE_URL = "https://apps.apple.com/app/id6819734478";
 
 export default async function InviteLandingPage({ params }: PageProps) {
   const { token } = await params;
@@ -65,8 +63,8 @@ export default async function InviteLandingPage({ params }: PageProps) {
               ))}
             </ul>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Already have Cityfil? Open the app to join this city board. New here? Install from the App Store /
-              TestFlight, sign in with Strava, then open this link again — the invite is kept until you accept.
+              Already have Cityfil? Open the app to join this city board. New here? Get it on the App Store, sign in with
+              Strava, then open this link again — the invite is kept until you accept.
             </p>
             <div className="flex flex-col gap-3">
               <a
@@ -79,7 +77,7 @@ export default async function InviteLandingPage({ params }: PageProps) {
                 href={IOS_APP_STORE_URL}
                 className="flex min-h-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground"
               >
-                Get the app (App Store / TestFlight)
+                Get Cityfil on the App Store
               </a>
             </div>
           </>

@@ -7,9 +7,11 @@ import { formatPercent } from "@/lib/format";
 import type { CityCoverage } from "@/lib/coverage/street-coverage";
 import { toCoverageShare } from "@/lib/coverage/street-coverage";
 import { PANEL_LAYOUT_TRANSITION } from "@/lib/motion/panel-motion";
+import { cn } from "@/lib/utils";
 
 export type CityCoverageListProps = {
   cities: CityCoverage[];
+  selectedCityId: number | null;
   onSelectCity: (areaId: number) => void;
 };
 
@@ -20,7 +22,7 @@ function analysisLabel(status: CityCoverage["status"]): string {
 }
 
 /** Street coverage per city, scrollable (shorter on mobile to leave map room). */
-export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps) {
+export function CityCoverageList({ cities, selectedCityId, onSelectCity }: CityCoverageListProps) {
   if (cities.length === 0) return null;
 
   return (
@@ -31,12 +33,11 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
           {cities.map((city) => {
             const share = toCoverageShare(city);
             const isAnalyzing = city.status === "pending" || city.status === "matching";
+            const selected = city.areaId === selectedCityId;
             return (
               <motion.li
                 key={city.areaId}
                 layout
-                // Fade only: the panel itself already moves, and on mobile it remounts on every
-                // swap back from a run's details — rows sliding in again each time reads as noise.
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ layout: PANEL_LAYOUT_TRANSITION, duration: 0.2, ease: "easeOut" }}
@@ -44,20 +45,33 @@ export function CityCoverageList({ cities, onSelectCity }: CityCoverageListProps
               >
                 <button
                   type="button"
-                  aria-label={isAnalyzing ? `${city.name} (${analysisLabel(city.status).toLowerCase()})` : `Fly to ${city.name}`}
+                  aria-label={
+                    isAnalyzing
+                      ? `${city.name} (${analysisLabel(city.status).toLowerCase()})`
+                      : `Open details for ${city.name}`
+                  }
+                  aria-current={selected ? "true" : undefined}
                   disabled={isAnalyzing || city.bounds == null}
                   onClick={() => onSelectCity(city.areaId)}
                   className="group flex min-w-0 flex-1 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                 >
-                  {/* Signals the row is tappable — text alone reads as a label, not a control,
-                      especially on touch where there's no hover to reveal it. */}
                   <MapPin
                     aria-hidden="true"
-                    className="size-3.5 shrink-0 text-muted-foreground/70 transition-colors duration-150 ease-out group-hover:text-ember group-focus-visible:text-ember group-disabled:text-muted-foreground/40"
+                    className={cn(
+                      "size-3.5 shrink-0 transition-colors duration-150 ease-out",
+                      selected
+                        ? "text-ember"
+                        : "text-muted-foreground/70 group-hover:text-ember group-focus-visible:text-ember group-disabled:text-muted-foreground/40",
+                    )}
                   />
                   <span
                     title={city.name}
-                    className="min-w-0 truncate text-foreground transition-colors duration-150 ease-out group-hover:text-ember group-focus-visible:text-ember group-disabled:text-foreground"
+                    className={cn(
+                      "min-w-0 truncate transition-colors duration-150 ease-out",
+                      selected
+                        ? "font-semibold text-ember"
+                        : "text-foreground group-hover:text-ember group-focus-visible:text-ember group-disabled:text-foreground",
+                    )}
                   >
                     {city.name}
                   </span>

@@ -17,8 +17,6 @@ export type EmptyRunsStateProps = {
   failure: RunSyncFailure | null;
   onRetry: () => void;
   reconnectAction: () => Promise<void>;
-  signOutAction: () => Promise<void>;
-  deleteDataAction: () => Promise<void>;
   className?: string;
 };
 
@@ -50,15 +48,7 @@ function getContent(status: RunSyncStatus, failure: RunSyncFailure | null): Stat
 }
 
 /** Shown while the globe has no runs: first import in progress, import failed, or no runs on Strava. */
-export function EmptyRunsState({
-  status,
-  failure,
-  onRetry,
-  reconnectAction,
-  signOutAction,
-  deleteDataAction,
-  className,
-}: EmptyRunsStateProps) {
+export function EmptyRunsState({ status, failure, onRetry, reconnectAction, className }: EmptyRunsStateProps) {
   const content = getContent(status, failure);
   const needsReconnect = status === "failed" && failure?.reason === "missing-permission";
   const canRetry = status === "failed" && !needsReconnect;
@@ -95,7 +85,7 @@ export function EmptyRunsState({
           )}
         </motion.div>
       </AnimatePresence>
-      <PanelFooter signOutAction={signOutAction} deleteDataAction={deleteDataAction} />
+      <PanelFooter />
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export const PRIVACY_LAST_UPDATED = "September 18, 2026";
+export const PRIVACY_LAST_UPDATED = "October 8, 2026";
 export const PRIVACY_CONTACT_EMAIL = "augustin.briolon@gmail.com";
 
 const INLINE_LINK_CLASS =
@@ -42,15 +42,17 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
           <li>The access tokens Strava issues to Cityfil, encrypted with AES-256-GCM.</li>
         </ul>
         <p>
-          We do not collect your email, password, heart rate, photos, private notes or any other activity type. Planet
-          Run only requests read access and never posts to Strava.
+          We do not collect your email, password, heart rate, photos, private notes or any other activity type. Web
+          sign-in only requests read access and never posts to Strava. The iOS app may ask for permission to upload runs
+          you record in Cityfil.
         </p>
       </PolicySection>
 
       <PolicySection title="How it is used" compact={compact}>
         <p>
-          Your data is used for one purpose: showing your runs and totals on your own globe. It is not visible to other
-          users, not sold, not used for advertising and not used to train AI models.
+          Your data is used to show your runs and street coverage, and — when you invite rivals — to compare coverage on
+          a city board. Public hall-of-fame names only appear if you set your profile to public. Data is not sold, not
+          used for advertising and not used to train AI models.
         </p>
       </PolicySection>
 
@@ -74,8 +76,9 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
 
       <PolicySection title="Deleting your data" compact={compact}>
         <p>
-          Open the settings icon on your globe and choose <span className="text-foreground">Delete my data</span>. Your
-          profile, runs and tokens are permanently erased and Cityfil&apos;s access to Strava is revoked. You can also
+          Open <span className="text-foreground">Settings</span> and choose{" "}
+          <span className="text-foreground">Delete account</span>. Your profile, runs and tokens are permanently erased
+          and Cityfil&apos;s access to Strava is revoked. You can also
           revoke access at any time from{" "}
           <a href="https://www.strava.com/settings/apps" className={INLINE_LINK_CLASS}>
             strava.com/settings/apps

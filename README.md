@@ -1,9 +1,9 @@
 # Cityfil
 
-Cityfil connects to a runner's Strava account, imports every outdoor run and draws them on an interactive 3D
-globe, so you can see every place in the world you have ever run. It also tracks the percentage of a city's
-streets covered, starting with a Colombes / La Garenne-Colombes pilot. Next up: department, region and country
-coverage, and badges.
+Cityfil connects to a runner's Strava account, imports outdoor runs onto an interactive 3D globe, tracks
+street-by-street city coverage (pilot: Colombes / La Garenne-Colombes), and hosts city rivalries — invite
+rivals onto one board for Founder, Conqueror and Keeper. The iOS app plans unfinished streets and records
+runs; this package is the web globe plus the mobile API.
 
 > **Repo layout:** this package is `cityfil-web` (Next.js + Neon). The Expo client lives in the sibling
 > folder `../cityfil-app` and is a **separate** git repository — do not nest mobile code here.

@@ -10,9 +10,8 @@ import { PanelFooter } from "./panel-footer";
 export type RunStatsPanelProps = {
   stats: RunStats;
   cityCoverage: CityCoverage[];
+  selectedCityId: number | null;
   onSelectCity: (areaId: number) => void;
-  signOutAction: () => Promise<void>;
-  deleteDataAction: () => Promise<void>;
   className?: string;
 };
 
@@ -33,9 +32,8 @@ const STAT_DEFINITIONS: StatDefinition[] = [
 export function RunStatsPanel({
   stats,
   cityCoverage,
+  selectedCityId,
   onSelectCity,
-  signOutAction,
-  deleteDataAction,
   className,
 }: RunStatsPanelProps) {
   return (
@@ -53,8 +51,8 @@ export function RunStatsPanel({
           </div>
         ))}
       </dl>
-      <CityCoverageList cities={cityCoverage} onSelectCity={onSelectCity} />
-      <PanelFooter signOutAction={signOutAction} deleteDataAction={deleteDataAction} />
+      <CityCoverageList cities={cityCoverage} selectedCityId={selectedCityId} onSelectCity={onSelectCity} />
+      <PanelFooter />
     </section>
   );
 }

@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { RunStatsPanel } from "./run-stats-panel";
 
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
+
 vi.mock("motion/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("motion/react")>()),
   useReducedMotion: () => true,
@@ -33,8 +39,7 @@ describe("RunStatsPanel", () => {
           },
         ]}
         onSelectCity={vi.fn()}
-        signOutAction={vi.fn()}
-        deleteDataAction={vi.fn()}
+        selectedCityId={null}
       />,
     );
 
@@ -45,7 +50,7 @@ describe("RunStatsPanel", () => {
     expect(await within(panel).findByText("250")).toBeInTheDocument();
     expect(within(panel).getByText("Countries")).toBeInTheDocument();
     expect(await within(panel).findByText("7")).toBeInTheDocument();
-    expect(within(panel).getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Settings" })).toBeInTheDocument();
     expect(within(panel).getByRole("img", { name: "Powered by Strava" })).toBeInTheDocument();
     expect(within(panel).getByText("Streets")).toBeInTheDocument();
     expect(within(panel).getByText("La Garenne-Colombes")).toBeInTheDocument();
@@ -58,8 +63,7 @@ describe("RunStatsPanel", () => {
         stats={{ runCount: 1, totalDistanceMeters: 5_000, totalMovingTimeSeconds: 1_800, countryCount: 1 }}
         cityCoverage={[]}
         onSelectCity={vi.fn()}
-        signOutAction={vi.fn()}
-        deleteDataAction={vi.fn()}
+        selectedCityId={null}
       />,
     );
 

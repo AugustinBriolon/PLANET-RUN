@@ -6,6 +6,8 @@ export const globePalette = {
   startPoint: "#ffc39e",
   arc: "#ff8a4c",
   coveredStreet: "#4ade80",
+  /** Unfinished streets — gold, matches the mobile remaining layer. */
+  remainingStreet: "#e8b84a",
   // Thermal scale for density-colored traces (cool infrequent → hot frequented).
   heatmapCool: "#4cc9f0",
   heatmapMild: "#80ed99",

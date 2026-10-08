@@ -20,7 +20,8 @@ const LAYER_SPECS: readonly {
     showLabel: "Show heatmap",
     hideLabel: "Hide heatmap",
     icon: Flame,
-    activeClass: "border-ember/50 bg-ember/15 text-ember",
+    // Keep tinted text on hover — outline's hover:text-foreground looks like the toggle flipped off.
+    activeClass: "border-ember/50 bg-ember/15 text-ember hover:bg-ember/25 hover:text-ember",
   },
   {
     key: "covered",
@@ -28,7 +29,8 @@ const LAYER_SPECS: readonly {
     showLabel: "Show covered streets",
     hideLabel: "Hide covered streets",
     icon: Flag,
-    activeClass: "border-emerald-500/50 bg-emerald-500/15 text-emerald-300",
+    activeClass:
+      "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-300",
   },
   {
     key: "remaining",
@@ -36,7 +38,8 @@ const LAYER_SPECS: readonly {
     showLabel: "Show remaining streets",
     hideLabel: "Hide remaining streets",
     icon: Route,
-    activeClass: "border-amber-500/50 bg-amber-500/15 text-amber-200",
+    activeClass:
+      "border-amber-500/50 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 hover:text-amber-200",
   },
 ];
 
@@ -64,7 +67,7 @@ export function CityLayerControls({ layers, onToggle, className }: CityLayerCont
             onClick={() => onToggle(spec.key)}
             className={cn("glass-panel group", active && spec.activeClass)}
           >
-            <Icon aria-hidden="true" className={cn(spec.key === "heatmap" && active && "fill-current")} />
+            <Icon aria-hidden="true" className={cn(active && "fill-current")} />
             {spec.label}
           </Button>
         );

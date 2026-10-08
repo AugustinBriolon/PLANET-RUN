@@ -28,4 +28,15 @@ describe("CityLayerControls", () => {
     );
     expect(screen.getByRole("button", { name: "Show heatmap" })).toHaveAttribute("aria-pressed", "false");
   });
+
+  it("fills icons when a layer is active", () => {
+    const { container } = render(
+      <CityLayerControls
+        layers={{ heatmap: true, remaining: false, covered: true }}
+        onToggle={vi.fn()}
+      />,
+    );
+    const filled = container.querySelectorAll("svg.fill-current");
+    expect(filled).toHaveLength(2);
+  });
 });

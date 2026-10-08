@@ -30,6 +30,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+/** App Store Connect app id for Cityfil (EAS submit `ascAppId`). */
+const IOS_APP_STORE_URL = "https://apps.apple.com/app/id6819734478";
+
 export default async function InviteLandingPage({ params }: PageProps) {
   const { token } = await params;
   const preview = await loadInvitePreview(token);
@@ -62,15 +65,23 @@ export default async function InviteLandingPage({ params }: PageProps) {
               ))}
             </ul>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Open Cityfil to compare your streets on this city. New here? Install the app, sign in with Strava, then
-              tap the invite again.
+              Already have Cityfil? Open the app to join this city board. New here? Install from the App Store /
+              TestFlight, sign in with Strava, then open this link again — the invite is kept until you accept.
             </p>
-            <a
-              href={appUrl}
-              className="flex min-h-12 items-center justify-center rounded-lg bg-ember text-sm font-semibold text-ember-foreground"
-            >
-              Open in Cityfil
-            </a>
+            <div className="flex flex-col gap-3">
+              <a
+                href={appUrl}
+                className="flex min-h-12 items-center justify-center rounded-lg bg-ember text-sm font-semibold text-ember-foreground"
+              >
+                Open in Cityfil
+              </a>
+              <a
+                href={IOS_APP_STORE_URL}
+                className="flex min-h-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground"
+              >
+                Get the app (App Store / TestFlight)
+              </a>
+            </div>
           </>
         ) : (
           <>

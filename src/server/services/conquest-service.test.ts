@@ -148,6 +148,24 @@ describe("createConquestService", () => {
     expect(strangerBoard?.hall.conquerors).toEqual([]);
   });
 
+  it("cliques each new acceptor into the inviter's existing crew on that city", async () => {
+    const ada = await addUser("Ada", 3_000);
+    const grace = await addUser("Grace", 4_000);
+    const bea = await addUser("Bea", 5_000);
+    const { token } = await harness.service.createInvite(ada.id, RENNES);
+
+    await harness.service.acceptInvite(grace.id, token);
+    await harness.service.acceptInvite(bea.id, token);
+
+    const graceBoard = await harness.service.getCityBoard(grace.id, RENNES);
+    const beaBoard = await harness.service.getCityBoard(bea.id, RENNES);
+    const adaBoard = await harness.service.getCityBoard(ada.id, RENNES);
+
+    expect(graceBoard?.rivals.map((rival) => rival.userId).sort()).toEqual([ada.id, bea.id].sort());
+    expect(beaBoard?.rivals.map((rival) => rival.userId).sort()).toEqual([ada.id, grace.id].sort());
+    expect(adaBoard?.rivals.map((rival) => rival.userId).sort()).toEqual([bea.id, grace.id].sort());
+  });
+
   it("previews coverage and vacant titles without naming holders", async () => {
     const ada = await addUser("Ada", 3_000);
     const { token } = await harness.service.createInvite(ada.id, RENNES);

@@ -140,6 +140,13 @@ export function createConquestService({
       if (decision.status === "expired") throw new InviteExpiredError();
       if (decision.status === "own-invite") return { areaId: decision.areaId };
       await conquests.insertRivalry(decision.areaId, decision.inviterId, userId);
+      // Clique: every acceptor joins the inviter's existing crew on this city, so
+      // the board is a shared city group — not a star where invitees only see the host.
+      const crew = await conquests.listRivalIds(decision.inviterId, decision.areaId);
+      for (const rivalId of crew) {
+        if (rivalId === userId) continue;
+        await conquests.insertRivalry(decision.areaId, userId, rivalId);
+      }
       if (!decision.alreadyRivals) await conquests.markInviteAccepted(token, userId);
       const inviterCities = await userCities.listByUser(decision.inviterId);
       const city = inviterCities.find((entry) => entry.osmRelationId === decision.areaId);

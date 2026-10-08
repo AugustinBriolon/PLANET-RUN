@@ -16,6 +16,7 @@ import { CityfilLogo } from "@/components/brand/cityfil-logo";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRunSync } from "@/hooks/use-run-sync";
 import {
+  CITY_FOCUS_MAP_LAYERS,
   DEFAULT_CITY_MAP_LAYERS,
   toggleCityMapLayer,
   type CityMapLayerFlags,
@@ -30,7 +31,7 @@ import {
 import { overlayRelativeToMap, paddingForOverlay, type BoxPadding } from "@/lib/map/fit-padding";
 import { panelMotion } from "@/lib/motion/panel-motion";
 import {
-  filterTracesByBounds,
+  clipTracesToBounds,
   toDensityTraces,
   toRunStartPoints,
   type LngLatBounds,
@@ -121,9 +122,10 @@ export function GlobeDashboard({
   const selectedCity = cityCoverage.find((city) => city.areaId === selectedCityId) ?? null;
   const cityOpen = selectedCity != null;
 
+  // City focus: clip GPS to the city box so heatmap density is in-city only (no approach legs).
   const visibleTraces = useMemo(() => {
     if (!selectedCity?.bounds) return traces;
-    return filterTracesByBounds(traces, selectedCity.bounds);
+    return clipTracesToBounds(traces, selectedCity.bounds);
   }, [traces, selectedCity]);
 
   const visibleStartPoints = useMemo(() => {
@@ -202,6 +204,8 @@ export function GlobeDashboard({
     if (!city || city.status !== "ready" || !city.bounds) return;
     setSelectedRun(null);
     setSelectedCityId(areaId);
+    // Covered = what you've done on the street graph; remaining = what's left. Hide GPS clutter.
+    setMapLayers(CITY_FOCUS_MAP_LAYERS);
     setFocusBounds(getCoveredStreetsBounds(coveredStreets, areaId) ?? city.bounds);
     setFraming(cityFraming(shellRef.current, panelRef.current));
   }
@@ -225,7 +229,8 @@ export function GlobeDashboard({
       <RunGlobe className="absolute inset-0">
         {mapLayers.heatmap && densityTraces ? (
           <RunHeatmapLayer traces={densityTraces} />
-        ) : (
+        ) : cityOpen ? null : (
+          // Overview: GPS traces. City focus: Covered streets are the "done" layer instead.
           <RunTracesLayer
             traces={visibleTraces}
             startPoints={visibleStartPoints}

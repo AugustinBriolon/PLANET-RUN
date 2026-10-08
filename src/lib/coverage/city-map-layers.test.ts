@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CITY_FOCUS_MAP_LAYERS,
   cityKmLeft,
   DEFAULT_CITY_MAP_LAYERS,
   toggleCityMapLayer,
@@ -11,6 +12,16 @@ describe("DEFAULT_CITY_MAP_LAYERS", () => {
     expect(DEFAULT_CITY_MAP_LAYERS).toEqual({
       heatmap: false,
       remaining: false,
+      covered: true,
+    });
+  });
+});
+
+describe("CITY_FOCUS_MAP_LAYERS", () => {
+  it("turns on covered and remaining, heatmap off", () => {
+    expect(CITY_FOCUS_MAP_LAYERS).toEqual({
+      heatmap: false,
+      remaining: true,
       covered: true,
     });
   });

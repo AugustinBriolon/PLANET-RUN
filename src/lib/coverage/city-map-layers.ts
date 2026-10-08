@@ -1,10 +1,13 @@
 /** Independent global map layers — several can be on at once. */
 export type CityMapLayerFlags = {
-  /** Past run traces as a density heatmap. */
+  /** GPS run density (overview traces, or city-scoped when a city is focused). */
   heatmap: boolean;
-  /** Streets not yet covered. */
+  /** Streets not yet covered in the focused city (or all cities). */
   remaining: boolean;
-  /** Streets already conquered. */
+  /**
+   * Streets already conquered — the street-level view of what you've done.
+   * In city focus this replaces the compiled GPS traces as the "done" layer.
+   */
   covered: boolean;
 };
 
@@ -14,6 +17,13 @@ export type CityMapLayerKey = keyof CityMapLayerFlags;
 export const DEFAULT_CITY_MAP_LAYERS: CityMapLayerFlags = {
   heatmap: false,
   remaining: false,
+  covered: true,
+};
+
+/** Applied when opening a city: done + left streets, no GPS density. */
+export const CITY_FOCUS_MAP_LAYERS: CityMapLayerFlags = {
+  heatmap: false,
+  remaining: true,
   covered: true,
 };
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SAMPLE_POLYLINE } from "@tests/fixtures/strava";
 
 import {
+  clipTracesToBounds,
   filterTracesByBounds,
   getPrimaryCountryBounds,
   getTracesBounds,
@@ -116,22 +117,22 @@ describe("getTracesBounds", () => {
   });
 });
 
-describe("filterTracesByBounds", () => {
-  function traceAt(id: number, ...coordinates: [number, number][]): RunTraces["features"][number] {
-    return {
-      type: "Feature",
+function traceAt(id: number, ...coordinates: [number, number][]): RunTraces["features"][number] {
+  return {
+    type: "Feature",
+    id,
+    geometry: { type: "LineString", coordinates },
+    properties: {
       id,
-      geometry: { type: "LineString", coordinates },
-      properties: {
-        id,
-        name: `Run ${id}`,
-        startDate: "2026-09-01T06:30:00.000Z",
-        distanceMeters: 0,
-        movingTimeSeconds: 0,
-      },
-    };
-  }
+      name: `Run ${id}`,
+      startDate: "2026-09-01T06:30:00.000Z",
+      distanceMeters: 0,
+      movingTimeSeconds: 0,
+    },
+  };
+}
 
+describe("filterTracesByBounds", () => {
   it("keeps only traces that intersect the city bounds", () => {
     const traces: RunTraces = {
       type: "FeatureCollection",
@@ -158,6 +159,38 @@ describe("filterTracesByBounds", () => {
         [2.3, 48.95],
       ]).features,
     ).toEqual([]);
+  });
+});
+
+describe("clipTracesToBounds", () => {
+  const cityBounds: [[number, number], [number, number]] = [
+    [2.2, 48.9],
+    [2.3, 48.95],
+  ];
+
+  it("keeps only the in-city portion of a run that crosses the bounds", () => {
+    const traces: RunTraces = {
+      type: "FeatureCollection",
+      features: [
+        // Starts outside west, crosses the city, exits east — heatmap must not keep the legs.
+        traceAt(1, [2.1, 48.92], [2.25, 48.92], [2.4, 48.92]),
+      ],
+    };
+    const clipped = clipTracesToBounds(traces, cityBounds);
+    expect(clipped.features).toHaveLength(1);
+    expect(clipped.features[0]!.properties.id).toBe(1);
+    const coordinates = clipped.features[0]!.geometry.coordinates;
+    expect(coordinates[0]![0]).toBeCloseTo(2.2, 6);
+    expect(coordinates[coordinates.length - 1]![0]).toBeCloseTo(2.3, 6);
+    expect(coordinates.every(([lng]) => lng! >= 2.2 && lng! <= 2.3)).toBe(true);
+  });
+
+  it("drops runs that never enter the city", () => {
+    const traces: RunTraces = {
+      type: "FeatureCollection",
+      features: [traceAt(2, [2.5, 48.7], [2.51, 48.71])],
+    };
+    expect(clipTracesToBounds(traces, cityBounds).features).toEqual([]);
   });
 });
 

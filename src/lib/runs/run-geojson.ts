@@ -191,9 +191,110 @@ export function positionInBounds(position: Position, bounds: LngLatBounds): bool
   return lng! >= west && lng! <= east && lat! >= south && lat! <= north;
 }
 
+const BOUNDS_EPSILON = 1e-12;
+
+function positionsNearlyEqual(a: Position, b: Position): boolean {
+  return Math.abs(a[0]! - b[0]!) < BOUNDS_EPSILON && Math.abs(a[1]! - b[1]!) < BOUNDS_EPSILON;
+}
+
+/**
+ * Liang–Barsky clip of a segment against an axis-aligned lng/lat box.
+ * Returns null when the segment misses the box entirely.
+ */
+export function clipSegmentToBounds(
+  from: Position,
+  to: Position,
+  bounds: LngLatBounds,
+): [Position, Position] | null {
+  const [[xMin, yMin], [xMax, yMax]] = bounds;
+  const x0 = from[0]!;
+  const y0 = from[1]!;
+  const dx = to[0]! - x0;
+  const dy = to[1]! - y0;
+  let u1 = 0;
+  let u2 = 1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [x0 - xMin, xMax - x0, y0 - yMin, yMax - y0];
+
+  for (let index = 0; index < 4; index++) {
+    const pi = p[index]!;
+    const qi = q[index]!;
+    if (pi === 0) {
+      if (qi < 0) return null;
+      continue;
+    }
+    const t = qi / pi;
+    if (pi < 0) {
+      if (t > u2) return null;
+      if (t > u1) u1 = t;
+    } else {
+      if (t < u1) return null;
+      if (t < u2) u2 = t;
+    }
+  }
+
+  return [
+    [x0 + u1 * dx, y0 + u1 * dy],
+    [x0 + u2 * dx, y0 + u2 * dy],
+  ];
+}
+
+/** Contiguous polylines of a linestring that lie inside the bounds. */
+export function clipLineStringToBounds(coordinates: Position[], bounds: LngLatBounds): Position[][] {
+  const parts: Position[][] = [];
+  let current: Position[] = [];
+
+  for (let index = 1; index < coordinates.length; index++) {
+    const clipped = clipSegmentToBounds(coordinates[index - 1]!, coordinates[index]!, bounds);
+    if (!clipped) {
+      if (current.length >= 2) parts.push(current);
+      current = [];
+      continue;
+    }
+    const [start, end] = clipped;
+    if (current.length === 0) {
+      current.push(start, end);
+      continue;
+    }
+    if (positionsNearlyEqual(current[current.length - 1]!, start)) {
+      current.push(end);
+    } else {
+      if (current.length >= 2) parts.push(current);
+      current = [start, end];
+    }
+  }
+
+  if (current.length >= 2) parts.push(current);
+  return parts;
+}
+
+/**
+ * Clips every run to the portions that actually sit inside the city bounds.
+ * Full GPS polylines that merely crossed the city are cut down so a city heatmap
+ * only shows density on streets inside that city — not the approach/exit legs.
+ */
+export function clipTracesToBounds(traces: RunTraces, bounds: LngLatBounds): RunTraces {
+  const features: RunTraces["features"] = [];
+
+  for (const trace of traces.features) {
+    const parts = clipLineStringToBounds(trace.geometry.coordinates, bounds);
+    for (const [partIndex, coordinates] of parts.entries()) {
+      features.push({
+        type: "Feature",
+        // Unique MapLibre feature id; properties.id stays the Strava run for density counting.
+        id: Number(trace.properties.id) * 1_000 + partIndex,
+        geometry: { type: "LineString", coordinates },
+        properties: trace.properties,
+      });
+    }
+  }
+
+  return { type: "FeatureCollection", features };
+}
+
 /**
  * Keeps runs that intersect the given bounds (any vertex inside).
- * Used when the map is focused on a city so other cities' traces disappear.
+ * Prefer {@link clipTracesToBounds} when the map must stay inside a city.
  */
 export function filterTracesByBounds(traces: RunTraces, bounds: LngLatBounds): RunTraces {
   return {

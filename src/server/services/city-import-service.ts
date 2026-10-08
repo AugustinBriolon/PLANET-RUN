@@ -14,16 +14,16 @@ const MATCH_BATCHES_PER_IMPORT = 4;
 type Dependencies = {
   overpass: OverpassClient;
   areas: AreaRepository;
-  coverage: Pick<CoverageRepository, "markAllActivitiesPending" | "matchPendingActivities">;
+  coverage: Pick<CoverageRepository, "markActivitiesPendingForArea" | "matchPendingActivities">;
 };
 
 export function createCityImportService({ overpass, areas, coverage }: Dependencies): CityImportService {
   return {
     async importCity(osmRelationId) {
       const city = await overpass.fetchCity(osmRelationId);
+      // Invalidate only runs that already touched this city — before replaceArea drops their segments.
+      await coverage.markActivitiesPendingForArea(osmRelationId);
       const imported = await areas.replaceArea(city);
-      // Re-importing replaces segment ids, so every existing run is matched again.
-      await coverage.markAllActivitiesPending();
       let matchedRuns = 0;
       for (let hop = 0; hop < MATCH_BATCHES_PER_IMPORT; hop++) {
         const matched = await coverage.matchPendingActivities();

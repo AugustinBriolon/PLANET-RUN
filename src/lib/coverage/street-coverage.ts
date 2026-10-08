@@ -30,13 +30,17 @@ export type CoveredStreets = FeatureCollection<LineString | MultiLineString, { a
 
 export const NO_COVERED_STREETS: CoveredStreets = { type: "FeatureCollection", features: [] };
 
-/** Soft covered share of a city's streets, between 0 and 1. Pending/matching have no share yet. */
+/**
+ * Soft covered share of a city's streets, between 0 and 1.
+ * Pending (streets not imported) has no share. Matching still exposes the current soft %
+ * so a global rematch does not blank every city.
+ */
 export function toCoverageShare({
   status,
   coveredMeters,
   totalMeters,
 }: Pick<CityCoverage, "status" | "coveredMeters" | "totalMeters">): number | null {
-  if (status === "pending" || status === "matching" || totalMeters <= 0) return null;
+  if (status === "pending" || totalMeters <= 0) return null;
   return Math.min(1, Math.max(0, coveredMeters / totalMeters));
 }
 
@@ -46,7 +50,7 @@ export function toStrictCoverageShare({
   strictCoveredMeters,
   totalMeters,
 }: Pick<CityCoverage, "status" | "strictCoveredMeters" | "totalMeters">): number | null {
-  if (status === "pending" || status === "matching" || totalMeters <= 0) return null;
+  if (status === "pending" || totalMeters <= 0) return null;
   return Math.min(1, Math.max(0, strictCoveredMeters / totalMeters));
 }
 

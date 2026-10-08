@@ -15,7 +15,7 @@ const city: AreaImport = {
 };
 
 describe("createCityImportService", () => {
-  it("replaces the city's streets, then re-matches every run against them", async () => {
+  it("marks that city's runs pending before replacing streets, then rematches a batch", async () => {
     const calls: string[] = [];
     const overpass: OverpassClient = {
       fetchCity: vi.fn().mockResolvedValue(city),
@@ -31,9 +31,9 @@ describe("createCityImportService", () => {
         return { segmentCount: 3000, streetLengthMeters: 110_000 };
       }),
     };
-    const coverage: Pick<CoverageRepository, "markAllActivitiesPending" | "matchPendingActivities"> = {
-      markAllActivitiesPending: vi.fn(async () => {
-        calls.push("markAllActivitiesPending");
+    const coverage: Pick<CoverageRepository, "markActivitiesPendingForArea" | "matchPendingActivities"> = {
+      markActivitiesPendingForArea: vi.fn(async (areaId) => {
+        calls.push(`markActivitiesPendingForArea:${areaId}`);
       }),
       matchPendingActivities: vi
         .fn()
@@ -48,8 +48,13 @@ describe("createCityImportService", () => {
 
     expect(overpass.fetchCity).toHaveBeenCalledWith(91738);
     expect(areas.replaceArea).toHaveBeenCalledWith(city);
+    expect(coverage.markActivitiesPendingForArea).toHaveBeenCalledWith(91738);
     expect(coverage.matchPendingActivities).toHaveBeenCalledWith();
-    expect(calls).toEqual(["replaceArea", "markAllActivitiesPending", "matchPendingActivities"]);
+    expect(calls).toEqual([
+      "markActivitiesPendingForArea:91738",
+      "replaceArea",
+      "matchPendingActivities",
+    ]);
     expect(result).toEqual({ name: "Colombes", segmentCount: 3000, streetLengthMeters: 110_000, matchedRuns: 116 });
   });
 });

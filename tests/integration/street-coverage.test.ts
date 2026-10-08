@@ -273,7 +273,7 @@ describe("street coverage in PostGIS", () => {
       expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(false);
       expect(await coverage.hasPendingMatch({ userId: other.id })).toBe(true);
       expect((await coverage.listCityCoverage(other.id))[0]?.coveredMeters ?? 0).toBe(0);
-      expect((await coverage.listCityCoverage(other.id))[0]?.status).toBe("matching");
+      expect((await coverage.listCityCoverage(other.id))[0]?.status).toBe("ready");
 
       expect(await coverage.matchPendingActivities()).toBe(1);
       expect((await coverage.listCityCoverage(other.id))[0]?.coveredMeters).toBeGreaterThan(0);
@@ -292,7 +292,8 @@ describe("street coverage in PostGIS", () => {
       expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(true);
       expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(MATCH_ACTIVITY_BATCH_SIZE);
       expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(true);
-      expect((await coverage.listCityCoverage(runner.id))[0]?.status).toBe("matching");
+      // City stays ready so % is not blanked while other runs rematch in the background.
+      expect((await coverage.listCityCoverage(runner.id))[0]?.status).toBe("ready");
 
       expect(await coverage.matchPendingActivities({ userId: runner.id })).toBe(3);
       expect(await coverage.hasPendingMatch({ userId: runner.id })).toBe(false);

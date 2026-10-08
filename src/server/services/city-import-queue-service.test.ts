@@ -30,7 +30,11 @@ describe("createCityImportQueueService", () => {
       replaceArea: vi.fn(),
     };
     const overpass: OverpassClient = { fetchCity: vi.fn(), fetchAdminCitiesInRegion: vi.fn() };
-    const coverage: Pick<CoverageRepository, "markAllActivitiesPending" | "matchPendingActivities"> = {
+    const coverage: Pick<
+      CoverageRepository,
+      "markActivitiesPendingForArea" | "markAllActivitiesPending" | "matchPendingActivities"
+    > = {
+      markActivitiesPendingForArea: vi.fn(),
       markAllActivitiesPending: vi.fn(),
       matchPendingActivities: vi.fn(async () => 0),
     };
@@ -73,7 +77,11 @@ describe("createCityImportQueueService", () => {
       })),
       fetchAdminCitiesInRegion: vi.fn(),
     };
-    const coverage: Pick<CoverageRepository, "markAllActivitiesPending" | "matchPendingActivities"> = {
+    const coverage: Pick<
+      CoverageRepository,
+      "markActivitiesPendingForArea" | "markAllActivitiesPending" | "matchPendingActivities"
+    > = {
+      markActivitiesPendingForArea: vi.fn(async () => {}),
       markAllActivitiesPending: vi.fn(async () => {}),
       matchPendingActivities: vi.fn(async () => 3),
     };
@@ -82,6 +90,7 @@ describe("createCityImportQueueService", () => {
 
     expect(result).toEqual({ imported: true, cityName: "Colombes", hasMore: true });
     expect(overpass.fetchCity).toHaveBeenCalledWith(91738);
+    expect(coverage.markActivitiesPendingForArea).toHaveBeenCalledWith(91738);
     expect(importQueue.complete).toHaveBeenCalledWith(91738);
   });
 });

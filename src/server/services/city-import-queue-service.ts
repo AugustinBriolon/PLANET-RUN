@@ -21,7 +21,10 @@ type Dependencies = {
   areas: AreaRepository;
   importQueue: CityImportQueueRepository;
   overpass: OverpassClient;
-  coverage: Pick<CoverageRepository, "markAllActivitiesPending" | "matchPendingActivities">;
+  coverage: Pick<
+    CoverageRepository,
+    "markActivitiesPendingForArea" | "markAllActivitiesPending" | "matchPendingActivities"
+  >;
 };
 
 export function createCityImportQueueService({

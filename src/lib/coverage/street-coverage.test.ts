@@ -24,9 +24,9 @@ describe("toCoverageShare", () => {
     expect(toCoverageShare({ ...city, coveredMeters: 10, totalMeters: 0 })).toBe(null);
   });
 
-  it("returns null while street import or matching is still pending", () => {
+  it("returns null while street import is pending, but keeps % during rematch", () => {
     expect(toCoverageShare({ ...city, status: "pending", coveredMeters: 0, totalMeters: 0 })).toBe(null);
-    expect(toCoverageShare({ ...city, status: "matching", coveredMeters: 0, totalMeters: 1000 })).toBe(null);
+    expect(toCoverageShare({ ...city, status: "matching", coveredMeters: 250, totalMeters: 1000 })).toBe(0.25);
   });
 });
 

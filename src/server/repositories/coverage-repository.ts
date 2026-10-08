@@ -17,8 +17,13 @@ export type CoverageRepository = {
   matchPendingActivities: (scope?: { userId: string }) => Promise<number>;
   /** True when at least one run still needs coverage matching (optionally for one user). */
   hasPendingMatch: (scope?: { userId: string }) => Promise<boolean>;
-  /** Forces every run to be matched again, e.g. after streets were re-imported. */
+  /** Forces every run to be matched again, e.g. after a global rules change. */
   markAllActivitiesPending: () => Promise<void>;
+  /**
+   * Marks runs that already touched this city so they rematch after its streets are replaced.
+   * Must run before `replaceArea` while the old segment rows still exist.
+   */
+  markActivitiesPendingForArea: (areaId: number) => Promise<void>;
   listCityCoverage: (userId: string) => Promise<CityCoverage[]>;
   getCoveredStreets: (userId: string) => Promise<CoveredStreets>;
   /** Strava ids of the athlete's runs whose trace touches the city boundary (cross-city runs included). */
@@ -150,6 +155,19 @@ export function createCoverageRepository(
       await database.execute(sql`UPDATE activities SET coverage_matched_at = NULL`);
     },
 
+    async markActivitiesPendingForArea(areaId) {
+      await database.execute(sql`
+        UPDATE activities
+        SET coverage_matched_at = NULL
+        WHERE strava_activity_id IN (
+          SELECT DISTINCT activity_street_segments.activity_id
+          FROM activity_street_segments
+          JOIN street_segments ON street_segments.id = activity_street_segments.segment_id
+          WHERE street_segments.area_id = ${areaId}
+        )
+      `);
+    },
+
     async listCityCoverage(userId) {
       const rows = await database.execute<{
         area_id: string;
@@ -180,18 +198,11 @@ export function createCoverageRepository(
           WHERE segment.counts_for_coverage
             AND segment.id IN (${segmentsHardCoveredBy(userId)})
           GROUP BY segment.area_id
-        ),
-        match_lag AS (
-          SELECT EXISTS (
-            SELECT 1 FROM activities
-            WHERE activities.user_id = ${userId} AND activities.coverage_matched_at IS NULL
-          ) AS pending_match
         )
         SELECT user_cities.osm_relation_id AS area_id,
                user_cities.name,
                CASE
                  WHEN coalesce(area.street_length_meters, 0) <= 0 THEN 'pending'
-                 WHEN match_lag.pending_match THEN 'matching'
                  ELSE 'ready'
                END AS status,
                coalesce(soft_covered.covered_meters, 0)::float8 AS covered_meters,
@@ -202,18 +213,13 @@ export function createCoverageRepository(
                ST_XMax(coalesce(area.boundary, catalog.boundary))::float8 AS east,
                ST_YMax(coalesce(area.boundary, catalog.boundary))::float8 AS north
         FROM user_cities
-        CROSS JOIN match_lag
         LEFT JOIN areas AS area ON area.osm_relation_id = user_cities.osm_relation_id
         LEFT JOIN city_catalog AS catalog ON catalog.osm_relation_id = user_cities.osm_relation_id
         LEFT JOIN soft_covered ON soft_covered.area_id = user_cities.osm_relation_id
         LEFT JOIN hard_covered ON hard_covered.area_id = user_cities.osm_relation_id
         WHERE user_cities.user_id = ${userId}
         ORDER BY
-          CASE
-            WHEN coalesce(area.street_length_meters, 0) <= 0 THEN 2
-            WHEN match_lag.pending_match THEN 1
-            ELSE 0
-          END,
+          CASE WHEN coalesce(area.street_length_meters, 0) <= 0 THEN 1 ELSE 0 END,
           soft_covered.covered_meters / nullif(area.street_length_meters, 0) DESC NULLS LAST,
           user_cities.name
       `);

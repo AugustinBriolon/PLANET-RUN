@@ -12,9 +12,10 @@ export async function GET(request: Request) {
   if (isNextResponse(userOrError)) return userOrError;
 
   const services = getServices();
-  const [cities, account] = await Promise.all([
+  const [cities, account, rematchPending] = await Promise.all([
     services.coverage.listCityCoverage(userOrError.id),
     services.accounts.findByUserId(userOrError.id),
+    services.coverage.hasPendingMatch({ userId: userOrError.id }),
   ]);
 
   return NextResponse.json({
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     },
     sync: {
       historyComplete: Boolean(account?.lastSyncedAt),
-      analysisPending: userOrError.analysisNotifyPending,
+      analysisPending: userOrError.analysisNotifyPending || rematchPending,
     },
     cities: cities.map((city) => ({
       areaId: city.areaId,

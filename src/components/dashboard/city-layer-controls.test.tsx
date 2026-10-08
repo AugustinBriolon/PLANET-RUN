@@ -39,4 +39,19 @@ describe("CityLayerControls", () => {
     const filled = container.querySelectorAll("svg.fill-current");
     expect(filled).toHaveLength(2);
   });
+
+  it("fills only the route endpoint circles when remaining is active", () => {
+    render(
+      <CityLayerControls
+        layers={{ heatmap: false, remaining: true, covered: false }}
+        onToggle={vi.fn()}
+      />,
+    );
+    const remaining = screen.getByRole("button", { name: "Hide remaining streets" });
+    const className = remaining.querySelector("svg")?.getAttribute("class") ?? "";
+    expect(className).not.toBe("fill-current");
+    expect(className).not.toMatch(/(?:^|\s)fill-current(?:\s|$)/);
+    expect(className).toContain("[&_circle]:fill-current");
+    expect(className).toContain("[&_path]:fill-none");
+  });
 });

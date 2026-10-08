@@ -12,6 +12,8 @@ const LAYER_SPECS: readonly {
   showLabel: string;
   hideLabel: string;
   icon: typeof Flame;
+  /** How the icon fills when the layer is on — route only fills its endpoint dots. */
+  activeFill: "all" | "circles";
   activeClass: string;
 }[] = [
   {
@@ -20,6 +22,7 @@ const LAYER_SPECS: readonly {
     showLabel: "Show heatmap",
     hideLabel: "Hide heatmap",
     icon: Flame,
+    activeFill: "all",
     // Keep tinted text on hover — outline's hover:text-foreground looks like the toggle flipped off.
     activeClass: "border-ember/50 bg-ember/15 text-ember hover:bg-ember/25 hover:text-ember",
   },
@@ -29,6 +32,7 @@ const LAYER_SPECS: readonly {
     showLabel: "Show covered streets",
     hideLabel: "Hide covered streets",
     icon: Flag,
+    activeFill: "all",
     activeClass:
       "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-300",
   },
@@ -38,10 +42,16 @@ const LAYER_SPECS: readonly {
     showLabel: "Show remaining streets",
     hideLabel: "Hide remaining streets",
     icon: Route,
+    activeFill: "circles",
     activeClass:
       "border-amber-500/50 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 hover:text-amber-200",
   },
 ];
+
+function activeIconClass(fill: "all" | "circles"): string {
+  if (fill === "circles") return "[&_circle]:fill-current [&_path]:fill-none";
+  return "fill-current";
+}
 
 export type CityLayerControlsProps = {
   layers: CityMapLayerFlags;
@@ -67,7 +77,7 @@ export function CityLayerControls({ layers, onToggle, className }: CityLayerCont
             onClick={() => onToggle(spec.key)}
             className={cn("glass-panel group", active && spec.activeClass)}
           >
-            <Icon aria-hidden="true" className={cn(active && "fill-current")} />
+            <Icon aria-hidden="true" className={cn(active && activeIconClass(spec.activeFill))} />
             {spec.label}
           </Button>
         );

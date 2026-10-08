@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 
 import { SettingsPage } from "@/components/settings/settings-page";
-import { parseProfileVisibility, DEFAULT_PROFILE_VISIBILITY } from "@/lib/conquest/visibility";
+import { DEFAULT_PROFILE_VISIBILITY, parseProfileVisibility } from "@/lib/conquest/visibility";
 import { requireCurrentUser } from "@/server/session";
 
-import { deleteMyData, setProfileVisibility, signOutFromCityfil, syncRuns } from "./actions";
+import { deleteMyData, signOutFromCityfil, syncRuns } from "../globe/actions";
+import { setProfileVisibility } from "./actions";
 
 export const metadata: Metadata = {
   title: "Settings · Cityfil",

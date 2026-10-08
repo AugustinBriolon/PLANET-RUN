@@ -7,11 +7,9 @@ import { parseProfileVisibility, type ProfileVisibility } from "@/lib/conquest/v
 import { getServices } from "@/server/services";
 import { getCurrentUser } from "@/server/session";
 
-import { deleteMyData, signOutFromCityfil, syncRuns } from "../globe/actions";
-
-export { deleteMyData, signOutFromCityfil, syncRuns };
-
-export type SetVisibilityResult = { status: "success"; visibility: ProfileVisibility } | { status: "error"; message: string };
+export type SetVisibilityResult =
+  | { status: "success"; visibility: ProfileVisibility }
+  | { status: "error"; message: string };
 
 export async function setProfileVisibility(visibility: ProfileVisibility): Promise<SetVisibilityResult> {
   const parsed = parseProfileVisibility(visibility);

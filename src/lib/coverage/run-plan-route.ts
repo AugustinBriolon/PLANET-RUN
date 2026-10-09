@@ -30,8 +30,8 @@ export type RunPlanRoute = {
   pathMeters: number;
   start: Position | null;
   /**
-   * Always 0 — aerial hops are disabled. Kept for API compatibility with mobile clients
-   * that still read jump diagnostics.
+   * GPS→network entry only (anchored starts). Mid-route aerial hops stay disabled.
+   * Kept for API compatibility with mobile clients that read jump diagnostics.
    */
   jumpCount: number;
   jumpMeters: number;
@@ -65,10 +65,13 @@ const MAX_START_CONNECTOR_METERS = 2_500;
 const ANCHORED_SEED_CHOICES = 4;
 /**
  * Max GPS→graph snap when anchoring. Beyond this, the athlete is off-network and the plan
- * refuses the start rather than drawing a straight chord to the seed.
- * ~180 m covers courtyard / park GPS drift to the nearest mapped street.
+ * refuses the start rather than drawing a long aerial chord to the seed.
+ * ~1.5 km covers courtyard drift and standing just across a neighbouring commune border.
  */
-export const MAX_ANCHOR_SNAP_METERS = 180;
+export const MAX_ANCHOR_SNAP_METERS = 1_500;
+
+/** Below this, GPS is treated as already on the snap node (no approach jump). */
+const ANCHOR_JUMP_MIN_METERS = 5;
 
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
@@ -881,13 +884,30 @@ export function buildRunPlanRoute(segments: readonly PlanSegment[], options: Run
     return emptyRoute();
   }
 
+  // Anchored plans keep the athlete's GPS as the true start. Network walking still begins at
+  // the nearest street node; the GPS→snap segment is a single approach jump (not mid-route hops).
+  let jumpCount = 0;
+  let jumpMeters = 0;
+  let start = coordinates[0]!;
+  if (anchor) {
+    const networkEntry = coordinates[0]!;
+    const approachMeters = distanceMeters(anchor, networkEntry);
+    if (approachMeters >= ANCHOR_JUMP_MIN_METERS) {
+      coordinates.unshift(anchor);
+      legs.unshift({ coordinates: [anchor, networkEntry], kind: "jump" });
+      jumpCount = 1;
+      jumpMeters = approachMeters;
+      start = anchor;
+    }
+  }
+
   return {
     coordinates,
     uncoveredMeters,
-    pathMeters,
-    start: coordinates[0]!,
-    jumpCount: 0,
-    jumpMeters: 0,
+    pathMeters: pathMeters + jumpMeters,
+    start,
+    jumpCount,
+    jumpMeters,
     legs,
   };
 }

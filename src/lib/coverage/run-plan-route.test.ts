@@ -278,12 +278,30 @@ describe("buildRunPlanRoute", () => {
     });
 
     expect(route.coordinates.length).toBeGreaterThan(2);
-    expect(distanceMeters(route.start!, athlete)).toBeLessThanOrEqual(MAX_ANCHOR_SNAP_METERS);
+    expect(route.start).toEqual(athlete);
     expect(route.coordinates[0]).toEqual(route.start);
     expect(route.uncoveredMeters).toBeGreaterThanOrEqual(600);
     expect(route.pathMeters).toBeGreaterThan(route.uncoveredMeters);
     expect(route.jumpCount).toBe(0);
     expect(pathFollowsSegments(route.coordinates as [number, number][], segments)).toBe(true);
+  });
+
+  it("keeps the athlete GPS as start when standing off the network inside snap range", () => {
+    const pieces = chain(1, 20, false);
+    // ~80 m north of the chain — still within MAX_ANCHOR_SNAP_METERS, not on a node.
+    const athlete: [number, number] = [2.0, 48.0 + 0.00072];
+    expect(distanceMeters(athlete, [2.0, 48.0])).toBeGreaterThan(50);
+    expect(distanceMeters(athlete, [2.0, 48.0])).toBeLessThan(MAX_ANCHOR_SNAP_METERS);
+
+    const route = buildRunPlanRoute(pieces, { budgetMeters: 1_000, start: athlete });
+
+    expect(route.start).toEqual(athlete);
+    expect(route.coordinates[0]).toEqual(athlete);
+    expect(route.jumpCount).toBe(1);
+    expect(route.jumpMeters).toBeGreaterThan(50);
+    expect(route.legs[0]?.kind).toBe("jump");
+    // On-network walk starts after the GPS approach jump.
+    expect(pathFollowsSegments(route.coordinates.slice(1) as [number, number][], pieces)).toBe(true);
   });
 
   it("orients an anchored seed toward unfinished continuation, not the cul-de-sac", () => {
@@ -305,13 +323,12 @@ describe("buildRunPlanRoute", () => {
     expect(route.uncoveredMeters).toBeGreaterThan(700);
   });
 
-  it("keeps the anchor snap as the start when growing toward the budget", () => {
+  it("keeps the athlete GPS as the start when growing toward the budget", () => {
     const pieces = chain(1, 20, false);
     const athlete: [number, number] = [2.0, 48.0];
     const route = buildRunPlanRoute(pieces, { budgetMeters: 1_500, start: athlete });
 
-    expect(route.start).not.toBeNull();
-    expect(distanceMeters(route.start!, athlete)).toBeLessThanOrEqual(MAX_ANCHOR_SNAP_METERS);
+    expect(route.start).toEqual(athlete);
     expect(route.coordinates[0]).toEqual(route.start);
     expect(route.pathMeters).toBeGreaterThanOrEqual(1_300);
     expect(pathFollowsSegments(route.coordinates as [number, number][], pieces)).toBe(true);
@@ -370,10 +387,10 @@ describe("buildRunPlanRoute", () => {
     expect(pathFollowsSegments(route.coordinates as [number, number][], [longStreet, continuation])).toBe(true);
   });
 
-  it("refuses an anchored start when the athlete is off the street network", () => {
+  it("refuses an anchored start when the athlete is far beyond snap range", () => {
     const pieces = chain(1, 10, false, 2.0, 100);
-    // ~200 m north of the chain — beyond MAX_ANCHOR_SNAP_METERS.
-    const athlete: [number, number] = [2.0, 48.0 + 0.002];
+    // ~2.2 km north of the chain — beyond MAX_ANCHOR_SNAP_METERS.
+    const athlete: [number, number] = [2.0, 48.0 + 0.02];
     expect(distanceMeters(athlete, [2.0, 48.0])).toBeGreaterThan(MAX_ANCHOR_SNAP_METERS);
 
     const route = buildRunPlanRoute(pieces, { budgetMeters: 1_000, start: athlete });

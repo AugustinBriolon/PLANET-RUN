@@ -20,7 +20,7 @@ export function PanelFooter() {
           className="group -m-1.5 flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors duration-150 ease-out hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Settings
-            className="size-4 transition-transform duration-300 ease-out group-hover:rotate-45"
+            className="size-4 transition-transform duration-150 ease-out can-hover:group-hover:rotate-45"
             aria-hidden="true"
           />
         </Link>

@@ -24,7 +24,7 @@ export function PrivacyPolicy({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`flex flex-col ${compact ? "gap-6" : "gap-8"}`}>
       <div className="flex flex-col gap-3">
-        <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">Last updated {PRIVACY_LAST_UPDATED}</p>
+        <p className="eyebrow text-ember">Last updated {PRIVACY_LAST_UPDATED}</p>
         {!compact && <h1 className="text-4xl font-semibold tracking-tight">Privacy</h1>}
         <p className={`text-muted-foreground ${compact ? "text-sm leading-relaxed" : "text-base leading-relaxed"}`}>
           Your runs reveal where you live and train. Cityfil keeps only what it needs to draw them on your globe, shows

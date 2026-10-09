@@ -1,5 +1,7 @@
 import type { Transition, Variants } from "motion/react";
 
+import { EASE_IN_OUT, EASE_OUT } from "./easing";
+
 /**
  * The dashboard's bottom panels move with two different intents:
  *
@@ -12,19 +14,19 @@ import type { Transition, Variants } from "motion/react";
  */
 export const SHEET_TRANSITION: Transition = { type: "spring", stiffness: 380, damping: 36, mass: 0.85 };
 
-export const SWAP_TRANSITION: Transition = { duration: 0.18, ease: [0.4, 0, 0.2, 1] };
+export const SWAP_TRANSITION: Transition = { duration: 0.18, ease: EASE_IN_OUT };
 
 /** Resizing an already-visible panel (a longer run name wrapping to a second line). */
 export const PANEL_LAYOUT_TRANSITION: Transition = { type: "spring", stiffness: 500, damping: 44, mass: 0.7 };
 
 const sheetVariants: Variants = {
-  hidden: { opacity: 0, y: "100%" },
-  visible: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, transform: "translateY(100%)" },
+  visible: { opacity: 1, transform: "translateY(0%)" },
 };
 
 const swapVariants: Variants = {
-  hidden: { opacity: 0, y: 8, scale: 0.985 },
-  visible: { opacity: 1, y: 0, scale: 1 },
+  hidden: { opacity: 0, transform: "translateY(8px) scale(0.985)" },
+  visible: { opacity: 1, transform: "translateY(0px) scale(1)" },
 };
 
 export type PanelMotionMode = "sheet" | "swap";
@@ -39,3 +41,5 @@ export function panelMotion(mode: PanelMotionMode) {
     transition: isSheet ? SHEET_TRANSITION : SWAP_TRANSITION,
   };
 }
+
+export { EASE_OUT, EASE_IN_OUT };

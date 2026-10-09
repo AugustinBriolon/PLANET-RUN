@@ -23,7 +23,10 @@ export function SyncButton({ isSyncing, onSync, className }: SyncButtonProps) {
     >
       <RefreshCw
         aria-hidden="true"
-        className={cn("transition-transform duration-300 ease-out group-hover:rotate-90", isSyncing && "animate-spin")}
+        className={cn(
+          "transition-transform duration-150 ease-out can-hover:group-hover:rotate-90",
+          isSyncing && "animate-spin",
+        )}
       />
       {isSyncing ? "Syncing…" : "Sync runs"}
     </Button>

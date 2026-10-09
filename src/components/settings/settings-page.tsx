@@ -106,9 +106,7 @@ export function SettingsPage({
 
         <section className="glass-panel flex flex-col gap-3 rounded-xl p-5">
           <div className="flex flex-col gap-1">
-            <h2 className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">
-              Profile visibility
-            </h2>
+            <h2 className="eyebrow text-muted-foreground">Profile visibility</h2>
             <p className="text-sm text-muted-foreground">
               Public profiles appear on a city&apos;s hall of fame as Founder, Conqueror or Keeper.
             </p>
@@ -130,8 +128,8 @@ export function SettingsPage({
                   disabled={visibilityPending}
                   onClick={() => chooseVisibility(option.value)}
                   className={cn(
-                    "flex flex-col gap-0.5 rounded-lg border px-4 py-3 text-left outline-none transition-colors",
-                    "focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-70",
+                    "flex flex-col gap-0.5 rounded-lg border px-4 py-3 text-left outline-none transition-[color,background-color,border-color,transform] duration-150 ease-out",
+                    "focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:opacity-70",
                     selected ? "border-ember/50 bg-ember/10" : "border-border bg-transparent hover:bg-accent/40",
                   )}
                 >
@@ -145,7 +143,7 @@ export function SettingsPage({
 
         <section className="glass-panel flex flex-col gap-3 rounded-xl p-5">
           <div className="flex flex-col gap-1">
-            <h2 className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">Strava</h2>
+            <h2 className="eyebrow text-muted-foreground">Strava</h2>
             <p className="text-sm text-muted-foreground">
               New outdoor GPS runs import automatically. Sync pulls them right now.
             </p>

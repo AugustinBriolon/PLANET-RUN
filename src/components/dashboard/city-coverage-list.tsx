@@ -6,6 +6,7 @@ import { MapPin } from "lucide-react";
 import { formatPercent } from "@/lib/format";
 import type { CityCoverage } from "@/lib/coverage/street-coverage";
 import { toCoverageShare } from "@/lib/coverage/street-coverage";
+import { EASE_OUT } from "@/lib/motion/easing";
 import { PANEL_LAYOUT_TRANSITION } from "@/lib/motion/panel-motion";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,7 @@ export function CityCoverageList({ cities, selectedCityId, onSelectCity }: CityC
 
   return (
     <div className="mt-3 flex flex-col gap-2 border-t border-border pt-2.5 sm:mt-4 sm:pt-3">
-      <p className="font-mono text-[0.7rem] tracking-[0.18em] text-muted-foreground uppercase">Streets</p>
+      <p className="eyebrow text-muted-foreground">Streets</p>
       <LayoutGroup>
         <ul className="flex max-h-24 scroll-fade flex-col gap-2 overflow-y-auto pr-2 sm:max-h-36">
           {cities.map((city) => {
@@ -40,7 +41,7 @@ export function CityCoverageList({ cities, selectedCityId, onSelectCity }: CityC
                 layout
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ layout: PANEL_LAYOUT_TRANSITION, duration: 0.2, ease: "easeOut" }}
+                transition={{ layout: PANEL_LAYOUT_TRANSITION, duration: 0.2, ease: EASE_OUT }}
                 className="flex items-center justify-between gap-3 text-sm"
               >
                 <button
@@ -85,10 +86,10 @@ export function CityCoverageList({ cities, selectedCityId, onSelectCity }: CityC
                     <>
                       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-muted" aria-hidden="true">
                         <motion.span
-                          className="block h-full rounded-full bg-ember"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${share * 100}%` }}
-                          transition={{ duration: 0.45, ease: "easeOut" }}
+                          className="block h-full origin-left rounded-full bg-ember"
+                          initial={{ scaleX: 0 }}
+                          animate={{ scaleX: share }}
+                          transition={{ duration: 0.22, ease: EASE_OUT }}
                         />
                       </span>
                       <span className="w-14 text-right font-mono text-xs text-muted-foreground">

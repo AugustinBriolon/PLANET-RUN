@@ -33,13 +33,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
       <header className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top,0px))] pb-4 sm:px-6 sm:pt-[max(1.5rem,env(safe-area-inset-top,0px))] sm:pb-6">
         <CityfilLogo className="pointer-events-auto text-base" />
-        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">48.8566° N · 2.3522° E</p>
+        <p className="eyebrow text-muted-foreground">48.8566° N · 2.3522° E</p>
       </header>
 
       <div className="pointer-events-none absolute inset-x-3 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:inset-x-auto sm:top-1/2 sm:right-10 sm:bottom-auto sm:w-full sm:max-w-md sm:-translate-y-1/2">
         <FadeInStagger className="glass-panel pointer-events-auto flex max-h-[calc(100dvh-2rem)] scroll-fade flex-col gap-6 overflow-y-auto rounded-xl p-6 sm:gap-8 sm:p-8">
           <FadeInItem className="flex flex-col gap-4">
-            <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">Street conquest</p>
+            <p className="eyebrow text-ember">Street conquest</p>
             <h1 className="text-3xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-4xl">
               Every street you&apos;ve run, filled in.
             </h1>
@@ -57,7 +57,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             </form>
             <a
               href={IOS_APP_STORE_URL}
-              className="flex min-h-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground transition-colors hover:bg-muted/80"
+              className="flex min-h-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground transition-[color,background-color,transform] duration-150 ease-out hover:bg-muted/80 active:scale-[0.97]"
             >
               Get Cityfil on the App Store
             </a>

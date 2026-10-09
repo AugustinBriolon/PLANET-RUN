@@ -28,10 +28,10 @@ export function CityDetailPanel({ city, onClose, className }: CityDetailPanelPro
   const analyzing = city.status === "pending" || city.status === "matching";
 
   return (
-    <section aria-label={`${city.name} details`} className={cn("glass-panel rounded-xl p-3 sm:p-4", className)}>
+    <section aria-label={`${city.name} details`} className={cn("glass-panel rounded-xl p-4", className)}>
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex flex-col gap-1">
-          <p className="font-mono text-[0.7rem] tracking-[0.18em] text-ember uppercase">City</p>
+          <p className="eyebrow text-ember">City</p>
           <h2 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{city.name}</h2>
           {analyzing ? (
             <p className="text-sm text-muted-foreground">{analysisLabel(city.status)}</p>
@@ -47,7 +47,7 @@ export function CityDetailPanel({ city, onClose, className }: CityDetailPanelPro
           type="button"
           aria-label="Close city"
           onClick={onClose}
-          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-[color,background-color,transform] duration-150 ease-out hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97]"
         >
           <X className="size-4" aria-hidden="true" />
         </button>

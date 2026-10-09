@@ -3,14 +3,20 @@
 import { motion, type Variants } from "motion/react";
 import type { ReactNode } from "react";
 
+import { EASE_OUT } from "@/lib/motion/easing";
+
 const containerVariants: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.07, delayChildren: 0.15 } },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+  hidden: { opacity: 0, transform: "translateY(12px)" },
+  visible: {
+    opacity: 1,
+    transform: "translateY(0px)",
+    transition: { duration: 0.35, ease: EASE_OUT },
+  },
 };
 
 type FadeInProps = {

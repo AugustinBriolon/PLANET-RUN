@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-10 px-6 py-12 sm:py-16">
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-10 px-6 pt-[max(3rem,env(safe-area-inset-top,0px))] pb-[max(3rem,env(safe-area-inset-bottom,0px))] sm:pt-[max(4rem,env(safe-area-inset-top,0px))] sm:pb-[max(4rem,env(safe-area-inset-bottom,0px))]">
       <header className="flex items-center justify-between gap-4">
         <CityfilLogo className="text-base" />
         <Link

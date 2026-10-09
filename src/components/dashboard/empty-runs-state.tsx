@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { StravaConnectButton } from "@/components/brand/strava-connect-button";
 import { Button } from "@/components/ui/button";
 import type { RunSyncStatus } from "@/hooks/use-run-sync";
+import { EASE_OUT } from "@/lib/motion/easing";
 import type { RunSyncFailure } from "@/lib/runs/run-sync-result";
 import { cn } from "@/lib/utils";
 
@@ -57,15 +58,15 @@ export function EmptyRunsState({ status, failure, onRetry, reconnectAction, clas
     <section
       aria-live="polite"
       aria-busy={status === "syncing"}
-      className={cn("glass-panel w-full max-w-sm rounded-xl p-6 text-center", className)}
+      className={cn("glass-panel w-full max-w-sm rounded-xl p-4 text-center", className)}
     >
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={content.key}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          initial={{ opacity: 0, transform: "translateY(8px)" }}
+          animate={{ opacity: 1, transform: "translateY(0px)" }}
+          exit={{ opacity: 0, transform: "translateY(-8px)" }}
+          transition={{ duration: 0.2, ease: EASE_OUT }}
           className="flex flex-col items-center gap-3"
         >
           {content.icon}

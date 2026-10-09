@@ -3,7 +3,9 @@
 import { animate, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 
-const DEFAULT_DURATION = 1.4;
+import { EASE_OUT } from "@/lib/motion/easing";
+
+const DEFAULT_DURATION = 0.4;
 
 export type AnimatedNumberProps = {
   value: number;
@@ -24,7 +26,7 @@ export function AnimatedNumber({ value, format, duration = DEFAULT_DURATION }: A
 
     const controls = animate(displayedValue.current, value, {
       duration: prefersReducedMotion ? 0 : duration,
-      ease: [0.16, 1, 0.3, 1],
+      ease: EASE_OUT,
       onUpdate: (latest) => {
         displayedValue.current = latest;
         element.textContent = format(latest);

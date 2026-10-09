@@ -18,7 +18,7 @@ export function StravaConnectButton({ className }: { className?: string }) {
       disabled={pending}
       aria-busy={pending}
       className={cn(
-        "w-fit rounded-md transition-[filter,transform,opacity] duration-150 ease-out hover:brightness-110 active:translate-y-px",
+        "w-fit rounded-md transition-[filter,transform,opacity] duration-150 ease-out hover:brightness-110 active:scale-[0.97]",
         "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         "disabled:animate-pulse disabled:cursor-progress disabled:hover:brightness-100",
         className,

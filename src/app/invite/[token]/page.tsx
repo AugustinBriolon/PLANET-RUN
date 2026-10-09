@@ -37,10 +37,10 @@ export default async function InviteLandingPage({ params }: PageProps) {
   const appUrl = `cityfil://invite/${token}`;
 
   return (
-    <main className="starfield relative flex min-h-dvh flex-col items-center justify-center px-6">
-      <CityfilLogo className="absolute top-6 left-6 text-base" />
+    <main className="starfield relative flex min-h-dvh flex-col items-center justify-center px-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))] pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]">
+      <CityfilLogo className="absolute top-[max(1.5rem,env(safe-area-inset-top,0px))] left-6 text-base" />
       <section className="glass-panel flex w-full max-w-md flex-col gap-5 rounded-xl p-8">
-        <p className="font-mono text-xs tracking-[0.2em] text-ember uppercase">City rivalry</p>
+        <p className="eyebrow text-ember">City rivalry</p>
         {preview ? (
           <>
             <h1 className="text-3xl font-semibold tracking-tight">{inviteShareHeadline(preview)}</h1>
@@ -69,13 +69,13 @@ export default async function InviteLandingPage({ params }: PageProps) {
             <div className="flex flex-col gap-3">
               <a
                 href={appUrl}
-                className="flex min-h-12 items-center justify-center rounded-lg bg-ember text-sm font-semibold text-ember-foreground"
+                className="flex min-h-12 items-center justify-center rounded-lg bg-ember text-sm font-semibold text-ember-foreground transition-transform duration-150 ease-out active:scale-[0.97]"
               >
                 Open in Cityfil
               </a>
               <a
                 href={IOS_APP_STORE_URL}
-                className="flex min-h-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground"
+                className="flex min-h-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground transition-transform duration-150 ease-out active:scale-[0.97]"
               >
                 Get Cityfil on the App Store
               </a>

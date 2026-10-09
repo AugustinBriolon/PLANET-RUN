@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Motion hover only on devices that can truly hover (not touch tap). */
+@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
 
 @theme inline {
   --color-background: var(--background);
@@ -13,6 +15,8 @@
   --color-ember: var(--ember);
   --color-ember-foreground: var(--ember-foreground);
   --color-space: var(--space);
+  --color-layer-covered: var(--layer-covered);
+  --color-layer-remaining: var(--layer-remaining);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -79,6 +83,11 @@
   --ember: oklch(0.64 0.18 45);
   --ember-foreground: oklch(0.99 0 0);
   --space: oklch(0.97 0.005 265);
+  /* Align with globePalette coveredStreet / remainingStreet. */
+  --layer-covered: #4ade80;
+  --layer-remaining: #e8b84a;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -135,6 +144,7 @@
   html {
     @apply font-sans;
     color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-space text-foreground;
@@ -161,7 +171,7 @@
       radial-gradient(1px 1px at 86% 62%, oklch(1 0 0 / 35%), transparent 60%),
       radial-gradient(1px 1px at 22% 88%, oklch(1 0 0 / 30%), transparent 60%),
       radial-gradient(1px 1px at 58% 42%, oklch(1 0 0 / 25%), transparent 60%),
-      radial-gradient(60% 55% at 50% 50%, oklch(0.74 0.17 50 / 9%), transparent 70%);
+      radial-gradient(60% 55% at 50% 50%, color-mix(in oklch, var(--ember) 9%, transparent), transparent 70%);
     background-size:
       320px 320px,
       280px 280px,
@@ -174,5 +184,28 @@
 
   .glass-panel {
     @apply border border-border bg-card/70 backdrop-blur-xl;
+  }
+
+  /* Standard label above a panel title — pair with text-ember or text-muted-foreground. */
+  .eyebrow {
+    @apply font-mono text-[0.7rem] tracking-[0.18em] uppercase;
+  }
+
+  /* Soft fade at the top/bottom edge of a scrollable region. */
+  .scroll-fade {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 0.75rem,
+      #000 calc(100% - 0.75rem),
+      transparent
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 0.75rem,
+      #000 calc(100% - 0.75rem),
+      transparent
+    );
   }
 }

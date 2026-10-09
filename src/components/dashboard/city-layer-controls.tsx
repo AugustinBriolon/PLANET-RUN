@@ -34,7 +34,7 @@ const LAYER_SPECS: readonly {
     icon: Flag,
     activeFill: "all",
     activeClass:
-      "border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-300",
+      "border-layer-covered/50 bg-layer-covered/15 text-layer-covered hover:bg-layer-covered/25 hover:text-layer-covered",
   },
   {
     key: "remaining",
@@ -44,7 +44,7 @@ const LAYER_SPECS: readonly {
     icon: Route,
     activeFill: "circles",
     activeClass:
-      "border-amber-500/50 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 hover:text-amber-200",
+      "border-layer-remaining/50 bg-layer-remaining/15 text-layer-remaining hover:bg-layer-remaining/25 hover:text-layer-remaining",
   },
 ];
 

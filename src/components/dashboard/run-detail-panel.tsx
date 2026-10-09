@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 
+import { EASE_OUT } from "@/lib/motion/easing";
 import { panelMotion, PANEL_LAYOUT_TRANSITION, type PanelMotionMode } from "@/lib/motion/panel-motion";
 import type { RunFeatureProperties } from "@/lib/runs/run-geojson";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,7 @@ export function RunDetailPanel({ run, onClose, motionMode = "sheet", className }
             aria-label={`${run.name} details`}
             {...motionProps}
             transition={{ ...transition, layout: PANEL_LAYOUT_TRANSITION }}
-            className="glass-panel pointer-events-auto transform-gpu rounded-xl p-5"
+            className="glass-panel pointer-events-auto transform-gpu rounded-xl p-4"
           >
             {/* Crossfades content when a different trace is clicked while the panel stays open,
                 while `layout` above springs the panel to its new height (e.g. a longer run name). */}
@@ -49,7 +50,7 @@ export function RunDetailPanel({ run, onClose, motionMode = "sheet", className }
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
+                transition={{ duration: 0.15, ease: EASE_OUT }}
               >
                 <RunDetailView run={run} onClose={onClose} />
               </motion.div>
